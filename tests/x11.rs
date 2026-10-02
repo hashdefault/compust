@@ -2,6 +2,10 @@
 mod client_lifecycle;
 #[path = "cases/compat.rs"]
 mod compat;
+#[path = "cases/properties.rs"]
+mod properties;
+#[path = "cases/stability.rs"]
+mod stability;
 mod support;
 use anyhow::Result;
 use support::Desktop;

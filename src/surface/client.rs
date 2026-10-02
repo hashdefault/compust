@@ -1,10 +1,9 @@
 use anyhow::Result;
 use x11rb::{
-    NONE,
     errors::ReplyError,
     protocol::{
         ErrorKind,
-        xproto::{Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt, EventMask, Window},
+        xproto::{Atom, ChangeWindowAttributesAux, ConnectionExt, EventMask, Window},
     },
     rust_connection::RustConnection,
 };
@@ -30,9 +29,13 @@ impl ClientTree {
                 )?
                 .check()?;
                 let property = conn
-                    .get_property(false, window, state, AtomEnum::ANY, 0, 0)?
+                    .get_property(false, window, state, state, 0, 2)?
                     .reply()?;
-                if property.type_ != NONE {
+                if property.type_ == state
+                    && property.format == 32
+                    && property.value_len == 2
+                    && property.bytes_after == 0
+                {
                     return Ok(true);
                 }
                 if depth < 8 {

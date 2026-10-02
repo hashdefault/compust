@@ -10,17 +10,62 @@ O repositório contém um compositor executável com composição XRender, trans
 
 Esse marco cria uma base para experimentação. Ele não comprova compatibilidade completa com ambientes gráficos nem desempenho em hardware real.
 
-## Em andamento: correção em ambientes reais
+## Primeira beta: quatro etapas
+
+A primeira beta usará o backend XRender atual e declarará suporte somente aos ambientes com evidências registradas de teste. Ela será voltada a testes controlados da comunidade. A versão 0.1.0 continua sendo um protótipo experimental; definir estes critérios não a transforma em uma versão beta.
+
+| Etapa | Estado | Resultado necessário |
+| --- | --- | --- |
+| 1. Estabilidade das janelas | Em andamento | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
+| 2. Monitores e recursos | Pendente | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
+| 3. Desktops reais | Pendente | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
+| 4. Distribuição da beta | Pendente | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
+
+### 1. Estabilidade das janelas
+
+Exercitar sequências rápidas de map/unmap/destroy, fades interrompidos, janelas decoradas, menus override-redirect, entrada e saída de tela cheia, propriedades malformadas e destruição durante requisições do protocolo. Começar por regressões determinísticas de pixels no Xvfb; registrar o comportamento de gerenciadores reais na etapa 3.
+
+**Aceitação:** cada defeito reproduzido possui uma regressão que falha sem a correção; os cenários cobertos preservam os pixels corretos e mantêm o compositor em execução; suíte completa, formatação, Clippy e build de release passam. Os cenários restantes continuam explicitamente abertos até serem exercitados. O acompanhamento entre cliente e moldura, a validação de propriedades e um primeiro conjunto de sequências rápidas estão cobertos abaixo. Fades interrompidos em servidor real, formatos extremos ou fora da tela e uma cobertura maior de corridas com destruição continuam abertos nesta etapa.
+
+### 2. Monitores e recursos
+
+Testar mudanças de resolução via RandR e hotplug físico, recuperação das falhas de apresentação previstas e redimensionamentos repetidos com contagem de recursos do servidor X. Registrar a configuração e a disposição dos monitores utilizadas.
+
+**Aceitação:** a imagem se recupera após cada transição coberta, a apresentação continua e as operações repetidas não provocam crescimento indefinido de memória ou recursos do servidor.
+
+### 3. Desktops reais
+
+Executar cenários documentados com gerenciadores de janelas reais em Xorg e XLibre. Registrar servidor, gerenciador, GPU/driver, configuração e commit exato. Medir CPU ociosa e em atividade, memória e regularidade dos quadros; corrigir falhas nos ambientes propostos para suporte na beta.
+
+**Aceitação:** publicar uma matriz de compatibilidade com evidências para cada ambiente anunciado, uma referência reproduzível de medições e as limitações restantes. Combinações de servidor e driver ainda não testadas permanecem sem validação.
+
+### 4. Distribuição da beta
+
+Publicar uma prévia beta versionada com instruções de compilação ou instalação do binário, exemplos de configuração, orientações de início e encerramento, checksums dos artefatos distribuídos, limitações conhecidas e um modelo de relato com diagnóstico e passos de reprodução.
+
+**Aceitação:** uma pessoa consegue instalar e executar a versão exata, retornar ao compositor anterior e relatar uma falha seguindo as instruções fornecidas. O CI passa para o commit da versão, e as três etapas anteriores estão aprovadas dentro do escopo de suporte declarado.
+
+Ainda não há data para a beta. São quatro critérios de liberação, não uma quantidade fixa de commits. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta.
+
+## Progresso e verificação
 
 ### Ciclo de vida de clientes e molduras: implementado
 
 A associação do cliente agora acompanha criação tardia e remoção de `WM_STATE`, novos descendentes dentro de uma moldura existente, mudanças de parentesco entre molduras visíveis e a raiz, além da destruição do cliente. A opacidade da moldura mantém precedência. Um evento de opacidade pendente para um cliente já destruído não faz mais a moldura sobrevivente desaparecer.
 
-Cinco testes de regressão de pixels em [client_lifecycle.rs](../tests/cases/client_lifecycle.rs) exercitam essas transições com o binário real do compositor. Os quatro cenários de ciclo de vida falharam antes da correção; desativar o novo tratamento de propriedades e a recuperação de `BadWindow` restrita ao cliente também reproduziu a opacidade desatualizada e o desaparecimento da moldura. A suíte completa agora contém 23 testes: cinco unitários, três de CLI e quinze de integração X11.
+Cinco testes de regressão de pixels em [client_lifecycle.rs](../tests/cases/client_lifecycle.rs) exercitam essas transições com o binário real do compositor. Os quatro cenários de ciclo de vida falharam antes da correção; desativar o novo tratamento de propriedades e a recuperação de `BadWindow` restrita ao cliente também reproduziu a opacidade desatualizada e o desaparecimento da moldura.
+
+### Etapa 1 iniciada: validação de propriedades e sequências rápidas
+
+`WM_STATE` agora exige o tipo declarado, formato de 32 bits e exatamente dois valores. A opacidade da janela exige um único `CARDINAL` de 32 bits. Propriedades vazias, truncadas, com valores excedentes ou tipo/formato incorreto são ignoradas; a opacidade inválida da moldura dá lugar à opacidade válida do cliente. Cinco regressões em [properties.rs](../tests/cases/properties.rs) falharam antes da correção e agora passam, incluindo a recuperação após substituir o estado malformado do cliente por dados válidos.
+
+Quatro cenários adicionais em [stability.rs](../tests/cases/stability.rs) passam: 32 ciclos de map/unmap enfileirados seguidos de remapeamento em outra posição, destruição com eventos de opacidade/configuração/formato pendentes, remoção de um popup override-redirect e expansão/restauração de geometria do tamanho da tela. Eles verificam os pixels renderizados e que o compositor continua em execução. A cobertura de tela cheia aqui altera diretamente a geometria da janela em uma tela fixa do Xvfb; o comportamento de gerenciadores reais pertence à etapa 3, e a reconfiguração de monitores à etapa 2.
+
+A suíte completa agora contém 32 testes: cinco unitários, três de CLI e vinte e quatro de integração X11. A etapa 1 continua em andamento; este conjunto não encerra todos os seus cenários de aceitação.
 
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
-| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Cinco regressões de ciclo de vida de clientes e molduras; suíte completa aprovada | Registro de 2026-10-02, `fade_ms = 0`, `blur_radius = 0` e vsync padrão nos casos de ciclo de vida. Os testes criam as hierarquias diretamente; não validam um gerenciador de janelas real nem uma GPU. |
+| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Associação entre cliente e moldura, propriedades malformadas e sequências rápidas; todos os 32 testes passam | Registro de 2026-10-02, `fade_ms = 0`, `blur_radius = 0` e vsync padrão nestes casos. Os testes criam as hierarquias diretamente; não validam um gerenciador de janelas real nem uma GPU. |
 | Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
 
@@ -29,6 +74,8 @@ Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb in
 ```sh
 git rev-parse HEAD
 cargo test --locked --test x11 client_lifecycle
+cargo test --locked --test x11 properties
+cargo test --locked --test x11 stability
 ```
 
 Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.

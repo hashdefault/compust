@@ -28,6 +28,8 @@ Aplicativo desenha em uma janela redirecionada
 
 Um descendente que desaparece durante a descoberta é ignorado somente no caso de `BadWindow`. Se o cliente selecionado desaparecer antes da leitura de opacidade, a moldura sobrevivente usa sua própria opacidade ou o padrão opaco; os eventos seguintes de ciclo de vida atualizam a associação. Perder um cliente não deve encerrar a superfície da moldura. Trata-se de suporte limitado às convenções dos gerenciadores de janelas, não de uma implementação completa de EWMH/ICCCM.
 
+As leituras de propriedades validam a representação no protocolo antes de usar os dados dos aplicativos. `WM_STATE` deve ter tipo `WM_STATE`, formato 32 e exatamente dois valores. `_NET_WM_WINDOW_OPACITY` deve conter um único `CARDINAL` de 32 bits, sem dados excedentes na propriedade. Valores inválidos são tratados como ausentes, inclusive permitindo usar a opacidade válida do cliente quando a da moldura está malformada. Erros normais de requisições X continuam seguindo os tratamentos existentes.
+
 ## Renderização e agendamento
 
 O renderizador desenha o papel de parede em um buffer reutilizável com a profundidade da raiz, compõe as janelas de baixo para cima e aplica uma máscara A8 para a opacidade efetiva. O alfa por pixel permanece na imagem de origem. Os retângulos de Shape recortam tanto a janela quanto o desfoque. O módulo de desfoque usa duas convoluções unidimensionais de caixa, com soma exata de coeficientes em ponto fixo igual a 65536.

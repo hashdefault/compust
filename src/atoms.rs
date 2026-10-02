@@ -33,5 +33,12 @@ pub(crate) fn cardinal(conn: &RustConnection, window: Window, atom: Atom) -> Res
     let reply = conn
         .get_property(false, window, atom, AtomEnum::CARDINAL, 0, 1)?
         .reply()?;
+    if reply.type_ != u32::from(AtomEnum::CARDINAL)
+        || reply.format != 32
+        || reply.value_len != 1
+        || reply.bytes_after != 0
+    {
+        return Ok(None);
+    }
     Ok(reply.value32().and_then(|mut values| values.next()))
 }
