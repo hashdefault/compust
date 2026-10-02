@@ -2,6 +2,8 @@
 
 [English (US)](README.md) | [Português (Brasil)](README.pt-BR.md)
 
+[Project website and documentation](https://hashdefault.github.io/compust/)
+
 Compust is an experimental, standalone **X11 compositor written in Rust**, targeting Xorg and XLibre. Its goal is a small, understandable alternative to picom, with smooth animations, background blur, and transparency.
 
 A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.

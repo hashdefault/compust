@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Compust component showcase</title>
+  <link rel="stylesheet" href="/compust/assets/site.css">
+</head>
+<body>
+  <main class="page showcase">
+    <section class="stack">
+      <p class="eyebrow">Compust / component showcase</p>
+      <h1>A new layer for your X11 desktop.</h1>
+      <p class="muted">Warm paper, readable prose, precise terminal surfaces. Experimental, open source, written in Rust.</p>
+      <div class="cluster"><a class="button" href="#links">Read the docs <span aria-hidden="true">→</span></a><button class="button secondary">Secondary action</button><a class="text-link" href="#links">View on GitHub ↗</a></div>
+    </section>
+    <section id="links" class="link-grid"><a class="link-row" href="#terminal"><div><h3>Getting started</h3><p>Build Compust and try it in an isolated X11 session.</p></div><span aria-hidden="true">↗</span></a><a class="link-row" href="#terminal"><div><h3>Primeiros passos</h3><p>Compile o Compust e experimente em uma sessão X11 isolada.</p></div><span aria-hidden="true">↗</span></a></section>
+    <section id="terminal" class="prose"><h2>Commands and tables</h2><pre tabindex="0" aria-label="Example command"><code>cargo build --release --locked
+./target/release/compust --diagnose</code></pre><div class="table-scroll" tabindex="0" role="region" aria-label="Capabilities"><table><thead><tr><th>Extension</th><th>Status</th></tr></thead><tbody><tr><td>Composite</td><td>Required</td></tr><tr><td>Present</td><td>Optional copy presentation</td></tr></tbody></table></div></section>
+    <section class="demo-controls" aria-label="Control states"><button aria-pressed="true">Blur</button><button aria-pressed="false">Transparency</button><button aria-pressed="true">Window</button></section>
+  </main>
+</body>
+</html>

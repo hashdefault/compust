@@ -44,3 +44,7 @@ COMPUST_ARTIFACTS=artifacts cargo test --test x11
 ```
 
 The project uses the [MIT license](LICENSE). Contributions should be compatible with it; identify any third-party code and its license. Naming picom as inspiration does not authorize copying source under incompatible terms.
+
+## Contribute to the website
+
+The [project site](https://hashdefault.github.io/compust/) publishes these Markdown guides in both languages. Edit their source files to update the published documentation. For the home page, styles, build commands, and GitHub Pages deployment, see the [website contributor guide](site/README.md).
