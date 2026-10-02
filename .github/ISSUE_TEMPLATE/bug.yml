@@ -1,0 +1,28 @@
+name: Bug report / Relatar falha
+description: Reproduce an X11 or rendering problem / Reproduza um problema de X11 ou renderização
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / Ambiente
+      description: Commit, distribution, Xorg or XLibre version, window manager, GPU, driver, and monitor setup.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction / Como reproduzir
+      description: Smallest steps and relevant configuration / Passos mínimos e configuração relevante.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior / Comportamento esperado e observado
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / Diagnóstico
+      description: Output of compust --diagnose, relevant logs, and optional screenshots. Remove private information.

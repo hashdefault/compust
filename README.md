@@ -1,0 +1,108 @@
+# Compust
+
+[English (US)](README.md) | [Português (Brasil)](README.pt-BR.md)
+
+Compust is an experimental, standalone **X11 compositor written in Rust**, targeting Xorg and XLibre. Its goal is a small, understandable alternative to picom, with smooth animations, background blur, and transparency.
+
+A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.
+
+**Status: working prototype, version 0.1.0.** The current backend uses XRender and has automated pixel tests on Xvfb. Xorg and XLibre hardware sessions still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. See the [roadmap](docs/ROADMAP.md) for the work required to get there.
+
+## What works today
+
+Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them with a separable box filter.
+
+Compust tracks window stacking, movement, resizing, bounding shapes, redraws, and root wallpaper pixmaps. It retains named pixmaps during closing animations. The overlay has an empty input region so clicks reach the applications below it. An existing compositor is never replaced automatically.
+
+| Extension or convention | Current behavior |
+| --- | --- |
+| Composite 0.4+ | Required: manual redirection, named window pixmaps, overlay |
+| Damage 1.0+ | Required: redraw notifications; no continuous repaint on an idle desktop |
+| Render 0.11+ | Required: composition, alpha masks, convolution when available |
+| XFixes 2.0+ and Shape 1.1+ | Required: input-transparent overlay and shaped windows |
+| Present | Optional: copy presentation, waiting for completion and buffer-idle events |
+| RandR | Optional: screen-change subscription and buffer recreation; hardware hotplug needs testing |
+| EWMH / ICCCM | Compositor selection, manager announcement, opacity, and client discovery through `WM_STATE` |
+| Root wallpaper | `_XROOTPMAP_ID`, then `ESETROOT_PMAP_ID`; dark fallback when neither is usable |
+| DRI3 / Sync | Version diagnostics only; no DMA-BUF import or explicit-sync rendering backend |
+
+“Modern X11 support” is an incremental compatibility goal, not a promise to implement every extension. Present availability does not establish tear-free behavior on every driver. The XRender fallback is not synchronized to vblank.
+
+## Build and run
+
+You need Linux, Rust 1.95.0 (the toolchain file selects it), Cargo, a C linker, and an X server with the required extensions. With a rustup installation, make sure `~/.cargo/bin` is in your `PATH`. The X11 connection uses `x11rb`'s Rust implementation; Compust does not require Xlib development headers.
+
+```sh
+git clone https://github.com/hashdefault/compust.git
+cd compust
+cargo build --release --locked
+./target/release/compust --help
+./target/release/compust --diagnose
+./target/release/compust --config compust.example.toml
+```
+
+Run it from your X11 session after stopping the compositor already serving that screen. `--diagnose` only inspects extensions and can run while another compositor is active. Use `--display :1` to select a different server; otherwise `DISPLAY` and the usual Xauthority authentication are used. Stop with Ctrl+C or SIGTERM. Compust does not install autostart entries or modify your desktop configuration.
+
+For isolated manual experiments, start a nested server, then run Compust and an X11 application on that display:
+
+```sh
+Xephyr :99 -screen 1280x720 -ac -nolisten tcp &
+DISPLAY=:99 ./target/release/compust --config compust.example.toml
+# In another terminal:
+DISPLAY=:99 xterm
+```
+
+Choose an unused display number. This example disables X authentication only for the local test server; it does not expose a TCP listener. Xephyr and xterm are separate packages. The automated test suite uses Xvfb and allocates display numbers automatically.
+
+## Configuration
+
+The example is a complete configuration. Without `--config`, built-in defaults apply; there is currently no implicit configuration-file search or live reload. Unknown fields and out-of-range values produce an error before connecting to X11.
+
+```toml
+opacity = 100
+fade_ms = 180
+blur_radius = 4
+max_fps = 120
+vsync = true
+```
+
+| Setting | Meaning |
+| --- | --- |
+| `opacity` | Global opacity percentage, 0–100, multiplied by application opacity |
+| `fade_ms` | Opening/closing duration in milliseconds, 0–65535; zero disables fades |
+| `blur_radius` | Box-filter radius, 0–16; zero disables blur |
+| `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
+| `vsync` | Use Present if available; `false` selects direct XRender copying |
+
+Blur applies behind translucent or ARGB windows. If the server has no convolution filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown signals.
+
+```sh
+./target/release/compust --check-config --config compust.example.toml
+RUST_LOG=compust=debug ./target/release/compust
+```
+
+## Testing and contributing
+
+Install Xvfb (`xvfb` on Debian/Ubuntu, `xorg-server-xvfb` on Arch), then run:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked
+```
+
+Each integration scenario starts its own Xvfb and a real Compust process. Tests observe rendered pixels and protocol behavior rather than mocking the server. Set `XVFB=/path/to/Xvfb` to use a nonstandard binary. `COMPUST_ARTIFACTS=artifacts cargo test --test x11` saves selected scenes as PPM images for inspection.
+
+Contributions in **English or Brazilian Portuguese** are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), the [architecture](docs/ARCHITECTURE.md), or the [roadmap](docs/ROADMAP.md). Driver reports, reproducible failures, documentation, and performance measurements are useful contributions too.
+
+## Current limits
+
+This prototype repaints the full screen when damaged. Blur performs full-screen intermediate work for each translucent window; it can be expensive. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
+
+One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, physical hotplug, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Native Wayland support is outside the current scope.
+
+## Background and license
+
+The project is inspired by the standalone compositor model of [picom](https://github.com/yshui/picom), whose lineage includes Compton. Picom already provides animations and effects; Compust's intended contribution is an approachable Rust implementation with measured improvements over time. This repository is a new implementation, not a port of picom's source code.
+
+Protocol references: [x11rb](https://docs.rs/x11rb/0.13.2/x11rb/), [EWMH compositing managers](https://specifications.freedesktop.org/wm/latest/ar01s08.html), and [XLibre](https://github.com/X11Libre/xserver). Licensed under [MIT](LICENSE).

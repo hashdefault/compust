@@ -1,0 +1,21 @@
+name: Feature proposal / Propor recurso
+description: Discuss a bounded improvement / Discuta uma melhoria delimitada
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case / Problema ou caso de uso
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior / Comportamento proposto
+      description: Include relevant X11 protocols and tradeoffs / Inclua protocolos X11 relevantes e compromissos.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: How to verify it / Como verificar
+      description: A test scenario or measurable result / Um cenário de teste ou resultado mensurável.

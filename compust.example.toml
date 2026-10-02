@@ -1,0 +1,10 @@
+# Percent opacity, 0..100. Application _NET_WM_WINDOW_OPACITY is multiplied by this.
+opacity = 100
+# Fade in/out duration. Zero disables animations.
+fade_ms = 180
+# Separable box blur radius, 0..16. Zero disables blur.
+blur_radius = 4
+# Maximum repaint rate; idle desktops do not repaint.
+max_fps = 120
+# Use Present when supported; the XRender fallback is not synchronized to vblank.
+vsync = true

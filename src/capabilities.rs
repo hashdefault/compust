@@ -1,0 +1,128 @@
+use anyhow::{Result, ensure};
+use std::io::Write;
+use x11rb::{
+    connection::RequestConnection,
+    protocol::{composite, damage, dri3, present, randr, render, shape, sync, xfixes},
+    rust_connection::RustConnection,
+};
+
+#[derive(Debug)]
+pub(crate) struct Capabilities {
+    versions: Vec<(&'static str, Option<(u32, u32)>)>,
+    pub(crate) present: bool,
+    pub(crate) randr: bool,
+    pub(crate) convolution: bool,
+}
+
+impl Capabilities {
+    pub(crate) fn query(conn: &RustConnection, root: u32) -> Result<Self> {
+        let mut versions = Vec::new();
+        for name in [
+            "Composite",
+            "DAMAGE",
+            "RENDER",
+            "XFIXES",
+            "SHAPE",
+            "RANDR",
+            "Present",
+            "DRI3",
+            "SYNC",
+        ] {
+            let version = if conn.extension_information(name)?.is_some() {
+                Some(match name {
+                    "Composite" => {
+                        let v = composite::query_version(conn, 0, 4)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "DAMAGE" => {
+                        let v = damage::query_version(conn, 1, 1)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "RENDER" => {
+                        let v = render::query_version(conn, 0, 11)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "XFIXES" => {
+                        let v = xfixes::query_version(conn, 5, 0)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "SHAPE" => {
+                        let v = shape::query_version(conn)?.reply()?;
+                        (u32::from(v.major_version), u32::from(v.minor_version))
+                    }
+                    "RANDR" => {
+                        let v = randr::query_version(conn, 1, 5)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "Present" => {
+                        let v = present::query_version(conn, 1, 2)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    "DRI3" => {
+                        let v = dri3::query_version(conn, 1, 2)?.reply()?;
+                        (v.major_version, v.minor_version)
+                    }
+                    _ => {
+                        let v = sync::initialize(conn, 3, 1)?.reply()?;
+                        (u32::from(v.major_version), u32::from(v.minor_version))
+                    }
+                })
+            } else {
+                None
+            };
+            versions.push((name, version));
+        }
+        let has = |name| versions.iter().any(|(n, v)| *n == name && v.is_some());
+        let convolution = if has("RENDER") {
+            render::query_filters(conn, root)?
+                .reply()?
+                .filters
+                .iter()
+                .any(|f| f.name == b"convolution")
+        } else {
+            false
+        };
+        Ok(Self {
+            present: has("Present"),
+            randr: has("RANDR"),
+            convolution,
+            versions,
+        })
+    }
+
+    pub(crate) fn require_baseline(&self) -> Result<()> {
+        for (name, minimum) in [
+            ("Composite", (0, 4)),
+            ("DAMAGE", (1, 0)),
+            ("RENDER", (0, 11)),
+            ("XFIXES", (2, 0)),
+            ("SHAPE", (1, 1)),
+        ] {
+            ensure!(
+                self.versions
+                    .iter()
+                    .any(|(n, v)| *n == name && v.is_some_and(|v| v >= minimum)),
+                "server requires {name} {}.{} or newer",
+                minimum.0,
+                minimum.1
+            );
+        }
+        Ok(())
+    }
+
+    pub(crate) fn report(&self) -> Result<()> {
+        let mut out = std::io::stdout().lock();
+        for (name, version) in &self.versions {
+            match version {
+                Some((major, minor)) => writeln!(out, "{name}: {major}.{minor}")?,
+                None => writeln!(out, "{name}: unavailable")?,
+            }
+        }
+        writeln!(out, "XRender convolution blur: {}", self.convolution)?;
+        writeln!(
+            out,
+            "DRI3 and Sync are diagnostic probes only; no DMA-BUF import or explicit synchronization backend."
+        )?;
+        Ok(())
+    }
+}
