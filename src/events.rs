@@ -16,6 +16,7 @@ use x11rb::{
 impl Compositor {
     pub(crate) fn handle(&mut self, event: Event) -> Result<()> {
         match event {
+            Event::CreateNotify(event) => self.clients_changed(&[event.parent])?,
             Event::MapNotify(event)
                 if event.event == self.session.screen.root
                     && event.window != self.session.owner
@@ -39,6 +40,7 @@ impl Compositor {
             }
             Event::DestroyNotify(event) => {
                 self.scene.close(event.window);
+                self.clients_changed(&[event.event, event.window])?;
                 self.dirty = true;
             }
             Event::ReparentNotify(event) => {
@@ -55,6 +57,8 @@ impl Compositor {
                 } else {
                     self.scene.close(event.window);
                 }
+                self.clients_changed(&[event.event, event.parent, event.window])?;
+                self.scene.restack(&self.session)?;
                 self.dirty = true;
             }
             Event::ConfigureNotify(event) => {
@@ -136,12 +140,14 @@ impl Compositor {
             self.renderer.refresh_wallpaper(&self.session)?;
             self.dirty = true;
         }
-        if event.atom == self.session.atoms.opacity {
+        if event.atom == self.session.atoms.wm_state {
+            self.clients_changed(&[event.window])?;
+        } else if event.atom == self.session.atoms.opacity {
             for surface in self
                 .scene
                 .windows
                 .iter_mut()
-                .filter(|s| s.mapped && (s.window == event.window || s.client == event.window))
+                .filter(|s| s.mapped && s.watches(event.window))
             {
                 match surface.refresh_opacity(&self.session.atoms) {
                     Ok(()) => (),
@@ -150,6 +156,23 @@ impl Compositor {
                     }
                     Err(error) => return Err(error),
                 }
+            }
+            self.dirty = true;
+        }
+        Ok(())
+    }
+
+    fn clients_changed(&mut self, windows: &[Window]) -> Result<()> {
+        for surface in self
+            .scene
+            .windows
+            .iter_mut()
+            .filter(|s| s.mapped && windows.iter().any(|window| s.watches(*window)))
+        {
+            match surface.refresh_client(&self.session.atoms) {
+                Ok(()) => (),
+                Err(error) if vanished(&error) => surface.close(std::time::Instant::now()),
+                Err(error) => return Err(error),
             }
             self.dirty = true;
         }

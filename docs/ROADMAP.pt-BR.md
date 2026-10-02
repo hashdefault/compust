@@ -10,11 +10,34 @@ O repositório contém um compositor executável com composição XRender, trans
 
 Esse marco cria uma base para experimentação. Ele não comprova compatibilidade completa com ambientes gráficos nem desempenho em hardware real.
 
-## Próxima etapa: correção em ambientes reais
+## Em andamento: correção em ambientes reais
+
+### Ciclo de vida de clientes e molduras: implementado
+
+A associação do cliente agora acompanha criação tardia e remoção de `WM_STATE`, novos descendentes dentro de uma moldura existente, mudanças de parentesco entre molduras visíveis e a raiz, além da destruição do cliente. A opacidade da moldura mantém precedência. Um evento de opacidade pendente para um cliente já destruído não faz mais a moldura sobrevivente desaparecer.
+
+Cinco testes de regressão de pixels em [client_lifecycle.rs](../tests/cases/client_lifecycle.rs) exercitam essas transições com o binário real do compositor. Os quatro cenários de ciclo de vida falharam antes da correção; desativar o novo tratamento de propriedades e a recuperação de `BadWindow` restrita ao cliente também reproduziu a opacidade desatualizada e o desaparecimento da moldura. A suíte completa agora contém 23 testes: cinco unitários, três de CLI e quinze de integração X11.
+
+| Ambiente | Cobertura verificada | Evidência / limites |
+| --- | --- | --- |
+| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Cinco regressões de ciclo de vida de clientes e molduras; suíte completa aprovada | Registro de 2026-10-02, `fade_ms = 0`, `blur_radius = 0` e vsync padrão nos casos de ciclo de vida. Os testes criam as hierarquias diretamente; não validam um gerenciador de janelas real nem uma GPU. |
+| Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
+| XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
+
+Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb instalado. As [execuções de CI](https://github.com/hashdefault/compust/actions/workflows/ci.yml) registram resultados para cada commit exato; inclua a revisão exibida abaixo nos relatos locais.
+
+```sh
+git rev-parse HEAD
+cargo test --locked --test x11 client_lifecycle
+```
+
+Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
+
+### Critérios ainda pendentes
 
 Teste Xorg e XLibre com gerenciadores de janelas reais e drivers Intel, AMD e NVIDIA. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
-Acrescente cobertura de redimensionamento RandR e hotplug reais, recuperação de falhas de apresentação e contagem de recursos durante redimensionamentos repetidos. Verifique criação tardia de `WM_STATE`, formatos grandes ou fora da tela e propriedades malformadas. Requisições podem coincidir com a destruição de uma janela; a correção deve tratar a corrida sem esconder outros erros do X.
+Acrescente cobertura de redimensionamento RandR e hotplug reais, recuperação de falhas de apresentação e contagem de recursos durante redimensionamentos repetidos. Verifique formatos grandes ou fora da tela e propriedades malformadas. Amplie a cobertura de corridas com destruição para além da descoberta do cliente e das leituras de opacidade, sem esconder outros erros do X.
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 

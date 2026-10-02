@@ -24,7 +24,9 @@ Aplicativo desenha em uma janela redirecionada
 
 `surface.rs` captura cada janela visível de nível superior em um pixmap nomeado. Damage é associado ao pixmap, que permanece válido até o término da animação de fechamento, mesmo que a janela original desapareça. `picture.rs` controla as imagens XRender e os pixmaps próprios; o encerramento da última conexão também libera recursos e redirecionamentos após falhas na inicialização.
 
-`scene.rs` mantém as superfícies na ordem de empilhamento do servidor. `events.rs` atualiza geometria, tempo de vida, formato e opacidade. O cliente é descoberto por `WM_STATE` em até oito níveis de descendentes; a propriedade de opacidade da moldura tem precedência quando existe. Trata-se de suporte limitado às convenções dos gerenciadores de janelas, não de uma implementação completa de EWMH/ICCCM.
+`scene.rs` mantém as superfícies na ordem de empilhamento do servidor. `events.rs` atualiza geometria, tempo de vida, formato e opacidade. `surface/client.rs` descobre o aplicativo por `WM_STATE` em até oito níveis de descendentes. Cada janela visitada recebe uma assinatura de eventos de propriedade e de janelas filhas antes da leitura de seu estado. A criação tardia ou remoção de `WM_STATE`, a criação de filhos, as mudanças de parentesco e a destruição atualizam a associação e a opacidade da moldura afetada. A propriedade de opacidade da moldura tem precedência quando existe.
+
+Um descendente que desaparece durante a descoberta é ignorado somente no caso de `BadWindow`. Se o cliente selecionado desaparecer antes da leitura de opacidade, a moldura sobrevivente usa sua própria opacidade ou o padrão opaco; os eventos seguintes de ciclo de vida atualizam a associação. Perder um cliente não deve encerrar a superfície da moldura. Trata-se de suporte limitado às convenções dos gerenciadores de janelas, não de uma implementação completa de EWMH/ICCCM.
 
 ## Renderização e agendamento
 
@@ -43,6 +45,7 @@ Com Present, um único buffer é enviado no modo COPY e só volta a ser usado ap
 | Inicialização e configuração | `main.rs`, `config.rs` |
 | Propriedade e capacidades X11 | `session.rs`, `atoms.rs`, `capabilities.rs` |
 | Recursos capturados e tempo de vida | `picture.rs`, `surface.rs` |
+| Associação entre cliente e moldura | `surface/client.rs` |
 | Cena e eventos | `scene.rs`, `events.rs`, `compositor.rs` |
 | Efeitos e apresentação | `animation.rs`, `renderer.rs`, `renderer/{paint,blur,present,wallpaper}.rs` |
 | Verificação com servidor real | `tests/x11.rs`, `tests/cases/`, `tests/support/` |

@@ -24,7 +24,9 @@ Application draws into a redirected window
 
 `surface.rs` captures each viewable top-level window using a named pixmap. Damage is attached to the pixmap, which remains valid while the closing animation completes even if the original window disappears. `picture.rs` owns XRender pictures and owned pixmaps; closing the final connection also releases server resources and redirection after startup failures.
 
-`scene.rs` stores surfaces in server stacking order. `events.rs` updates their geometry, lifetime, shapes, and opacity. Client opacity is discovered using `WM_STATE` through at most eight descendant levels; the frame's opacity property takes precedence when present. This is deliberately limited support for window-manager conventions, not complete EWMH/ICCCM implementation.
+`scene.rs` stores surfaces in server stacking order. `events.rs` updates their geometry, lifetime, shapes, and opacity. `surface/client.rs` discovers the application using `WM_STATE` through at most eight descendant levels. It subscribes to property and child-window events on each visited window before inspecting its state. Late creation or removal of `WM_STATE`, child creation, reparenting, and destruction refresh the affected frame's client association and opacity. The frame's opacity property takes precedence when present.
+
+A descendant that disappears during discovery is skipped only for `BadWindow`. If the selected client disappears before its opacity can be read, the surviving frame uses its own opacity or the opaque default; subsequent lifecycle events refresh the association. Losing a client must not close the frame's surface. This is deliberately limited support for window-manager conventions, not complete EWMH/ICCCM implementation.
 
 ## Rendering and scheduling
 
@@ -43,6 +45,7 @@ With Present, a single output buffer is submitted in COPY mode and reused only a
 | Startup and configuration | `main.rs`, `config.rs` |
 | X11 ownership and capabilities | `session.rs`, `atoms.rs`, `capabilities.rs` |
 | Captured resources and lifetime | `picture.rs`, `surface.rs` |
+| Client/frame association | `surface/client.rs` |
 | Scene and events | `scene.rs`, `events.rs`, `compositor.rs` |
 | Effects and presentation | `animation.rs`, `renderer.rs`, `renderer/{paint,blur,present,wallpaper}.rs` |
 | Real-server verification | `tests/x11.rs`, `tests/cases/`, `tests/support/` |

@@ -1,3 +1,5 @@
+#[path = "cases/client_lifecycle.rs"]
+mod client_lifecycle;
 #[path = "cases/compat.rs"]
 mod compat;
 mod support;

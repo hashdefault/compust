@@ -1,3 +1,5 @@
+mod client;
+
 use crate::{
     animation::Fade,
     atoms::{Atoms, cardinal},
@@ -5,26 +7,23 @@ use crate::{
     picture::{Picture, Size},
 };
 use anyhow::{Context, Result};
+use client::{ClientTree, window_gone};
 use std::{rc::Rc, time::Instant};
 use x11rb::{
-    NONE,
     connection::Connection,
     protocol::{
         composite::ConnectionExt as _,
         damage::{ConnectionExt as _, ReportLevel},
         render::QueryPictFormatsReply,
         shape::{ConnectionExt as _, SK},
-        xproto::{
-            Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt, EventMask, GetGeometryReply,
-            MapState, Rectangle, Window, WindowClass,
-        },
+        xproto::{ConnectionExt, GetGeometryReply, MapState, Rectangle, Window, WindowClass},
     },
     rust_connection::RustConnection,
 };
 
 pub(crate) struct Surface {
     pub(crate) window: Window,
-    pub(crate) client: Window,
+    client_tree: ClientTree,
     pub(crate) picture: Picture,
     pub(crate) damage: u32,
     pub(crate) geometry: GetGeometryReply,
@@ -77,22 +76,14 @@ impl Surface {
             }
         };
         picture.pixmap = Some(pixmap);
-        let client = find_client(conn, window, context.atoms.wm_state)?.unwrap_or(window);
-        for watched in [window, client] {
-            conn.change_window_attributes(
-                watched,
-                &ChangeWindowAttributesAux::new()
-                    .event_mask(EventMask::PROPERTY_CHANGE | EventMask::SUBSTRUCTURE_NOTIFY),
-            )?
-            .check()?;
-        }
+        let client_tree = ClientTree::discover(conn, window, context.atoms.wm_state)?;
         conn.shape_select_input(window, true)?.check()?;
         let damage = conn.generate_id()?;
         conn.damage_create(damage, pixmap, ReportLevel::NON_EMPTY)?
             .check()?;
         let mut surface = Self {
             window,
-            client,
+            client_tree,
             picture,
             damage,
             size: Size {
@@ -145,12 +136,25 @@ impl Surface {
         Ok(())
     }
 
+    pub(crate) fn watches(&self, window: Window) -> bool {
+        self.client_tree.watched.contains(&window)
+    }
+
+    pub(crate) fn refresh_client(&mut self, atoms: &Atoms) -> Result<()> {
+        self.client_tree = ClientTree::discover(&self.conn, self.window, atoms.wm_state)?;
+        self.refresh_opacity(atoms)
+    }
+
     pub(crate) fn refresh_opacity(&mut self, atoms: &Atoms) -> Result<()> {
         let frame = cardinal(&self.conn, self.window, atoms.opacity)?;
         let opacity = match frame {
             Some(value) => value,
-            None if self.client != self.window => {
-                cardinal(&self.conn, self.client, atoms.opacity)?.unwrap_or(u32::MAX)
+            None if self.client_tree.client != self.window => {
+                match cardinal(&self.conn, self.client_tree.client, atoms.opacity) {
+                    Ok(value) => value.unwrap_or(u32::MAX),
+                    Err(error) if window_gone(&error) => u32::MAX,
+                    Err(error) => return Err(error),
+                }
             }
             None => u32::MAX,
         };
@@ -176,26 +180,4 @@ impl Drop for Surface {
             tracing::debug!(%error, "damage cleanup failed");
         }
     }
-}
-
-fn find_client(conn: &RustConnection, window: Window, state: Atom) -> Result<Option<Window>> {
-    let mut pending = vec![(window, 0_u8)];
-    while let Some((candidate, depth)) = pending.pop() {
-        let property = conn
-            .get_property(false, candidate, state, AtomEnum::ANY, 0, 0)?
-            .reply()?;
-        if property.type_ != NONE {
-            return Ok(Some(candidate));
-        }
-        if depth < 8 {
-            pending.extend(
-                conn.query_tree(candidate)?
-                    .reply()?
-                    .children
-                    .into_iter()
-                    .map(|child| (child, depth.saturating_add(1))),
-            );
-        }
-    }
-    Ok(None)
 }
