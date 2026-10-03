@@ -1,0 +1,6 @@
+mesa 3:26.2.4-1
+libdrm 2.4.134-1.1
+xlibre-xserver 25.1.9-1
+xmonad 0.18.1-21
+xmonad-contrib 0.18.2-18
+linux-cachyos 7.2.8-2

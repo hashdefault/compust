@@ -23,14 +23,14 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | Render 0.11+ | Obrigatória: composição, máscaras de opacidade e convolução quando disponível |
 | XFixes 2.0+ e Shape 1.1+ | Obrigatórias: passagem de entrada e janelas com formatos não retangulares |
 | Present | Opcional: apresentação por cópia, aguardando conclusão e liberação do buffer |
-| RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug real ainda precisa de testes |
+| RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre |
 | EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade e descoberta do cliente por `WM_STATE` |
 | Papel de parede | `_XROOTPMAP_ID`, depois `ESETROOT_PMAP_ID`; fundo escuro quando nenhum é utilizável |
 | DRI3 / Sync | Apenas diagnóstico de versões; sem importação DMA-BUF nem backend com sincronização explícita |
 
 “Suporte moderno a X11” é um objetivo incremental de compatibilidade, não uma promessa de implementar todas as extensões. A disponibilidade de Present não comprova ausência de tearing em todos os drivers. A cópia direta com XRender não é sincronizada com o intervalo vertical do monitor.
 
-Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Os demais erros de protocolo mantêm seus tratamentos existentes.
+Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Após uma mudança RandR, o Compust recria seus buffers sem esperar por uma apresentação pendente, porque uma reconfiguração de monitores em hardware AMD descartou os eventos de conclusão dela. Os demais erros de protocolo mantêm seus tratamentos existentes.
 
 ## Compilar e executar
 
@@ -105,7 +105,7 @@ O protótipo redesenha a tela inteira quando recebe dano. Para cada janela trans
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 
-Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, hotplug físico, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. Wayland nativo está fora do escopo atual.
+Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. O hotplug físico foi verificado apenas no [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03). Wayland nativo está fora do escopo atual.
 
 ## Contexto e licença
 

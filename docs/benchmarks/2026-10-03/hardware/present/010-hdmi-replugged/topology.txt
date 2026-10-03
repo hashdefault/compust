@@ -1,0 +1,4 @@
+root=1920x1080
+output=HDMI-1 connection=CONNECTED primary=true crtc=none
+output=DP-1 connection=CONNECTED primary=false crtc=63 geometry=1920x1080+0+0 rotation=ROTATE0 mode=1920x1080@60.000Hz
+monitor=DP-1 primary=false automatic=true geometry=1920x1080+0+0 outputs=1

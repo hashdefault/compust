@@ -1,3 +1,5 @@
+#[path = "desktop/hotplug.rs"]
+mod hotplug;
 #[path = "desktop/metrics.rs"]
 mod metrics;
 #[path = "desktop/scenarios.rs"]
@@ -11,7 +13,7 @@ use metrics::{Process, Snapshot};
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 use surface::Surface;
@@ -36,6 +38,10 @@ struct Args {
     /// Expected compositor presentation path; direct copying has no Present timings.
     #[arg(long, value_enum, default_value_t = Presentation::Present)]
     presentation: Presentation,
+    /// Keep one marker window instead of running the desktop scenarios. Read
+    /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
+    #[arg(long)]
+    hotplug: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -54,28 +60,51 @@ fn main() -> Result<()> {
         surface.width,
         surface.height,
     );
+    let mut processes = args.process.clone();
+    processes.push(Process::probe());
+    if args.hotplug {
+        return hotplug::run(&surface, &args, &processes);
+    }
     let window = scenarios::exercise(&surface, &args.output)?;
     surface.subscribe()?;
-    let mut frames = BufWriter::new(File::create(args.output.join("frames.csv"))?);
+    measure(&surface, window, &args, &processes, &args.output)?;
+    surface.paint(window, 0x00ff_0000)?;
+    surface.until("final survivor pixels", || {
+        surface.window_has_color(window, 0x00ff_0000)
+    })?;
+    surface.screenshot(&args.output.join("final.ppm"))?;
+    println!(
+        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
+    );
+    Ok(())
+}
+
+/// Warm up, then record idle and active phases in `output`.
+fn measure(
+    surface: &Surface,
+    window: u32,
+    args: &Args,
+    processes: &[Process],
+    output: &Path,
+) -> Result<()> {
+    let mut frames = BufWriter::new(File::create(output.join("frames.csv"))?);
     writeln!(frames, "phase,serial,ust_us,msc,mode")?;
-    let mut cpu = BufWriter::new(File::create(args.output.join("processes.csv"))?);
+    let mut cpu = BufWriter::new(File::create(output.join("processes.csv"))?);
     writeln!(
         cpu,
         "phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib"
     )?;
-    let mut processes = args.process;
-    processes.push(Process::probe());
-    run_phase(&surface, window, Duration::from_secs(2), |_| Ok(()))?;
+    run_phase(surface, window, Duration::from_secs(2), |_| Ok(()))?;
     for (phase, active) in [("idle", false), ("active", true)] {
         while surface.poll_event()?.is_some() {}
-        let before = Snapshot::read(&processes)?;
+        let before = Snapshot::read(processes)?;
         let started = Instant::now();
         let mut count = 0_u32;
         let mut damage_events = 0_u32;
         let mut last_ust = None;
         let duration = Duration::from_secs(u64::from(args.seconds));
         let updates = run_phase(
-            &surface,
+            surface,
             if active { window } else { 0 },
             duration,
             |event| {
@@ -103,7 +132,7 @@ fn main() -> Result<()> {
             },
         )?;
         let elapsed = started.elapsed();
-        let after = Snapshot::read(&processes)?;
+        let after = Snapshot::read(processes)?;
         before.write_delta(&after, phase, elapsed, &mut cpu)?;
         match args.presentation {
             Presentation::Present => {
@@ -128,14 +157,6 @@ fn main() -> Result<()> {
     }
     frames.flush()?;
     cpu.flush()?;
-    surface.paint(window, 0x00ff_0000)?;
-    surface.until("final survivor pixels", || {
-        surface.window_has_color(window, 0x00ff_0000)
-    })?;
-    surface.screenshot(&args.output.join("final.ppm"))?;
-    println!(
-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
-    );
     Ok(())
 }
 

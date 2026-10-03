@@ -1,0 +1,53 @@
+diff -ru head-src/src/compositor.rs diag/src/compositor.rs
+--- head-src/src/compositor.rs	2026-10-03 10:29:25.000000000 -0300
++++ diag/src/compositor.rs	2026-10-03 11:12:41.011685997 -0300
+@@ -79,7 +79,9 @@
+             was_animating = animating;
+             if self.dirty && now >= next_frame && self.renderer.idle && self.renderer.complete {
+                 if self.resizing {
++                    tracing::debug!("DIAG recreating renderer");
+                     self.renderer = Renderer::new(&self.session, &self.config)?;
++                    tracing::debug!(size = ?self.renderer.size, "DIAG renderer recreated");
+                     self.resizing = false;
+                 }
+                 self.renderer
+@@ -87,6 +89,9 @@
+                 self.dirty = false;
+                 next_frame = Instant::now() + self.config.frame_interval();
+             }
++            if self.dirty && !(self.renderer.idle && self.renderer.complete) {
++                tracing::debug!(idle = self.renderer.idle, complete = self.renderer.complete, serial = self.renderer.serial, "DIAG dirty but waiting");
++            }
+             if budget_exhausted {
+                 continue;
+             }
+diff -ru head-src/src/events.rs diag/src/events.rs
+--- head-src/src/events.rs	2026-10-03 10:29:25.000000000 -0300
++++ diag/src/events.rs	2026-10-03 11:12:41.011620887 -0300
+@@ -15,6 +15,15 @@
+
+ impl Compositor {
+     pub(crate) fn handle(&mut self, event: Event) -> Result<()> {
++        match &event {
++            Event::PresentCompleteNotify(e) => tracing::debug!(serial = e.serial, current = self.renderer.serial, eid = e.event, mine = ?self.renderer.event_id, kind = ?e.kind, mode = ?e.mode, msc = e.msc, ust = e.ust, "DIAG complete"),
++            Event::PresentIdleNotify(e) => tracing::debug!(serial = e.serial, current = self.renderer.serial, eid = e.event, mine = ?self.renderer.event_id, pixmap = e.pixmap, "DIAG idle"),
++            Event::RandrScreenChangeNotify(e) => tracing::debug!(width = e.width, height = e.height, "DIAG randr screen change"),
++            Event::RandrNotify(e) => tracing::debug!(sub = ?e.sub_code, "DIAG randr notify"),
++            Event::ConfigureNotify(e) if e.window == self.session.screen.root => tracing::debug!(width = e.width, height = e.height, "DIAG root configure"),
++            Event::Error(e) => tracing::debug!(?e, "DIAG error"),
++            _ => {}
++        }
+         match event {
+             Event::CreateNotify(event) => self.clients_changed(&[event.parent])?,
+             Event::MapNotify(event)
+diff -ru head-src/src/renderer/present.rs diag/src/renderer/present.rs
+--- head-src/src/renderer/present.rs	2026-10-03 10:29:25.000000000 -0300
++++ diag/src/renderer/present.rs	2026-10-03 11:12:41.011728968 -0300
+@@ -45,6 +45,7 @@
+             )?);
+             self.idle = false;
+             self.complete = false;
++            tracing::trace!(serial = self.serial, width = self.size.width, height = self.size.height, "DIAG submit");
+         } else {
+             conn.render_composite(
+                 PictOp::SRC,

@@ -17,8 +17,8 @@ A primeira beta usará o backend XRender atual e declarará suporte somente aos 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
-| 2. Monitores e recursos | Verificações automatizadas concluídas; hotplug físico pendente | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
-| 3. Desktops reais | Medição aninhada com Xmonad registrada; hardware pendente | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
+| 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
+| 3. Desktops reais | Medição aninhada com Xmonad e uma sessão AMD/XLibre registradas; cenários em hardware pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
 | 4. Distribuição da beta | Pendente | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
@@ -33,7 +33,7 @@ Testar mudanças de resolução via RandR e hotplug físico, recuperação das f
 
 **Aceitação:** a imagem se recupera após cada transição coberta, a apresentação continua e as operações repetidas não provocam crescimento indefinido de memória ou recursos do servidor.
 
-Os cenários com Xvfb descritos abaixo passam. Hotplug físico e configurações com vários monitores continuam em aberto; desativar um CRTC virtual não comprova esses comportamentos.
+Os cenários com Xvfb descritos abaixo passam. Uma sessão XLibre nativa em hardware AMD também passou na desconexão e reconexão física dos dois conectores e em mudanças de modo e disposição com dois monitores, nos dois modos de apresentação. Outros drivers e servidores, taxas de atualização mistas e mais de dois monitores continuam sem verificação; desativar um CRTC virtual não comprova o comportamento físico.
 
 ### 3. Desktops reais
 
@@ -41,7 +41,7 @@ Executar cenários documentados com gerenciadores de janelas reais em Xorg e XLi
 
 **Aceitação:** publicar uma matriz de compatibilidade com evidências para cada ambiente anunciado, uma referência reproduzível de medições e as limitações restantes. Combinações de servidor e driver ainda não testadas permanecem sem validação.
 
-O [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md) documenta o script isolado, as medições e o procedimento em hardware. As execuções registradas de Xephyr/Xmonad iniciam esta etapa; elas não concluem os requisitos de drivers e monitores físicos.
+O [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md) documenta o script isolado, as medições e o procedimento em hardware. As execuções registradas de Xephyr/Xmonad iniciam esta etapa; elas não concluem os requisitos de drivers e monitores físicos. A sessão de monitores AMD/XLibre acrescenta medições de CPU, memória e ritmo Present em hardware para um ambiente. Os cenários de desktop ainda exigem uma sessão dedicada em hardware: ciclo de vida de janelas, menus, tela cheia e workspaces com aplicativos reais, além de fades e desfoque.
 
 ### 4. Distribuição da beta
 
@@ -91,9 +91,9 @@ Quatro testes de ciclo de vida em [resources.rs](../tests/cases/resources.rs) re
 
 Um quinto teste de recursos mantém referências adicionais aos pixmaps a partir de outro cliente. O total de alocação permanece igual, enquanto a atribuição anterior, dividida por referências, cai de 641.066 para 429.600 bytes. O teste usa `QueryResourceBytes` do XRes 1.2 e exige tamanhos para todos os pixmaps; `QueryClientPixmapBytes` não serve para comparações exatas de alocação enquanto as referências de Present variam. Os valores registrados de RSS do compositor no Linux permaneceram iguais ou aumentaram em uma página de 4 KiB. Esses testes finitos detectam crescimento nas cargas exercitadas; não estabelecem um limite geral de memória nem medem memória da GPU física.
 
-Três testes em [presentation.rs](../tests/cases/presentation.rs) cobrem envios rejeitados. Um proxy de teste substitui o pixmap em uma requisição Present por outro incompatível, produzindo um `BadMatch` do servidor real. Antes, o compositor encerrava. Agora ele identifica o envio exato, verifica se o buffer original e a saída ainda existem com tela e profundidade compatíveis e continua com XRender pelo restante da sessão, inclusive após redimensionar a raiz. Erros de pixmap ou janela inválidos continuam encerrando o compositor. Ausência de eventos de conclusão e outros erros de apresentação estão fora dessa política de recuperação.
+Três testes em [presentation.rs](../tests/cases/presentation.rs) cobrem envios rejeitados. Um proxy de teste substitui o pixmap em uma requisição Present por outro incompatível, produzindo um `BadMatch` do servidor real. Antes, o compositor encerrava. Agora ele identifica o envio exato, verifica se o buffer original e a saída ainda existem com tela e profundidade compatíveis e continua com XRender pelo restante da sessão, inclusive após redimensionar a raiz. Erros de pixmap ou janela inválidos continuam encerrando o compositor. Ausência de eventos de conclusão fora de reconfigurações de monitores, tratada abaixo, e outros erros de apresentação estão fora dessa política de recuperação.
 
-A suíte completa agora tem 59 testes aprovados: seis unitários, três de CLI e cinquenta de integração X11. Formatação, Clippy estrito, build de release e verificações da documentação passam. A etapa 2 continua aberta para hotplug físico, configurações com vários monitores e medições em hardware. A configuração automatizada usa uma saída virtual de 320×240, temporariamente 240×180, com `fade_ms = 0`, `blur_radius = 0` e cada modo de vsync.
+A suíte completa agora tem 59 testes aprovados: seis unitários, três de CLI e cinquenta de integração X11. Formatação, Clippy estrito, build de release e verificações da documentação passam. Hotplug físico, configurações com vários monitores e medições em hardware ainda estavam pendentes nesse ponto; veja a sessão em hardware abaixo. A configuração automatizada usa uma saída virtual de 320×240, temporariamente 240×180, com `fade_ms = 0`, `blur_radius = 0` e cada modo de vsync.
 
 ### Etapa 3 iniciada: Xmonad em Xorg e XLibre aninhados
 
@@ -103,14 +103,27 @@ O [script de desktop](../tools/desktop-check.sh) agora aceita `present` ou `dire
 
 As quatro combinações de servidor/caminho passaram na base `cb0796c8e42a95d3c80ab11c557b75809f791d43` mais as alterações arquivadas do probe/script. O [guia bilíngue de validação e as evidências brutas](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03) registram fases ociosa/ativa de dez segundos, CPU separada do compositor/servidor, RSS inalterado nos extremos, intervalos Present e dois testes negativos. Suíte completa de 59 testes, formatação, Clippy estrito e build de release passam. Isso conclui o incremento da medição isolada, não o requisito de hardware da etapa 3. Diagnósticos existentes do Xmonad e ambientes ainda não testados estão registrados no guia.
 
+### Etapa 2 em hardware: hotplug físico no XLibre com AMD
+
+Uma sessão nativa do XLibre 25.1.9 com o driver modesetting, o driver de kernel amdgpu, um AMD Ryzen 5 5600GT (gráficos Radeon Vega, Mesa 26.2.4) e Xmonad 0.18.1 executou o novo [script de transições de monitores](../tools/hotplug-check.sh). HDMI-1 (principal, à direita) e DP-1 (um adaptador DisplayPort para VGA, à esquerda) usaram 1920×1080 a 60 Hz. O [probe de desktop](../examples/desktop_probe.rs) mantém um único marcador override-redirect. Após cada transição, ele verifica atualizações perto de cantos opostos de cada monitor ativo e sobre cada borda compartilhada entre monitores; em seguida, registra a topologia RandR, fases ociosa e ativa de dez segundos e a contagem XRes do compositor.
+
+A primeira execução encontrou um defeito. Mudar o HDMI-1 para 1280×720 congelou a imagem no modo Present: uma reconfiguração de CRTC e o redimensionamento da raiz ocorreram com um envio pendente, e o servidor nunca enviou os eventos de conclusão e ociosidade correspondentes. O Compust aguardava esses eventos antes de recriar seus buffers. Uma [reprodução instrumentada](benchmarks/2026-10-03/hardware/stall/diagnosis/compust-debug.log) registrou a ausência dos eventos. Agora uma mudança RandR substitui o renderizador sem esperar, e um `ConfigureNotify` da raiz com o mesmo tamanho não cancela mais uma substituição solicitada antes no mesmo lote de eventos. Duas regressões em [presentation.rs](../tests/cases/presentation.rs) retêm os eventos de um envio com uma fence SYNC de espera que nunca é acionada. Ambas falhavam antes da correção; o caso de desligar e religar a saída também falhava apenas com a primeira mudança.
+
+Com a correção, os dois modos de apresentação passaram em quinze amostras: a referência inicial, o modo 1280×720 e sua restauração, uma disposição vertical de 1920×2160 e sua restauração, DP-1 desligado e religado e, para cada conector, desconexão física com o CRTC ainda atribuído, `xrandr --auto`, reconexão e restauração. Em 8.988 intervalos das fases ativas, o Present teve mediana e p95 de 16,667 ms e máximo de 16,670 ms. Com o marcador atualizado 60 vezes por segundo, o Compust usou 0,3–0,5% de um núcleo e o Xorg, 3,2–4,4%. Topologias repetidas apresentaram os mesmos bytes de pixmaps e as mesmas contagens de recursos, e o RSS do Compust ficou entre 3.760 e 3.896 KiB. Detalhes e evidências brutas estão no [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03).
+
+A suíte completa agora tem 61 testes aprovados: seis unitários, três de CLI e cinquenta e dois de integração X11. Formatação, Clippy estrito e build de release passam. Isso valida transições de monitores somente no ambiente registrado, com fades e desfoque desativados. Drivers Intel e NVIDIA, Xorg em hardware, taxas de atualização mistas, mais de dois monitores e os cenários de desktop da etapa 3 em hardware continuam em aberto.
+
+### Matriz de compatibilidade
+
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
 | Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos, destruição com eventos pendentes e onze pontos da captura; todos os 47 testes passam | Registro de 2026-10-02. Corridas de captura usam `fade_ms = 0`, `blur_radius = 0` e vsync padrão. Os casos anteriores de fades/formatos também usam `fade_ms = 1000`, `blur_radius = 4` ou `vsync = false`, conforme descrito acima. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
-| Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores ainda não foram verificados. |
+| Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores estão fora desta configuração virtual. |
 | Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
-| XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
+| XLibre com drivers Intel/NVIDIA ou outras configurações AMD | Pendente | Exige os mesmos registros de ambiente; uma sessão AMD não comprova outros drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, aninhado no Xvfb, 1280×800×24 | Cenários de desktop, CPU/RSS em ociosidade e atividade, Present e XRender direto, encerramento | Registro de 2026-10-03; fade/desfoque desativados. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03). Sem validação de monitor físico ou driver. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, mesma disposição virtual | Mesmos cenários e medições nos dois caminhos | Registro de 2026-10-03; mesma configuração e limitações. Resultados do servidor aninhado não validam uma sessão XLibre em hardware. |
+| XLibre 25.1.9 nativo, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP para VGA em 1920×1080 a 60 Hz | Mudanças de modo, disposição e saídas; desconexão e reconexão física dos dois conectores; Present e XRender direto; CPU, RSS, XRes e ritmo Present | Registro de 2026-10-03 com fade/desfoque desativados e os aplicativos do próprio desktop em execução. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03). O probe de cenários de desktop não foi executado em hardware. |
 
 Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb instalado. As [execuções de CI](https://github.com/hashdefault/compust/actions/workflows/ci.yml) registram resultados para cada commit exato; inclua a revisão exibida abaixo nos relatos locais.
 
@@ -134,7 +147,7 @@ Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
 
 Teste Xorg e XLibre com gerenciadores de janelas reais e drivers Intel, AMD e NVIDIA. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
-Exercite hotplug físico e configurações com vários monitores em hardware real, além de medir memória e apresentação em execuções mais longas. As transições RandR virtuais, a recuperação restrita de envios Present rejeitados e a contagem repetida via XRes acima estão concluídas. Preserve a cobertura de destruição entre requisições de captura, liberação de recursos, formatos grandes ou fora da tela e propriedades malformadas registrada acima.
+Repita o hotplug físico e as configurações com vários monitores com outros drivers e servidores, taxas de atualização mistas e mais de dois monitores, além de medir memória e apresentação em execuções mais longas. A sessão de monitores AMD/XLibre, as transições RandR virtuais, a recuperação de envios Present rejeitados ou não concluídos e a contagem repetida via XRes acima estão concluídas. Preserve a cobertura de destruição entre requisições de captura, liberação de recursos, formatos grandes ou fora da tela e propriedades malformadas registrada acima.
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 

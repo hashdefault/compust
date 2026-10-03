@@ -23,14 +23,14 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 | Render 0.11+ | Required: composition, alpha masks, convolution when available |
 | XFixes 2.0+ and Shape 1.1+ | Required: input-transparent overlay and shaped windows |
 | Present | Optional: copy presentation, waiting for completion and buffer-idle events |
-| RandR | Optional: screen-change subscription and buffer recreation; hardware hotplug needs testing |
+| RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop |
 | EWMH / ICCCM | Compositor selection, manager announcement, opacity, and client discovery through `WM_STATE` |
 | Root wallpaper | `_XROOTPMAP_ID`, then `ESETROOT_PMAP_ID`; dark fallback when neither is usable |
 | DRI3 / Sync | Version diagnostics only; no DMA-BUF import or explicit-sync rendering backend |
 
 “Modern X11 support” is an incremental compatibility goal, not a promise to implement every extension. Present availability does not establish tear-free behavior on every driver. The XRender fallback is not synchronized to vblank.
 
-If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. Other protocol errors retain their existing handling.
+If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. After a RandR change, Compust rebuilds its buffers without waiting for a pending presentation, because a monitor reconfiguration on AMD hardware discarded its completion events. Other protocol errors retain their existing handling.
 
 ## Build and run
 
@@ -105,7 +105,7 @@ This prototype repaints the full screen when damaged. Blur performs full-screen 
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 
-One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, physical hotplug, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Native Wayland support is outside the current scope.
+One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Physical hotplug is verified only on the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). Native Wayland support is outside the current scope.
 
 ## Background and license
 

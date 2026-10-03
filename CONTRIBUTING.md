@@ -31,7 +31,7 @@ Include the commit (`git rev-parse HEAD`), distribution, server and version, win
 
 For performance reports, include resolution, monitor refresh rates, window count, workload, blur radius, compositor configuration, and whether the CPU measurement includes the X server. XRender can move work into that process. Compare release builds on the same machine and workload, and record the picom version and backend when making comparisons.
 
-The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs isolated Xmonad scenarios with both Present and direct XRender, records process measurements, and describes the remaining hardware checks for the beta.
+The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs isolated Xmonad scenarios with both Present and direct XRender, samples physical monitor transitions on a dedicated hardware session, records process measurements, and describes the remaining hardware checks for the beta.
 
 ## Prepare a pull request
 

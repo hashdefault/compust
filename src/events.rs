@@ -63,7 +63,8 @@ impl Compositor {
             }
             Event::ConfigureNotify(event) => {
                 if event.window == self.session.screen.root {
-                    self.resizing = event.width != self.renderer.size.width
+                    // Keep a replacement already requested by a RandR change in this batch.
+                    self.resizing |= event.width != self.renderer.size.width
                         || event.height != self.renderer.size.height;
                 } else {
                     self.configure(event.window)?;

@@ -77,7 +77,7 @@ impl Compositor {
             let animating = self.scene.animate(now);
             self.dirty |= previous_count != self.scene.windows.len() || animating || was_animating;
             was_animating = animating;
-            if self.dirty && now >= next_frame && self.renderer.idle && self.renderer.complete {
+            if self.dirty && now >= next_frame && self.can_paint() {
                 if self.resizing {
                     self.renderer = Renderer::new(&self.session, &self.config)?;
                     self.resizing = false;
@@ -90,12 +90,11 @@ impl Compositor {
             if budget_exhausted {
                 continue;
             }
-            let timeout =
-                if (self.dirty || animating) && self.renderer.idle && self.renderer.complete {
-                    next_frame.saturating_duration_since(Instant::now())
-                } else {
-                    Duration::from_secs(1)
-                };
+            let timeout = if (self.dirty || animating) && self.can_paint() {
+                next_frame.saturating_duration_since(Instant::now())
+            } else {
+                Duration::from_secs(1)
+            };
             let timespec = Timespec::try_from(timeout)?;
             let mut fds = [PollFd::new(self.session.conn.stream(), PollFlags::IN)];
             match poll(&mut fds, Some(&timespec)) {
@@ -105,5 +104,12 @@ impl Compositor {
         }
         tracing::info!("compositor stopped");
         Ok(())
+    }
+
+    /// Present must release a buffer before it is painted again. A monitor reconfiguration can
+    /// discard a pending submission without completion or idle events; the replacement renderer
+    /// has its own buffers and event selection, so it does not wait for them.
+    fn can_paint(&self) -> bool {
+        self.resizing || (self.renderer.idle && self.renderer.complete)
     }
 }

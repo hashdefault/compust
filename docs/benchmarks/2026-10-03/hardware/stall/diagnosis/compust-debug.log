@@ -1,0 +1,980 @@
+2026-10-03T14:13:17.193330Z  INFO compositor started present=true windows=7
+2026-10-03T14:13:17.194598Z DEBUG DIAG dirty but waiting idle=false complete=false serial=1
+2026-10-03T14:13:17.195146Z DEBUG DIAG dirty but waiting idle=false complete=false serial=1
+2026-10-03T14:13:17.201577Z DEBUG DIAG idle serial=1 current=1 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.201594Z DEBUG DIAG complete serial=1 current=1 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263720 ust=4405466636
+2026-10-03T14:13:17.211449Z DEBUG DIAG dirty but waiting idle=false complete=false serial=2
+2026-10-03T14:13:17.218395Z DEBUG DIAG idle serial=2 current=2 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.218434Z DEBUG DIAG complete serial=2 current=2 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263721 ust=4405483303
+2026-10-03T14:13:17.226525Z DEBUG DIAG dirty but waiting idle=false complete=false serial=3
+2026-10-03T14:13:17.235030Z DEBUG DIAG idle serial=3 current=3 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.235061Z DEBUG DIAG complete serial=3 current=3 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263722 ust=4405499970
+2026-10-03T14:13:17.253145Z DEBUG DIAG dirty but waiting idle=false complete=false serial=4
+2026-10-03T14:13:17.253317Z DEBUG DIAG idle serial=4 current=4 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.253325Z DEBUG DIAG complete serial=4 current=4 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263723 ust=4405516637
+2026-10-03T14:13:17.265304Z DEBUG DIAG dirty but waiting idle=false complete=false serial=5
+2026-10-03T14:13:17.268011Z DEBUG DIAG idle serial=5 current=5 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.268018Z DEBUG DIAG complete serial=5 current=5 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263724 ust=4405533303
+2026-10-03T14:13:17.284767Z DEBUG DIAG idle serial=6 current=6 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.284776Z DEBUG DIAG complete serial=6 current=6 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263725 ust=4405549970
+2026-10-03T14:13:17.301414Z DEBUG DIAG idle serial=7 current=7 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.301428Z DEBUG DIAG complete serial=7 current=7 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263726 ust=4405566637
+2026-10-03T14:13:17.401817Z DEBUG DIAG idle serial=8 current=8 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.401833Z DEBUG DIAG complete serial=8 current=8 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263732 ust=4405666637
+2026-10-03T14:13:17.534773Z DEBUG DIAG idle serial=9 current=9 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.534795Z DEBUG DIAG complete serial=9 current=9 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263740 ust=4405799971
+2026-10-03T14:13:17.634826Z DEBUG DIAG idle serial=10 current=10 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.634874Z DEBUG DIAG complete serial=10 current=10 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263746 ust=4405899972
+2026-10-03T14:13:17.734795Z DEBUG DIAG idle serial=11 current=11 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.734809Z DEBUG DIAG complete serial=11 current=11 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263752 ust=4405999972
+2026-10-03T14:13:17.968446Z DEBUG DIAG idle serial=12 current=12 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:17.968461Z DEBUG DIAG complete serial=12 current=12 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263766 ust=4406233307
+2026-10-03T14:13:18.034767Z DEBUG DIAG idle serial=13 current=13 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.034782Z DEBUG DIAG complete serial=13 current=13 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263770 ust=4406299974
+2026-10-03T14:13:18.051361Z DEBUG DIAG idle serial=14 current=14 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.051381Z DEBUG DIAG complete serial=14 current=14 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263771 ust=4406316641
+2026-10-03T14:13:18.084771Z DEBUG DIAG idle serial=15 current=15 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.084809Z DEBUG DIAG complete serial=15 current=15 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263773 ust=4406349974
+2026-10-03T14:13:18.184755Z DEBUG DIAG idle serial=16 current=16 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.184770Z DEBUG DIAG complete serial=16 current=16 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263779 ust=4406449975
+2026-10-03T14:13:18.268059Z DEBUG DIAG idle serial=17 current=17 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.268087Z DEBUG DIAG complete serial=17 current=17 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263784 ust=4406533308
+2026-10-03T14:13:18.534781Z DEBUG DIAG idle serial=18 current=18 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.534811Z DEBUG DIAG complete serial=18 current=18 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263800 ust=4406799976
+2026-10-03T14:13:18.634804Z DEBUG DIAG idle serial=19 current=19 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.634833Z DEBUG DIAG complete serial=19 current=19 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263806 ust=4406899977
+2026-10-03T14:13:18.768088Z DEBUG DIAG idle serial=20 current=20 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.768108Z DEBUG DIAG complete serial=20 current=20 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263814 ust=4407033311
+2026-10-03T14:13:18.868402Z DEBUG DIAG idle serial=21 current=21 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:18.868433Z DEBUG DIAG complete serial=21 current=21 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263820 ust=4407133312
+2026-10-03T14:13:19.034737Z DEBUG DIAG idle serial=22 current=22 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.034752Z DEBUG DIAG complete serial=22 current=22 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263830 ust=4407299979
+2026-10-03T14:13:19.068077Z DEBUG DIAG idle serial=23 current=23 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.068092Z DEBUG DIAG complete serial=23 current=23 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263832 ust=4407333313
+2026-10-03T14:13:19.084758Z DEBUG DIAG idle serial=24 current=24 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.084775Z DEBUG DIAG complete serial=24 current=24 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263833 ust=4407349979
+2026-10-03T14:13:19.318092Z DEBUG DIAG idle serial=25 current=25 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.318116Z DEBUG DIAG complete serial=25 current=25 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263847 ust=4407583314
+2026-10-03T14:13:19.551414Z DEBUG DIAG idle serial=26 current=26 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.551429Z DEBUG DIAG complete serial=26 current=26 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263861 ust=4407816648
+2026-10-03T14:13:19.651485Z DEBUG DIAG idle serial=27 current=27 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.651498Z DEBUG DIAG complete serial=27 current=27 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263867 ust=4407916649
+2026-10-03T14:13:19.768150Z DEBUG DIAG idle serial=28 current=28 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.768189Z DEBUG DIAG complete serial=28 current=28 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263874 ust=4408033316
+2026-10-03T14:13:19.868257Z DEBUG DIAG idle serial=29 current=29 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:19.868278Z DEBUG DIAG complete serial=29 current=29 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263880 ust=4408133317
+2026-10-03T14:13:20.034711Z DEBUG DIAG idle serial=30 current=30 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.034725Z DEBUG DIAG complete serial=30 current=30 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263890 ust=4408299984
+2026-10-03T14:13:20.068163Z DEBUG DIAG idle serial=31 current=31 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.068180Z DEBUG DIAG complete serial=31 current=31 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263892 ust=4408333318
+2026-10-03T14:13:20.101387Z DEBUG DIAG idle serial=32 current=32 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.101402Z DEBUG DIAG complete serial=32 current=32 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263894 ust=4408366651
+2026-10-03T14:13:20.318073Z DEBUG DIAG idle serial=33 current=33 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.318086Z DEBUG DIAG complete serial=33 current=33 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263907 ust=4408583319
+2026-10-03T14:13:20.451501Z DEBUG DIAG idle serial=34 current=34 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.451520Z DEBUG DIAG complete serial=34 current=34 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263915 ust=4408716653
+2026-10-03T14:13:20.551514Z DEBUG DIAG idle serial=35 current=35 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.551529Z DEBUG DIAG complete serial=35 current=35 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263921 ust=4408816653
+2026-10-03T14:13:20.651469Z DEBUG DIAG idle serial=36 current=36 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.651483Z DEBUG DIAG complete serial=36 current=36 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263927 ust=4408916654
+2026-10-03T14:13:20.768165Z DEBUG DIAG idle serial=37 current=37 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.768201Z DEBUG DIAG complete serial=37 current=37 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263934 ust=4409033321
+2026-10-03T14:13:20.868300Z DEBUG DIAG idle serial=38 current=38 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:20.868315Z DEBUG DIAG complete serial=38 current=38 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263940 ust=4409133321
+2026-10-03T14:13:21.034711Z DEBUG DIAG idle serial=39 current=39 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.034738Z DEBUG DIAG complete serial=39 current=39 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263950 ust=4409299989
+2026-10-03T14:13:21.068041Z DEBUG DIAG idle serial=40 current=40 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.068055Z DEBUG DIAG complete serial=40 current=40 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263952 ust=4409333322
+2026-10-03T14:13:21.101437Z DEBUG DIAG idle serial=41 current=41 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.101452Z DEBUG DIAG complete serial=41 current=41 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263954 ust=4409366656
+2026-10-03T14:13:21.318144Z DEBUG DIAG idle serial=42 current=42 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.318166Z DEBUG DIAG complete serial=42 current=42 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263967 ust=4409583324
+2026-10-03T14:13:21.334747Z DEBUG DIAG idle serial=43 current=43 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.334765Z DEBUG DIAG complete serial=43 current=43 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263968 ust=4409599990
+2026-10-03T14:13:21.434764Z DEBUG DIAG idle serial=44 current=44 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.434783Z DEBUG DIAG complete serial=44 current=44 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263974 ust=4409699991
+2026-10-03T14:13:21.599533Z DEBUG DIAG dirty but waiting idle=false complete=false serial=45
+2026-10-03T14:13:21.601353Z DEBUG DIAG idle serial=45 current=45 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.601359Z DEBUG DIAG complete serial=45 current=45 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263984 ust=4409866658
+2026-10-03T14:13:21.618077Z DEBUG DIAG idle serial=46 current=46 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.618086Z DEBUG DIAG complete serial=46 current=46 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263985 ust=4409883325
+2026-10-03T14:13:21.634814Z DEBUG DIAG idle serial=47 current=47 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.634826Z DEBUG DIAG complete serial=47 current=47 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263986 ust=4409899992
+2026-10-03T14:13:21.651427Z DEBUG DIAG idle serial=48 current=48 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.651435Z DEBUG DIAG complete serial=48 current=48 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263987 ust=4409916659
+2026-10-03T14:13:21.658291Z DEBUG DIAG dirty but waiting idle=false complete=false serial=49
+2026-10-03T14:13:21.668091Z DEBUG DIAG idle serial=49 current=49 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.668096Z DEBUG DIAG complete serial=49 current=49 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263988 ust=4409933326
+2026-10-03T14:13:21.674354Z DEBUG DIAG dirty but waiting idle=false complete=false serial=50
+2026-10-03T14:13:21.684745Z DEBUG DIAG idle serial=50 current=50 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.684753Z DEBUG DIAG complete serial=50 current=50 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263989 ust=4409949992
+2026-10-03T14:13:21.701404Z DEBUG DIAG idle serial=51 current=51 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.701411Z DEBUG DIAG complete serial=51 current=51 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263990 ust=4409966659
+2026-10-03T14:13:21.718094Z DEBUG DIAG idle serial=52 current=52 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.718102Z DEBUG DIAG complete serial=52 current=52 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263991 ust=4409983326
+2026-10-03T14:13:21.734749Z DEBUG DIAG idle serial=53 current=53 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.734757Z DEBUG DIAG complete serial=53 current=53 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263992 ust=4409999993
+2026-10-03T14:13:21.751420Z DEBUG DIAG idle serial=54 current=54 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.751428Z DEBUG DIAG complete serial=54 current=54 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263993 ust=4410016659
+2026-10-03T14:13:21.768089Z DEBUG DIAG idle serial=55 current=55 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.768097Z DEBUG DIAG complete serial=55 current=55 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263994 ust=4410033326
+2026-10-03T14:13:21.783801Z DEBUG DIAG dirty but waiting idle=false complete=false serial=56
+2026-10-03T14:13:21.784737Z DEBUG DIAG idle serial=56 current=56 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.784744Z DEBUG DIAG complete serial=56 current=56 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263995 ust=4410049993
+2026-10-03T14:13:21.790674Z DEBUG DIAG dirty but waiting idle=false complete=false serial=57
+2026-10-03T14:13:21.801430Z DEBUG DIAG idle serial=57 current=57 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.801438Z DEBUG DIAG complete serial=57 current=57 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263996 ust=4410066660
+2026-10-03T14:13:21.807409Z DEBUG DIAG dirty but waiting idle=false complete=false serial=58
+2026-10-03T14:13:21.818109Z DEBUG DIAG idle serial=58 current=58 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.818117Z DEBUG DIAG complete serial=58 current=58 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263997 ust=4410083326
+2026-10-03T14:13:21.824089Z DEBUG DIAG dirty but waiting idle=false complete=false serial=59
+2026-10-03T14:13:21.834800Z DEBUG DIAG idle serial=59 current=59 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.834808Z DEBUG DIAG complete serial=59 current=59 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263998 ust=4410099993
+2026-10-03T14:13:21.840937Z DEBUG DIAG dirty but waiting idle=false complete=false serial=60
+2026-10-03T14:13:21.851466Z DEBUG DIAG idle serial=60 current=60 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.851474Z DEBUG DIAG complete serial=60 current=60 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=263999 ust=4410116660
+2026-10-03T14:13:21.857414Z DEBUG DIAG dirty but waiting idle=false complete=false serial=61
+2026-10-03T14:13:21.868075Z DEBUG DIAG idle serial=61 current=61 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.868083Z DEBUG DIAG complete serial=61 current=61 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264000 ust=4410133327
+2026-10-03T14:13:21.874065Z DEBUG DIAG dirty but waiting idle=false complete=false serial=62
+2026-10-03T14:13:21.879762Z DEBUG DIAG dirty but waiting idle=false complete=false serial=62
+2026-10-03T14:13:21.884733Z DEBUG DIAG idle serial=62 current=62 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.884740Z DEBUG DIAG complete serial=62 current=62 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264001 ust=4410149993
+2026-10-03T14:13:21.890730Z DEBUG DIAG dirty but waiting idle=false complete=false serial=63
+2026-10-03T14:13:21.901447Z DEBUG DIAG idle serial=63 current=63 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.901454Z DEBUG DIAG complete serial=63 current=63 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264002 ust=4410166660
+2026-10-03T14:13:21.907694Z DEBUG DIAG dirty but waiting idle=false complete=false serial=64
+2026-10-03T14:13:21.918119Z DEBUG DIAG idle serial=64 current=64 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.918126Z DEBUG DIAG complete serial=64 current=64 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264003 ust=4410183327
+2026-10-03T14:13:21.924076Z DEBUG DIAG dirty but waiting idle=false complete=false serial=65
+2026-10-03T14:13:21.934772Z DEBUG DIAG idle serial=65 current=65 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.934780Z DEBUG DIAG complete serial=65 current=65 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264004 ust=4410199994
+2026-10-03T14:13:21.940741Z DEBUG DIAG dirty but waiting idle=false complete=false serial=66
+2026-10-03T14:13:21.951448Z DEBUG DIAG idle serial=66 current=66 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.951456Z DEBUG DIAG complete serial=66 current=66 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264005 ust=4410216660
+2026-10-03T14:13:21.957411Z DEBUG DIAG dirty but waiting idle=false complete=false serial=67
+2026-10-03T14:13:21.968106Z DEBUG DIAG idle serial=67 current=67 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.968113Z DEBUG DIAG complete serial=67 current=67 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264006 ust=4410233327
+2026-10-03T14:13:21.974074Z DEBUG DIAG dirty but waiting idle=false complete=false serial=68
+2026-10-03T14:13:21.984777Z DEBUG DIAG idle serial=68 current=68 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:21.984784Z DEBUG DIAG complete serial=68 current=68 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264007 ust=4410249994
+2026-10-03T14:13:21.990853Z DEBUG DIAG dirty but waiting idle=false complete=false serial=69
+2026-10-03T14:13:22.001670Z DEBUG DIAG idle serial=69 current=69 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.001685Z DEBUG DIAG complete serial=69 current=69 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264008 ust=4410266661
+2026-10-03T14:13:22.008157Z DEBUG DIAG dirty but waiting idle=false complete=false serial=70
+2026-10-03T14:13:22.009084Z DEBUG DIAG dirty but waiting idle=false complete=false serial=70
+2026-10-03T14:13:22.018114Z DEBUG DIAG idle serial=70 current=70 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.018123Z DEBUG DIAG complete serial=70 current=70 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264009 ust=4410283327
+2026-10-03T14:13:22.024062Z DEBUG DIAG dirty but waiting idle=false complete=false serial=71
+2026-10-03T14:13:22.034787Z DEBUG DIAG idle serial=71 current=71 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.034795Z DEBUG DIAG complete serial=71 current=71 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264010 ust=4410299994
+2026-10-03T14:13:22.041989Z DEBUG DIAG dirty but waiting idle=false complete=false serial=72
+2026-10-03T14:13:22.042079Z DEBUG DIAG dirty but waiting idle=false complete=false serial=72
+2026-10-03T14:13:22.051433Z DEBUG DIAG idle serial=72 current=72 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.051441Z DEBUG DIAG complete serial=72 current=72 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264011 ust=4410316661
+2026-10-03T14:13:22.057396Z DEBUG DIAG dirty but waiting idle=false complete=false serial=73
+2026-10-03T14:13:22.067197Z DEBUG DIAG dirty but waiting idle=false complete=false serial=73
+2026-10-03T14:13:22.068063Z DEBUG DIAG idle serial=73 current=73 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.068071Z DEBUG DIAG complete serial=73 current=73 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264012 ust=4410333327
+2026-10-03T14:13:22.074051Z DEBUG DIAG dirty but waiting idle=false complete=false serial=74
+2026-10-03T14:13:22.084759Z DEBUG DIAG idle serial=74 current=74 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.084767Z DEBUG DIAG complete serial=74 current=74 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264013 ust=4410349994
+2026-10-03T14:13:22.090726Z DEBUG DIAG dirty but waiting idle=false complete=false serial=75
+2026-10-03T14:13:22.101447Z DEBUG DIAG idle serial=75 current=75 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.101455Z DEBUG DIAG complete serial=75 current=75 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264014 ust=4410366661
+2026-10-03T14:13:22.108029Z DEBUG DIAG dirty but waiting idle=false complete=false serial=76
+2026-10-03T14:13:22.108091Z DEBUG DIAG dirty but waiting idle=false complete=false serial=76
+2026-10-03T14:13:22.118098Z DEBUG DIAG idle serial=76 current=76 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.118106Z DEBUG DIAG complete serial=76 current=76 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264015 ust=4410383328
+2026-10-03T14:13:22.124093Z DEBUG DIAG dirty but waiting idle=false complete=false serial=77
+2026-10-03T14:13:22.134798Z DEBUG DIAG idle serial=77 current=77 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.134806Z DEBUG DIAG complete serial=77 current=77 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264016 ust=4410399995
+2026-10-03T14:13:22.140758Z DEBUG DIAG dirty but waiting idle=false complete=false serial=78
+2026-10-03T14:13:22.151747Z DEBUG DIAG idle serial=78 current=78 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.151758Z DEBUG DIAG complete serial=78 current=78 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264017 ust=4410416662
+2026-10-03T14:13:22.157956Z DEBUG DIAG dirty but waiting idle=false complete=false serial=79
+2026-10-03T14:13:22.168097Z DEBUG DIAG idle serial=79 current=79 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.168104Z DEBUG DIAG complete serial=79 current=79 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264018 ust=4410433328
+2026-10-03T14:13:22.174130Z DEBUG DIAG dirty but waiting idle=false complete=false serial=80
+2026-10-03T14:13:22.184765Z DEBUG DIAG idle serial=80 current=80 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.184773Z DEBUG DIAG complete serial=80 current=80 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264019 ust=4410449995
+2026-10-03T14:13:22.191178Z DEBUG DIAG dirty but waiting idle=false complete=false serial=81
+2026-10-03T14:13:22.201441Z DEBUG DIAG idle serial=81 current=81 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.201448Z DEBUG DIAG complete serial=81 current=81 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264020 ust=4410466662
+2026-10-03T14:13:22.207456Z DEBUG DIAG dirty but waiting idle=false complete=false serial=82
+2026-10-03T14:13:22.218120Z DEBUG DIAG idle serial=82 current=82 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.218127Z DEBUG DIAG complete serial=82 current=82 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264021 ust=4410483329
+2026-10-03T14:13:22.224097Z DEBUG DIAG dirty but waiting idle=false complete=false serial=83
+2026-10-03T14:13:22.232671Z DEBUG DIAG dirty but waiting idle=false complete=false serial=83
+2026-10-03T14:13:22.234781Z DEBUG DIAG idle serial=83 current=83 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.234789Z DEBUG DIAG complete serial=83 current=83 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264022 ust=4410499995
+2026-10-03T14:13:22.240726Z DEBUG DIAG dirty but waiting idle=false complete=false serial=84
+2026-10-03T14:13:22.251427Z DEBUG DIAG idle serial=84 current=84 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.251438Z DEBUG DIAG complete serial=84 current=84 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264023 ust=4410516662
+2026-10-03T14:13:22.257447Z DEBUG DIAG dirty but waiting idle=false complete=false serial=85
+2026-10-03T14:13:22.268105Z DEBUG DIAG idle serial=85 current=85 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.268113Z DEBUG DIAG complete serial=85 current=85 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264024 ust=4410533329
+2026-10-03T14:13:22.274100Z DEBUG DIAG dirty but waiting idle=false complete=false serial=86
+2026-10-03T14:13:22.284827Z DEBUG DIAG idle serial=86 current=86 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.284834Z DEBUG DIAG complete serial=86 current=86 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264025 ust=4410549996
+2026-10-03T14:13:22.291629Z DEBUG DIAG dirty but waiting idle=false complete=false serial=87
+2026-10-03T14:13:22.301718Z DEBUG DIAG idle serial=87 current=87 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.301726Z DEBUG DIAG complete serial=87 current=87 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264026 ust=4410566662
+2026-10-03T14:13:22.307830Z DEBUG DIAG dirty but waiting idle=false complete=false serial=88
+2026-10-03T14:13:22.318091Z DEBUG DIAG idle serial=88 current=88 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.318102Z DEBUG DIAG complete serial=88 current=88 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264027 ust=4410583329
+2026-10-03T14:13:22.324080Z DEBUG DIAG dirty but waiting idle=false complete=false serial=89
+2026-10-03T14:13:22.329019Z DEBUG DIAG dirty but waiting idle=false complete=false serial=89
+2026-10-03T14:13:22.334780Z DEBUG DIAG idle serial=89 current=89 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.334788Z DEBUG DIAG complete serial=89 current=89 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264028 ust=4410599996
+2026-10-03T14:13:22.340849Z DEBUG DIAG dirty but waiting idle=false complete=false serial=90
+2026-10-03T14:13:22.351439Z DEBUG DIAG idle serial=90 current=90 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.351452Z DEBUG DIAG complete serial=90 current=90 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264029 ust=4410616662
+2026-10-03T14:13:22.357940Z DEBUG DIAG dirty but waiting idle=false complete=false serial=91
+2026-10-03T14:13:22.368124Z DEBUG DIAG idle serial=91 current=91 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.368130Z DEBUG DIAG complete serial=91 current=91 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264030 ust=4410633329
+2026-10-03T14:13:22.374041Z DEBUG DIAG dirty but waiting idle=false complete=false serial=92
+2026-10-03T14:13:22.384779Z DEBUG DIAG idle serial=92 current=92 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.384783Z DEBUG DIAG complete serial=92 current=92 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264031 ust=4410649996
+2026-10-03T14:13:22.390716Z DEBUG DIAG dirty but waiting idle=false complete=false serial=93
+2026-10-03T14:13:22.401449Z DEBUG DIAG idle serial=93 current=93 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.401453Z DEBUG DIAG complete serial=93 current=93 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264032 ust=4410666663
+2026-10-03T14:13:22.407379Z DEBUG DIAG dirty but waiting idle=false complete=false serial=94
+2026-10-03T14:13:22.418148Z DEBUG DIAG idle serial=94 current=94 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.418156Z DEBUG DIAG complete serial=94 current=94 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264033 ust=4410683329
+2026-10-03T14:13:22.424616Z DEBUG DIAG dirty but waiting idle=false complete=false serial=95
+2026-10-03T14:13:22.434804Z DEBUG DIAG idle serial=95 current=95 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.434812Z DEBUG DIAG complete serial=95 current=95 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264034 ust=4410699996
+2026-10-03T14:13:22.440916Z DEBUG DIAG dirty but waiting idle=false complete=false serial=96
+2026-10-03T14:13:22.451457Z DEBUG DIAG idle serial=96 current=96 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.451468Z DEBUG DIAG complete serial=96 current=96 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264035 ust=4410716663
+2026-10-03T14:13:22.457734Z DEBUG DIAG dirty but waiting idle=false complete=false serial=97
+2026-10-03T14:13:22.458247Z DEBUG DIAG dirty but waiting idle=false complete=false serial=97
+2026-10-03T14:13:22.468071Z DEBUG DIAG idle serial=97 current=97 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.468078Z DEBUG DIAG complete serial=97 current=97 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264036 ust=4410733330
+2026-10-03T14:13:22.474044Z DEBUG DIAG dirty but waiting idle=false complete=false serial=98
+2026-10-03T14:13:22.484763Z DEBUG DIAG idle serial=98 current=98 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.484771Z DEBUG DIAG complete serial=98 current=98 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264037 ust=4410749996
+2026-10-03T14:13:22.490716Z DEBUG DIAG dirty but waiting idle=false complete=false serial=99
+2026-10-03T14:13:22.501740Z DEBUG DIAG idle serial=99 current=99 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.501747Z DEBUG DIAG complete serial=99 current=99 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264038 ust=4410766663
+2026-10-03T14:13:22.507631Z DEBUG DIAG dirty but waiting idle=false complete=false serial=100
+2026-10-03T14:13:22.518635Z DEBUG DIAG idle serial=100 current=100 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.518642Z DEBUG DIAG complete serial=100 current=100 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264039 ust=4410783330
+2026-10-03T14:13:22.524613Z DEBUG DIAG dirty but waiting idle=false complete=false serial=101
+2026-10-03T14:13:22.535085Z DEBUG DIAG idle serial=101 current=101 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.535093Z DEBUG DIAG complete serial=101 current=101 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264040 ust=4410799997
+2026-10-03T14:13:22.541281Z DEBUG DIAG dirty but waiting idle=false complete=false serial=102
+2026-10-03T14:13:22.551481Z DEBUG DIAG idle serial=102 current=102 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.551495Z DEBUG DIAG complete serial=102 current=102 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264041 ust=4410816663
+2026-10-03T14:13:22.558049Z DEBUG DIAG dirty but waiting idle=false complete=false serial=103
+2026-10-03T14:13:22.568097Z DEBUG DIAG idle serial=103 current=103 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.568106Z DEBUG DIAG complete serial=103 current=103 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264042 ust=4410833330
+2026-10-03T14:13:22.574050Z DEBUG DIAG dirty but waiting idle=false complete=false serial=104
+2026-10-03T14:13:22.584781Z DEBUG DIAG idle serial=104 current=104 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.584789Z DEBUG DIAG complete serial=104 current=104 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264043 ust=4410849997
+2026-10-03T14:13:22.590728Z DEBUG DIAG dirty but waiting idle=false complete=false serial=105
+2026-10-03T14:13:22.601455Z DEBUG DIAG idle serial=105 current=105 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.601463Z DEBUG DIAG complete serial=105 current=105 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264044 ust=4410866664
+2026-10-03T14:13:22.607379Z DEBUG DIAG dirty but waiting idle=false complete=false serial=106
+2026-10-03T14:13:22.618084Z DEBUG DIAG idle serial=106 current=106 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.618091Z DEBUG DIAG complete serial=106 current=106 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264045 ust=4410883330
+2026-10-03T14:13:22.624061Z DEBUG DIAG dirty but waiting idle=false complete=false serial=107
+2026-10-03T14:13:22.634801Z DEBUG DIAG idle serial=107 current=107 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.634809Z DEBUG DIAG complete serial=107 current=107 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264046 ust=4410899997
+2026-10-03T14:13:22.640944Z DEBUG DIAG dirty but waiting idle=false complete=false serial=108
+2026-10-03T14:13:22.651447Z DEBUG DIAG idle serial=108 current=108 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.651470Z DEBUG DIAG complete serial=108 current=108 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264047 ust=4410916664
+2026-10-03T14:13:22.657409Z DEBUG DIAG dirty but waiting idle=false complete=false serial=109
+2026-10-03T14:13:22.668117Z DEBUG DIAG idle serial=109 current=109 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.668123Z DEBUG DIAG complete serial=109 current=109 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264048 ust=4410933331
+2026-10-03T14:13:22.674188Z DEBUG DIAG dirty but waiting idle=false complete=false serial=110
+2026-10-03T14:13:22.682709Z DEBUG DIAG dirty but waiting idle=false complete=false serial=110
+2026-10-03T14:13:22.684762Z DEBUG DIAG idle serial=110 current=110 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.684769Z DEBUG DIAG complete serial=110 current=110 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264049 ust=4410949997
+2026-10-03T14:13:22.690741Z DEBUG DIAG dirty but waiting idle=false complete=false serial=111
+2026-10-03T14:13:22.701440Z DEBUG DIAG idle serial=111 current=111 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.701448Z DEBUG DIAG complete serial=111 current=111 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264050 ust=4410966664
+2026-10-03T14:13:22.707393Z DEBUG DIAG dirty but waiting idle=false complete=false serial=112
+2026-10-03T14:13:22.718096Z DEBUG DIAG idle serial=112 current=112 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.718104Z DEBUG DIAG complete serial=112 current=112 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264051 ust=4410983331
+2026-10-03T14:13:22.724087Z DEBUG DIAG dirty but waiting idle=false complete=false serial=113
+2026-10-03T14:13:22.734768Z DEBUG DIAG idle serial=113 current=113 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.734776Z DEBUG DIAG complete serial=113 current=113 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264052 ust=4410999998
+2026-10-03T14:13:22.741014Z DEBUG DIAG dirty but waiting idle=false complete=false serial=114
+2026-10-03T14:13:22.751434Z DEBUG DIAG idle serial=114 current=114 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.751446Z DEBUG DIAG complete serial=114 current=114 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264053 ust=4411016665
+2026-10-03T14:13:22.757750Z DEBUG DIAG dirty but waiting idle=false complete=false serial=115
+2026-10-03T14:13:22.768094Z DEBUG DIAG idle serial=115 current=115 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.768101Z DEBUG DIAG complete serial=115 current=115 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264054 ust=4411033331
+2026-10-03T14:13:22.774111Z DEBUG DIAG dirty but waiting idle=false complete=false serial=116
+2026-10-03T14:13:22.778297Z DEBUG DIAG dirty but waiting idle=false complete=false serial=116
+2026-10-03T14:13:22.784749Z DEBUG DIAG idle serial=116 current=116 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.784756Z DEBUG DIAG complete serial=116 current=116 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264055 ust=4411049998
+2026-10-03T14:13:22.790755Z DEBUG DIAG dirty but waiting idle=false complete=false serial=117
+2026-10-03T14:13:22.801724Z DEBUG DIAG idle serial=117 current=117 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.801743Z DEBUG DIAG complete serial=117 current=117 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264056 ust=4411066665
+2026-10-03T14:13:22.807672Z DEBUG DIAG dirty but waiting idle=false complete=false serial=118
+2026-10-03T14:13:22.818092Z DEBUG DIAG idle serial=118 current=118 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.818108Z DEBUG DIAG complete serial=118 current=118 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264057 ust=4411083331
+2026-10-03T14:13:22.824097Z DEBUG DIAG dirty but waiting idle=false complete=false serial=119
+2026-10-03T14:13:22.834769Z DEBUG DIAG idle serial=119 current=119 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.834785Z DEBUG DIAG complete serial=119 current=119 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264058 ust=4411099998
+2026-10-03T14:13:22.840977Z DEBUG DIAG dirty but waiting idle=false complete=false serial=120
+2026-10-03T14:13:22.851435Z DEBUG DIAG idle serial=120 current=120 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.851447Z DEBUG DIAG complete serial=120 current=120 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264059 ust=4411116665
+2026-10-03T14:13:22.857827Z DEBUG DIAG dirty but waiting idle=false complete=false serial=121
+2026-10-03T14:13:22.868086Z DEBUG DIAG idle serial=121 current=121 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.868091Z DEBUG DIAG complete serial=121 current=121 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264060 ust=4411133332
+2026-10-03T14:13:22.874108Z DEBUG DIAG dirty but waiting idle=false complete=false serial=122
+2026-10-03T14:13:22.884747Z DEBUG DIAG idle serial=122 current=122 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.884752Z DEBUG DIAG complete serial=122 current=122 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264061 ust=4411149998
+2026-10-03T14:13:22.890739Z DEBUG DIAG dirty but waiting idle=false complete=false serial=123
+2026-10-03T14:13:22.901415Z DEBUG DIAG idle serial=123 current=123 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.901419Z DEBUG DIAG complete serial=123 current=123 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264062 ust=4411166665
+2026-10-03T14:13:22.908078Z DEBUG DIAG dirty but waiting idle=false complete=false serial=124
+2026-10-03T14:13:22.908159Z DEBUG DIAG dirty but waiting idle=false complete=false serial=124
+2026-10-03T14:13:22.918116Z DEBUG DIAG idle serial=124 current=124 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.918124Z DEBUG DIAG complete serial=124 current=124 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264063 ust=4411183332
+2026-10-03T14:13:22.924054Z DEBUG DIAG dirty but waiting idle=false complete=false serial=125
+2026-10-03T14:13:22.934816Z DEBUG DIAG idle serial=125 current=125 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.934824Z DEBUG DIAG complete serial=125 current=125 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264064 ust=4411199999
+2026-10-03T14:13:22.940930Z DEBUG DIAG dirty but waiting idle=false complete=false serial=126
+2026-10-03T14:13:22.951484Z DEBUG DIAG idle serial=126 current=126 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.951491Z DEBUG DIAG complete serial=126 current=126 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264065 ust=4411216666
+2026-10-03T14:13:22.957811Z DEBUG DIAG dirty but waiting idle=false complete=false serial=127
+2026-10-03T14:13:22.968141Z DEBUG DIAG idle serial=127 current=127 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.968149Z DEBUG DIAG complete serial=127 current=127 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264066 ust=4411233332
+2026-10-03T14:13:22.974140Z DEBUG DIAG dirty but waiting idle=false complete=false serial=128
+2026-10-03T14:13:22.984789Z DEBUG DIAG idle serial=128 current=128 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:22.984806Z DEBUG DIAG complete serial=128 current=128 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264067 ust=4411249999
+2026-10-03T14:13:22.990752Z DEBUG DIAG dirty but waiting idle=false complete=false serial=129
+2026-10-03T14:13:23.001469Z DEBUG DIAG idle serial=129 current=129 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.001476Z DEBUG DIAG complete serial=129 current=129 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264068 ust=4411266666
+2026-10-03T14:13:23.007825Z DEBUG DIAG dirty but waiting idle=false complete=false serial=130
+2026-10-03T14:13:23.018123Z DEBUG DIAG idle serial=130 current=130 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.018131Z DEBUG DIAG complete serial=130 current=130 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264069 ust=4411283333
+2026-10-03T14:13:23.024076Z DEBUG DIAG dirty but waiting idle=false complete=false serial=131
+2026-10-03T14:13:23.034786Z DEBUG DIAG idle serial=131 current=131 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.034794Z DEBUG DIAG complete serial=131 current=131 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264070 ust=4411299999
+2026-10-03T14:13:23.040923Z DEBUG DIAG dirty but waiting idle=false complete=false serial=132
+2026-10-03T14:13:23.046016Z DEBUG DIAG dirty but waiting idle=false complete=false serial=132
+2026-10-03T14:13:23.051391Z DEBUG DIAG idle serial=132 current=132 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.051398Z DEBUG DIAG complete serial=132 current=132 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264071 ust=4411316666
+2026-10-03T14:13:23.057424Z DEBUG DIAG dirty but waiting idle=false complete=false serial=133
+2026-10-03T14:13:23.068082Z DEBUG DIAG idle serial=133 current=133 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.068099Z DEBUG DIAG complete serial=133 current=133 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264072 ust=4411333333
+2026-10-03T14:13:23.075299Z DEBUG DIAG dirty but waiting idle=false complete=false serial=134
+2026-10-03T14:13:23.075377Z DEBUG DIAG dirty but waiting idle=false complete=false serial=134
+2026-10-03T14:13:23.084753Z DEBUG DIAG idle serial=134 current=134 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.084762Z DEBUG DIAG complete serial=134 current=134 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264073 ust=4411349999
+2026-10-03T14:13:23.090731Z DEBUG DIAG dirty but waiting idle=false complete=false serial=135
+2026-10-03T14:13:23.099208Z DEBUG DIAG dirty but waiting idle=false complete=false serial=135
+2026-10-03T14:13:23.101440Z DEBUG DIAG idle serial=135 current=135 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.101448Z DEBUG DIAG complete serial=135 current=135 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264074 ust=4411366666
+2026-10-03T14:13:23.107395Z DEBUG DIAG dirty but waiting idle=false complete=false serial=136
+2026-10-03T14:13:23.118123Z DEBUG DIAG idle serial=136 current=136 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.118130Z DEBUG DIAG complete serial=136 current=136 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264075 ust=4411383333
+2026-10-03T14:13:23.124064Z DEBUG DIAG dirty but waiting idle=false complete=false serial=137
+2026-10-03T14:13:23.134767Z DEBUG DIAG idle serial=137 current=137 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.134775Z DEBUG DIAG complete serial=137 current=137 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264076 ust=4411400000
+2026-10-03T14:13:23.140719Z DEBUG DIAG dirty but waiting idle=false complete=false serial=138
+2026-10-03T14:13:23.151423Z DEBUG DIAG idle serial=138 current=138 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.151430Z DEBUG DIAG complete serial=138 current=138 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264077 ust=4411416666
+2026-10-03T14:13:23.157421Z DEBUG DIAG dirty but waiting idle=false complete=false serial=139
+2026-10-03T14:13:23.168093Z DEBUG DIAG idle serial=139 current=139 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.168108Z DEBUG DIAG complete serial=139 current=139 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264078 ust=4411433333
+2026-10-03T14:13:23.174089Z DEBUG DIAG dirty but waiting idle=false complete=false serial=140
+2026-10-03T14:13:23.184760Z DEBUG DIAG idle serial=140 current=140 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.184779Z DEBUG DIAG complete serial=140 current=140 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264079 ust=4411450000
+2026-10-03T14:13:23.190752Z DEBUG DIAG dirty but waiting idle=false complete=false serial=141
+2026-10-03T14:13:23.201422Z DEBUG DIAG idle serial=141 current=141 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.201441Z DEBUG DIAG complete serial=141 current=141 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264080 ust=4411466667
+2026-10-03T14:13:23.207419Z DEBUG DIAG dirty but waiting idle=false complete=false serial=142
+2026-10-03T14:13:23.218101Z DEBUG DIAG idle serial=142 current=142 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.218114Z DEBUG DIAG complete serial=142 current=142 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264081 ust=4411483334
+2026-10-03T14:13:23.224085Z DEBUG DIAG dirty but waiting idle=false complete=false serial=143
+2026-10-03T14:13:23.227799Z DEBUG DIAG dirty but waiting idle=false complete=false serial=143
+2026-10-03T14:13:23.234786Z DEBUG DIAG idle serial=143 current=143 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.234794Z DEBUG DIAG complete serial=143 current=143 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264082 ust=4411500000
+2026-10-03T14:13:23.240756Z DEBUG DIAG dirty but waiting idle=false complete=false serial=144
+2026-10-03T14:13:23.251432Z DEBUG DIAG idle serial=144 current=144 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.251440Z DEBUG DIAG complete serial=144 current=144 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264083 ust=4411516667
+2026-10-03T14:13:23.257420Z DEBUG DIAG dirty but waiting idle=false complete=false serial=145
+2026-10-03T14:13:23.268134Z DEBUG DIAG idle serial=145 current=145 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.268141Z DEBUG DIAG complete serial=145 current=145 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264084 ust=4411533334
+2026-10-03T14:13:23.274073Z DEBUG DIAG dirty but waiting idle=false complete=false serial=146
+2026-10-03T14:13:23.284788Z DEBUG DIAG idle serial=146 current=146 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.284803Z DEBUG DIAG complete serial=146 current=146 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264085 ust=4411550000
+2026-10-03T14:13:23.291027Z DEBUG DIAG dirty but waiting idle=false complete=false serial=147
+2026-10-03T14:13:23.301450Z DEBUG DIAG idle serial=147 current=147 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.301458Z DEBUG DIAG complete serial=147 current=147 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264086 ust=4411566667
+2026-10-03T14:13:23.307681Z DEBUG DIAG dirty but waiting idle=false complete=false serial=148
+2026-10-03T14:13:23.318121Z DEBUG DIAG idle serial=148 current=148 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.318133Z DEBUG DIAG complete serial=148 current=148 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264087 ust=4411583334
+2026-10-03T14:13:23.324114Z DEBUG DIAG dirty but waiting idle=false complete=false serial=149
+2026-10-03T14:13:23.325054Z DEBUG DIAG dirty but waiting idle=false complete=false serial=149
+2026-10-03T14:13:23.334793Z DEBUG DIAG idle serial=149 current=149 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.334804Z DEBUG DIAG complete serial=149 current=149 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264088 ust=4411600001
+2026-10-03T14:13:23.340762Z DEBUG DIAG dirty but waiting idle=false complete=false serial=150
+2026-10-03T14:13:23.351413Z DEBUG DIAG idle serial=150 current=150 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.351421Z DEBUG DIAG complete serial=150 current=150 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264089 ust=4411616667
+2026-10-03T14:13:23.357398Z DEBUG DIAG dirty but waiting idle=false complete=false serial=151
+2026-10-03T14:13:23.368140Z DEBUG DIAG idle serial=151 current=151 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.368148Z DEBUG DIAG complete serial=151 current=151 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264090 ust=4411633334
+2026-10-03T14:13:23.374053Z DEBUG DIAG dirty but waiting idle=false complete=false serial=152
+2026-10-03T14:13:23.384763Z DEBUG DIAG idle serial=152 current=152 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.384777Z DEBUG DIAG complete serial=152 current=152 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264091 ust=4411650001
+2026-10-03T14:13:23.390742Z DEBUG DIAG dirty but waiting idle=false complete=false serial=153
+2026-10-03T14:13:23.401440Z DEBUG DIAG idle serial=153 current=153 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.401456Z DEBUG DIAG complete serial=153 current=153 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264092 ust=4411666668
+2026-10-03T14:13:23.407421Z DEBUG DIAG dirty but waiting idle=false complete=false serial=154
+2026-10-03T14:13:23.418111Z DEBUG DIAG idle serial=154 current=154 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.418127Z DEBUG DIAG complete serial=154 current=154 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264093 ust=4411683334
+2026-10-03T14:13:23.424101Z DEBUG DIAG dirty but waiting idle=false complete=false serial=155
+2026-10-03T14:13:23.434805Z DEBUG DIAG idle serial=155 current=155 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.434821Z DEBUG DIAG complete serial=155 current=155 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264094 ust=4411700001
+2026-10-03T14:13:23.441024Z DEBUG DIAG dirty but waiting idle=false complete=false serial=156
+2026-10-03T14:13:23.451404Z DEBUG DIAG idle serial=156 current=156 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.451410Z DEBUG DIAG complete serial=156 current=156 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264095 ust=4411716668
+2026-10-03T14:13:23.454822Z DEBUG DIAG dirty but waiting idle=false complete=false serial=157
+2026-10-03T14:13:23.457378Z DEBUG DIAG dirty but waiting idle=false complete=false serial=157
+2026-10-03T14:13:23.468089Z DEBUG DIAG idle serial=157 current=157 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.468100Z DEBUG DIAG complete serial=157 current=157 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264096 ust=4411733335
+2026-10-03T14:13:23.474068Z DEBUG DIAG dirty but waiting idle=false complete=false serial=158
+2026-10-03T14:13:23.484753Z DEBUG DIAG idle serial=158 current=158 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.484762Z DEBUG DIAG complete serial=158 current=158 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264097 ust=4411750001
+2026-10-03T14:13:23.490738Z DEBUG DIAG dirty but waiting idle=false complete=false serial=159
+2026-10-03T14:13:23.501421Z DEBUG DIAG idle serial=159 current=159 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.501436Z DEBUG DIAG complete serial=159 current=159 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264098 ust=4411766668
+2026-10-03T14:13:23.507401Z DEBUG DIAG dirty but waiting idle=false complete=false serial=160
+2026-10-03T14:13:23.518092Z DEBUG DIAG idle serial=160 current=160 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.518100Z DEBUG DIAG complete serial=160 current=160 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264099 ust=4411783335
+2026-10-03T14:13:23.524066Z DEBUG DIAG dirty but waiting idle=false complete=false serial=161
+2026-10-03T14:13:23.534752Z DEBUG DIAG idle serial=161 current=161 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.534774Z DEBUG DIAG complete serial=161 current=161 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264100 ust=4411800002
+2026-10-03T14:13:23.540741Z DEBUG DIAG dirty but waiting idle=false complete=false serial=162
+2026-10-03T14:13:23.551473Z DEBUG DIAG idle serial=162 current=162 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.551485Z DEBUG DIAG complete serial=162 current=162 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264101 ust=4411816668
+2026-10-03T14:13:23.557388Z DEBUG DIAG dirty but waiting idle=false complete=false serial=163
+2026-10-03T14:13:23.568118Z DEBUG DIAG idle serial=163 current=163 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.568125Z DEBUG DIAG complete serial=163 current=163 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264102 ust=4411833335
+2026-10-03T14:13:23.574070Z DEBUG DIAG dirty but waiting idle=false complete=false serial=164
+2026-10-03T14:13:23.584788Z DEBUG DIAG idle serial=164 current=164 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.584796Z DEBUG DIAG complete serial=164 current=164 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264103 ust=4411850002
+2026-10-03T14:13:23.590740Z DEBUG DIAG dirty but waiting idle=false complete=false serial=165
+2026-10-03T14:13:23.601458Z DEBUG DIAG idle serial=165 current=165 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.601473Z DEBUG DIAG complete serial=165 current=165 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264104 ust=4411866669
+2026-10-03T14:13:23.607418Z DEBUG DIAG dirty but waiting idle=false complete=false serial=166
+2026-10-03T14:13:23.618112Z DEBUG DIAG idle serial=166 current=166 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.618120Z DEBUG DIAG complete serial=166 current=166 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264105 ust=4411883335
+2026-10-03T14:13:23.624068Z DEBUG DIAG dirty but waiting idle=false complete=false serial=167
+2026-10-03T14:13:23.634777Z DEBUG DIAG idle serial=167 current=167 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.634785Z DEBUG DIAG complete serial=167 current=167 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264106 ust=4411900002
+2026-10-03T14:13:23.640744Z DEBUG DIAG dirty but waiting idle=false complete=false serial=168
+2026-10-03T14:13:23.651421Z DEBUG DIAG idle serial=168 current=168 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.651435Z DEBUG DIAG complete serial=168 current=168 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264107 ust=4411916669
+2026-10-03T14:13:23.657406Z DEBUG DIAG dirty but waiting idle=false complete=false serial=169
+2026-10-03T14:13:23.668103Z DEBUG DIAG idle serial=169 current=169 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.668117Z DEBUG DIAG complete serial=169 current=169 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264108 ust=4411933336
+2026-10-03T14:13:23.674075Z DEBUG DIAG dirty but waiting idle=false complete=false serial=170
+2026-10-03T14:13:23.678473Z DEBUG DIAG dirty but waiting idle=false complete=false serial=170
+2026-10-03T14:13:23.684773Z DEBUG DIAG idle serial=170 current=170 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.684782Z DEBUG DIAG complete serial=170 current=170 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264109 ust=4411950002
+2026-10-03T14:13:23.690737Z DEBUG DIAG dirty but waiting idle=false complete=false serial=171
+2026-10-03T14:13:23.701423Z DEBUG DIAG idle serial=171 current=171 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.701438Z DEBUG DIAG complete serial=171 current=171 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264110 ust=4411966669
+2026-10-03T14:13:23.707402Z DEBUG DIAG dirty but waiting idle=false complete=false serial=172
+2026-10-03T14:13:23.718098Z DEBUG DIAG idle serial=172 current=172 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.718106Z DEBUG DIAG complete serial=172 current=172 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264111 ust=4411983336
+2026-10-03T14:13:23.724096Z DEBUG DIAG dirty but waiting idle=false complete=false serial=173
+2026-10-03T14:13:23.734810Z DEBUG DIAG idle serial=173 current=173 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.734820Z DEBUG DIAG complete serial=173 current=173 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264112 ust=4412000003
+2026-10-03T14:13:23.740763Z DEBUG DIAG dirty but waiting idle=false complete=false serial=174
+2026-10-03T14:13:23.751534Z DEBUG DIAG idle serial=174 current=174 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.751546Z DEBUG DIAG complete serial=174 current=174 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264113 ust=4412016669
+2026-10-03T14:13:23.757387Z DEBUG DIAG dirty but waiting idle=false complete=false serial=175
+2026-10-03T14:13:23.768150Z DEBUG DIAG idle serial=175 current=175 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.768159Z DEBUG DIAG complete serial=175 current=175 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264114 ust=4412033336
+2026-10-03T14:13:23.774098Z DEBUG DIAG dirty but waiting idle=false complete=false serial=176
+2026-10-03T14:13:23.775378Z DEBUG DIAG dirty but waiting idle=false complete=false serial=176
+2026-10-03T14:13:23.784805Z DEBUG DIAG idle serial=176 current=176 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.784813Z DEBUG DIAG complete serial=176 current=176 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264115 ust=4412050003
+2026-10-03T14:13:23.801478Z DEBUG DIAG idle serial=177 current=177 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.801485Z DEBUG DIAG complete serial=177 current=177 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264116 ust=4412066670
+2026-10-03T14:13:23.918250Z DEBUG DIAG idle serial=178 current=178 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:23.918266Z DEBUG DIAG complete serial=178 current=178 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264123 ust=4412183337
+2026-10-03T14:13:24.068129Z DEBUG DIAG idle serial=179 current=179 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.068149Z DEBUG DIAG complete serial=179 current=179 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264132 ust=4412333338
+2026-10-03T14:13:24.084764Z DEBUG DIAG idle serial=180 current=180 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.084788Z DEBUG DIAG complete serial=180 current=180 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264133 ust=4412350004
+2026-10-03T14:13:24.134767Z DEBUG DIAG idle serial=181 current=181 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.134781Z DEBUG DIAG complete serial=181 current=181 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264136 ust=4412400004
+2026-10-03T14:13:24.234851Z DEBUG DIAG idle serial=182 current=182 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.234889Z DEBUG DIAG complete serial=182 current=182 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264142 ust=4412500005
+2026-10-03T14:13:24.368167Z DEBUG DIAG idle serial=183 current=183 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.368181Z DEBUG DIAG complete serial=183 current=183 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264150 ust=4412633339
+2026-10-03T14:13:24.468359Z DEBUG DIAG idle serial=184 current=184 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.468374Z DEBUG DIAG complete serial=184 current=184 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264156 ust=4412733340
+2026-10-03T14:13:24.501471Z DEBUG DIAG idle serial=185 current=185 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.501498Z DEBUG DIAG complete serial=185 current=185 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264158 ust=4412766673
+2026-10-03T14:13:24.584826Z DEBUG DIAG idle serial=186 current=186 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.584865Z DEBUG DIAG complete serial=186 current=186 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264163 ust=4412850007
+2026-10-03T14:13:24.618157Z DEBUG DIAG idle serial=187 current=187 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.618173Z DEBUG DIAG complete serial=187 current=187 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264165 ust=4412883340
+2026-10-03T14:13:24.684864Z DEBUG DIAG idle serial=188 current=188 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.684894Z DEBUG DIAG complete serial=188 current=188 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264169 ust=4412950007
+2026-10-03T14:13:24.818135Z DEBUG DIAG idle serial=189 current=189 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.818160Z DEBUG DIAG complete serial=189 current=189 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264177 ust=4413083341
+2026-10-03T14:13:24.918294Z DEBUG DIAG idle serial=190 current=190 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:24.918309Z DEBUG DIAG complete serial=190 current=190 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264183 ust=4413183342
+2026-10-03T14:13:25.034828Z DEBUG DIAG idle serial=191 current=191 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.034869Z DEBUG DIAG complete serial=191 current=191 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264190 ust=4413300009
+2026-10-03T14:13:25.068122Z DEBUG DIAG idle serial=192 current=192 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.068136Z DEBUG DIAG complete serial=192 current=192 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264192 ust=4413333343
+2026-10-03T14:13:25.084725Z DEBUG DIAG idle serial=193 current=193 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.084739Z DEBUG DIAG complete serial=193 current=193 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264193 ust=4413350009
+2026-10-03T14:13:25.134768Z DEBUG DIAG idle serial=194 current=194 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.134784Z DEBUG DIAG complete serial=194 current=194 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264196 ust=4413400009
+2026-10-03T14:13:25.268108Z DEBUG DIAG idle serial=195 current=195 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.268127Z DEBUG DIAG complete serial=195 current=195 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264204 ust=4413533344
+2026-10-03T14:13:25.368327Z DEBUG DIAG idle serial=196 current=196 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.368349Z DEBUG DIAG complete serial=196 current=196 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264210 ust=4413633344
+2026-10-03T14:13:25.468604Z DEBUG DIAG idle serial=197 current=197 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.468619Z DEBUG DIAG complete serial=197 current=197 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264216 ust=4413733345
+2026-10-03T14:13:25.600786Z DEBUG DIAG dirty but waiting idle=false complete=false serial=198
+2026-10-03T14:13:25.601448Z DEBUG DIAG idle serial=198 current=198 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.601455Z DEBUG DIAG complete serial=198 current=198 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264224 ust=4413866679
+2026-10-03T14:13:25.618079Z DEBUG DIAG idle serial=199 current=199 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.618086Z DEBUG DIAG complete serial=199 current=199 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264225 ust=4413883345
+2026-10-03T14:13:25.684860Z DEBUG DIAG idle serial=200 current=200 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.684899Z DEBUG DIAG complete serial=200 current=200 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264229 ust=4413950012
+2026-10-03T14:13:25.801506Z DEBUG DIAG idle serial=201 current=201 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.801519Z DEBUG DIAG complete serial=201 current=201 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264236 ust=4414066680
+2026-10-03T14:13:25.810310Z DEBUG DIAG dirty but waiting idle=false complete=false serial=202
+2026-10-03T14:13:25.818138Z DEBUG DIAG idle serial=202 current=202 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.818153Z DEBUG DIAG complete serial=202 current=202 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264237 ust=4414083346
+2026-10-03T14:13:25.826116Z DEBUG DIAG dirty but waiting idle=false complete=false serial=203
+2026-10-03T14:13:25.834809Z DEBUG DIAG idle serial=203 current=203 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.834820Z DEBUG DIAG complete serial=203 current=203 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264238 ust=4414100013
+2026-10-03T14:13:25.842813Z DEBUG DIAG dirty but waiting idle=false complete=false serial=204
+2026-10-03T14:13:25.851483Z DEBUG DIAG idle serial=204 current=204 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.851491Z DEBUG DIAG complete serial=204 current=204 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264239 ust=4414116680
+2026-10-03T14:13:25.859469Z DEBUG DIAG dirty but waiting idle=false complete=false serial=205
+2026-10-03T14:13:25.868151Z DEBUG DIAG idle serial=205 current=205 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.868159Z DEBUG DIAG complete serial=205 current=205 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264240 ust=4414133347
+2026-10-03T14:13:25.876143Z DEBUG DIAG dirty but waiting idle=false complete=false serial=206
+2026-10-03T14:13:25.884803Z DEBUG DIAG idle serial=206 current=206 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.884810Z DEBUG DIAG complete serial=206 current=206 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264241 ust=4414150013
+2026-10-03T14:13:25.892800Z DEBUG DIAG dirty but waiting idle=false complete=false serial=207
+2026-10-03T14:13:25.901444Z DEBUG DIAG idle serial=207 current=207 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.901452Z DEBUG DIAG complete serial=207 current=207 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264242 ust=4414166680
+2026-10-03T14:13:25.907466Z DEBUG DIAG dirty but waiting idle=false complete=false serial=208
+2026-10-03T14:13:25.909437Z DEBUG DIAG dirty but waiting idle=false complete=false serial=208
+2026-10-03T14:13:25.918083Z DEBUG DIAG idle serial=208 current=208 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.918091Z DEBUG DIAG complete serial=208 current=208 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264243 ust=4414183347
+2026-10-03T14:13:25.926118Z DEBUG DIAG dirty but waiting idle=false complete=false serial=209
+2026-10-03T14:13:25.934762Z DEBUG DIAG idle serial=209 current=209 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.934773Z DEBUG DIAG complete serial=209 current=209 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264244 ust=4414200014
+2026-10-03T14:13:25.942783Z DEBUG DIAG dirty but waiting idle=false complete=false serial=210
+2026-10-03T14:13:25.951548Z DEBUG DIAG idle serial=210 current=210 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.951562Z DEBUG DIAG complete serial=210 current=210 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264245 ust=4414216680
+2026-10-03T14:13:25.959467Z DEBUG DIAG dirty but waiting idle=false complete=false serial=211
+2026-10-03T14:13:25.968102Z DEBUG DIAG idle serial=211 current=211 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.968112Z DEBUG DIAG complete serial=211 current=211 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264246 ust=4414233347
+2026-10-03T14:13:25.976115Z DEBUG DIAG dirty but waiting idle=false complete=false serial=212
+2026-10-03T14:13:25.984750Z DEBUG DIAG idle serial=212 current=212 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:25.984757Z DEBUG DIAG complete serial=212 current=212 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264247 ust=4414250014
+2026-10-03T14:13:25.992784Z DEBUG DIAG dirty but waiting idle=false complete=false serial=213
+2026-10-03T14:13:26.001430Z DEBUG DIAG idle serial=213 current=213 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.001438Z DEBUG DIAG complete serial=213 current=213 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264248 ust=4414266681
+2026-10-03T14:13:26.009435Z DEBUG DIAG dirty but waiting idle=false complete=false serial=214
+2026-10-03T14:13:26.018250Z DEBUG DIAG idle serial=214 current=214 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.018265Z DEBUG DIAG complete serial=214 current=214 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264249 ust=4414283347
+2026-10-03T14:13:26.026216Z DEBUG DIAG dirty but waiting idle=false complete=false serial=215
+2026-10-03T14:13:26.034552Z DEBUG DIAG dirty but waiting idle=false complete=false serial=215
+2026-10-03T14:13:26.034741Z DEBUG DIAG idle serial=215 current=215 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.034751Z DEBUG DIAG complete serial=215 current=215 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264250 ust=4414300014
+2026-10-03T14:13:26.042902Z DEBUG DIAG dirty but waiting idle=false complete=false serial=216
+2026-10-03T14:13:26.051553Z DEBUG DIAG idle serial=216 current=216 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.051565Z DEBUG DIAG complete serial=216 current=216 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264251 ust=4414316681
+2026-10-03T14:13:26.059479Z DEBUG DIAG dirty but waiting idle=false complete=false serial=217
+2026-10-03T14:13:26.062818Z DEBUG DIAG dirty but waiting idle=false complete=false serial=217
+2026-10-03T14:13:26.068083Z DEBUG DIAG idle serial=217 current=217 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.068092Z DEBUG DIAG complete serial=217 current=217 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264252 ust=4414333348
+2026-10-03T14:13:26.076124Z DEBUG DIAG dirty but waiting idle=false complete=false serial=218
+2026-10-03T14:13:26.084786Z DEBUG DIAG idle serial=218 current=218 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.084794Z DEBUG DIAG complete serial=218 current=218 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264253 ust=4414350014
+2026-10-03T14:13:26.089077Z DEBUG DIAG dirty but waiting idle=false complete=false serial=219
+2026-10-03T14:13:26.092788Z DEBUG DIAG dirty but waiting idle=false complete=false serial=219
+2026-10-03T14:13:26.101460Z DEBUG DIAG idle serial=219 current=219 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.101468Z DEBUG DIAG complete serial=219 current=219 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264254 ust=4414366681
+2026-10-03T14:13:26.109453Z DEBUG DIAG dirty but waiting idle=false complete=false serial=220
+2026-10-03T14:13:26.118180Z DEBUG DIAG idle serial=220 current=220 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.118193Z DEBUG DIAG complete serial=220 current=220 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264255 ust=4414383348
+2026-10-03T14:13:26.126123Z DEBUG DIAG dirty but waiting idle=false complete=false serial=221
+2026-10-03T14:13:26.130582Z DEBUG DIAG dirty but waiting idle=false complete=false serial=221
+2026-10-03T14:13:26.134734Z DEBUG DIAG idle serial=221 current=221 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.134741Z DEBUG DIAG complete serial=221 current=221 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264256 ust=4414400015
+2026-10-03T14:13:26.142810Z DEBUG DIAG dirty but waiting idle=false complete=false serial=222
+2026-10-03T14:13:26.151420Z DEBUG DIAG idle serial=222 current=222 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.151427Z DEBUG DIAG complete serial=222 current=222 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264257 ust=4414416681
+2026-10-03T14:13:26.159448Z DEBUG DIAG dirty but waiting idle=false complete=false serial=223
+2026-10-03T14:13:26.168115Z DEBUG DIAG idle serial=223 current=223 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.168125Z DEBUG DIAG complete serial=223 current=223 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264258 ust=4414433348
+2026-10-03T14:13:26.176145Z DEBUG DIAG dirty but waiting idle=false complete=false serial=224
+2026-10-03T14:13:26.184819Z DEBUG DIAG idle serial=224 current=224 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.184830Z DEBUG DIAG complete serial=224 current=224 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264259 ust=4414450015
+2026-10-03T14:13:26.192784Z DEBUG DIAG dirty but waiting idle=false complete=false serial=225
+2026-10-03T14:13:26.201478Z DEBUG DIAG idle serial=225 current=225 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.201489Z DEBUG DIAG complete serial=225 current=225 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264260 ust=4414466681
+2026-10-03T14:13:26.209453Z DEBUG DIAG dirty but waiting idle=false complete=false serial=226
+2026-10-03T14:13:26.218180Z DEBUG DIAG idle serial=226 current=226 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.218193Z DEBUG DIAG complete serial=226 current=226 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264261 ust=4414483348
+2026-10-03T14:13:26.226140Z DEBUG DIAG dirty but waiting idle=false complete=false serial=227
+2026-10-03T14:13:26.234876Z DEBUG DIAG idle serial=227 current=227 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.234889Z DEBUG DIAG complete serial=227 current=227 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264262 ust=4414500015
+2026-10-03T14:13:26.242785Z DEBUG DIAG dirty but waiting idle=false complete=false serial=228
+2026-10-03T14:13:26.251394Z DEBUG DIAG idle serial=228 current=228 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.251399Z DEBUG DIAG complete serial=228 current=228 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264263 ust=4414516682
+2026-10-03T14:13:26.258926Z DEBUG DIAG dirty but waiting idle=false complete=false serial=229
+2026-10-03T14:13:26.259424Z DEBUG DIAG dirty but waiting idle=false complete=false serial=229
+2026-10-03T14:13:26.268065Z DEBUG DIAG idle serial=229 current=229 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.268072Z DEBUG DIAG complete serial=229 current=229 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264264 ust=4414533348
+2026-10-03T14:13:26.276125Z DEBUG DIAG dirty but waiting idle=false complete=false serial=230
+2026-10-03T14:13:26.284827Z DEBUG DIAG idle serial=230 current=230 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.284840Z DEBUG DIAG complete serial=230 current=230 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264265 ust=4414550015
+2026-10-03T14:13:26.292788Z DEBUG DIAG dirty but waiting idle=false complete=false serial=231
+2026-10-03T14:13:26.301462Z DEBUG DIAG idle serial=231 current=231 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.301470Z DEBUG DIAG complete serial=231 current=231 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264266 ust=4414566682
+2026-10-03T14:13:26.309455Z DEBUG DIAG dirty but waiting idle=false complete=false serial=232
+2026-10-03T14:13:26.318091Z DEBUG DIAG idle serial=232 current=232 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.318098Z DEBUG DIAG complete serial=232 current=232 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264267 ust=4414583349
+2026-10-03T14:13:26.326131Z DEBUG DIAG dirty but waiting idle=false complete=false serial=233
+2026-10-03T14:13:26.334764Z DEBUG DIAG idle serial=233 current=233 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.334772Z DEBUG DIAG complete serial=233 current=233 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264268 ust=4414600015
+2026-10-03T14:13:26.342801Z DEBUG DIAG dirty but waiting idle=false complete=false serial=234
+2026-10-03T14:13:26.351449Z DEBUG DIAG idle serial=234 current=234 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.351454Z DEBUG DIAG complete serial=234 current=234 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264269 ust=4414616682
+2026-10-03T14:13:26.357373Z DEBUG DIAG dirty but waiting idle=false complete=false serial=235
+2026-10-03T14:13:26.359494Z DEBUG DIAG dirty but waiting idle=false complete=false serial=235
+2026-10-03T14:13:26.368087Z DEBUG DIAG idle serial=235 current=235 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.368093Z DEBUG DIAG complete serial=235 current=235 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264270 ust=4414633349
+2026-10-03T14:13:26.376122Z DEBUG DIAG dirty but waiting idle=false complete=false serial=236
+2026-10-03T14:13:26.384755Z DEBUG DIAG idle serial=236 current=236 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.384762Z DEBUG DIAG complete serial=236 current=236 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264271 ust=4414650016
+2026-10-03T14:13:26.392754Z DEBUG DIAG dirty but waiting idle=false complete=false serial=237
+2026-10-03T14:13:26.401437Z DEBUG DIAG idle serial=237 current=237 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.401445Z DEBUG DIAG complete serial=237 current=237 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264272 ust=4414666682
+2026-10-03T14:13:26.409441Z DEBUG DIAG dirty but waiting idle=false complete=false serial=238
+2026-10-03T14:13:26.418130Z DEBUG DIAG idle serial=238 current=238 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.418141Z DEBUG DIAG complete serial=238 current=238 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264273 ust=4414683349
+2026-10-03T14:13:26.426119Z DEBUG DIAG dirty but waiting idle=false complete=false serial=239
+2026-10-03T14:13:26.434767Z DEBUG DIAG idle serial=239 current=239 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.434774Z DEBUG DIAG complete serial=239 current=239 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264274 ust=4414700016
+2026-10-03T14:13:26.442785Z DEBUG DIAG dirty but waiting idle=false complete=false serial=240
+2026-10-03T14:13:26.451422Z DEBUG DIAG idle serial=240 current=240 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.451430Z DEBUG DIAG complete serial=240 current=240 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264275 ust=4414716683
+2026-10-03T14:13:26.459470Z DEBUG DIAG dirty but waiting idle=false complete=false serial=241
+2026-10-03T14:13:26.468100Z DEBUG DIAG idle serial=241 current=241 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.468106Z DEBUG DIAG complete serial=241 current=241 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264276 ust=4414733349
+2026-10-03T14:13:26.476125Z DEBUG DIAG dirty but waiting idle=false complete=false serial=242
+2026-10-03T14:13:26.483627Z DEBUG DIAG dirty but waiting idle=false complete=false serial=242
+2026-10-03T14:13:26.484759Z DEBUG DIAG idle serial=242 current=242 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.484769Z DEBUG DIAG complete serial=242 current=242 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264277 ust=4414750016
+2026-10-03T14:13:26.492766Z DEBUG DIAG dirty but waiting idle=false complete=false serial=243
+2026-10-03T14:13:26.501465Z DEBUG DIAG idle serial=243 current=243 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.501473Z DEBUG DIAG complete serial=243 current=243 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264278 ust=4414766683
+2026-10-03T14:13:26.509467Z DEBUG DIAG dirty but waiting idle=false complete=false serial=244
+2026-10-03T14:13:26.518106Z DEBUG DIAG idle serial=244 current=244 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.518117Z DEBUG DIAG complete serial=244 current=244 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264279 ust=4414783350
+2026-10-03T14:13:26.526140Z DEBUG DIAG dirty but waiting idle=false complete=false serial=245
+2026-10-03T14:13:26.534803Z DEBUG DIAG idle serial=245 current=245 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.534810Z DEBUG DIAG complete serial=245 current=245 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264280 ust=4414800016
+2026-10-03T14:13:26.542797Z DEBUG DIAG dirty but waiting idle=false complete=false serial=246
+2026-10-03T14:13:26.551484Z DEBUG DIAG idle serial=246 current=246 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.551495Z DEBUG DIAG complete serial=246 current=246 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264281 ust=4414816683
+2026-10-03T14:13:26.559458Z DEBUG DIAG dirty but waiting idle=false complete=false serial=247
+2026-10-03T14:13:26.568079Z DEBUG DIAG idle serial=247 current=247 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.568087Z DEBUG DIAG complete serial=247 current=247 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264282 ust=4414833350
+2026-10-03T14:13:26.576144Z DEBUG DIAG dirty but waiting idle=false complete=false serial=248
+2026-10-03T14:13:26.584210Z DEBUG DIAG dirty but waiting idle=false complete=false serial=248
+2026-10-03T14:13:26.584723Z DEBUG DIAG idle serial=248 current=248 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.584728Z DEBUG DIAG complete serial=248 current=248 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264283 ust=4414850017
+2026-10-03T14:13:26.592774Z DEBUG DIAG dirty but waiting idle=false complete=false serial=249
+2026-10-03T14:13:26.599308Z DEBUG DIAG dirty but waiting idle=false complete=false serial=249
+2026-10-03T14:13:26.601402Z DEBUG DIAG idle serial=249 current=249 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.601410Z DEBUG DIAG complete serial=249 current=249 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264284 ust=4414866683
+2026-10-03T14:13:26.609461Z DEBUG DIAG dirty but waiting idle=false complete=false serial=250
+2026-10-03T14:13:26.618122Z DEBUG DIAG idle serial=250 current=250 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.618138Z DEBUG DIAG complete serial=250 current=250 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264285 ust=4414883350
+2026-10-03T14:13:26.626111Z DEBUG DIAG dirty but waiting idle=false complete=false serial=251
+2026-10-03T14:13:26.634770Z DEBUG DIAG idle serial=251 current=251 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.634775Z DEBUG DIAG complete serial=251 current=251 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264286 ust=4414900017
+2026-10-03T14:13:26.642795Z DEBUG DIAG dirty but waiting idle=false complete=false serial=252
+2026-10-03T14:13:26.651430Z DEBUG DIAG idle serial=252 current=252 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.651438Z DEBUG DIAG complete serial=252 current=252 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264287 ust=4414916684
+2026-10-03T14:13:26.659468Z DEBUG DIAG dirty but waiting idle=false complete=false serial=253
+2026-10-03T14:13:26.668148Z DEBUG DIAG idle serial=253 current=253 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.668155Z DEBUG DIAG complete serial=253 current=253 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264288 ust=4414933350
+2026-10-03T14:13:26.676162Z DEBUG DIAG dirty but waiting idle=false complete=false serial=254
+2026-10-03T14:13:26.685086Z DEBUG DIAG idle serial=254 current=254 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.685112Z DEBUG DIAG complete serial=254 current=254 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264289 ust=4414950017
+2026-10-03T14:13:26.692909Z DEBUG DIAG dirty but waiting idle=false complete=false serial=255
+2026-10-03T14:13:26.701519Z DEBUG DIAG idle serial=255 current=255 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.701531Z DEBUG DIAG complete serial=255 current=255 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264290 ust=4414966684
+2026-10-03T14:13:26.709471Z DEBUG DIAG dirty but waiting idle=false complete=false serial=256
+2026-10-03T14:13:26.718184Z DEBUG DIAG idle serial=256 current=256 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.718199Z DEBUG DIAG complete serial=256 current=256 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264291 ust=4414983351
+2026-10-03T14:13:26.726122Z DEBUG DIAG dirty but waiting idle=false complete=false serial=257
+2026-10-03T14:13:26.734885Z DEBUG DIAG idle serial=257 current=257 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.734918Z DEBUG DIAG complete serial=257 current=257 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264292 ust=4415000017
+2026-10-03T14:13:26.738454Z DEBUG DIAG dirty but waiting idle=false complete=false serial=258
+2026-10-03T14:13:26.742777Z DEBUG DIAG dirty but waiting idle=false complete=false serial=258
+2026-10-03T14:13:26.751464Z DEBUG DIAG idle serial=258 current=258 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.751468Z DEBUG DIAG complete serial=258 current=258 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264293 ust=4415016684
+2026-10-03T14:13:26.759465Z DEBUG DIAG dirty but waiting idle=false complete=false serial=259
+2026-10-03T14:13:26.768110Z DEBUG DIAG idle serial=259 current=259 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.768118Z DEBUG DIAG complete serial=259 current=259 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264294 ust=4415033351
+2026-10-03T14:13:26.776136Z DEBUG DIAG dirty but waiting idle=false complete=false serial=260
+2026-10-03T14:13:26.784780Z DEBUG DIAG idle serial=260 current=260 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.784791Z DEBUG DIAG complete serial=260 current=260 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264295 ust=4415050018
+2026-10-03T14:13:26.792797Z DEBUG DIAG dirty but waiting idle=false complete=false serial=261
+2026-10-03T14:13:26.801435Z DEBUG DIAG idle serial=261 current=261 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.801443Z DEBUG DIAG complete serial=261 current=261 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264296 ust=4415066684
+2026-10-03T14:13:26.809473Z DEBUG DIAG dirty but waiting idle=false complete=false serial=262
+2026-10-03T14:13:26.810665Z DEBUG DIAG dirty but waiting idle=false complete=false serial=262
+2026-10-03T14:13:26.818137Z DEBUG DIAG idle serial=262 current=262 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.818145Z DEBUG DIAG complete serial=262 current=262 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264297 ust=4415083351
+2026-10-03T14:13:26.826168Z DEBUG DIAG dirty but waiting idle=false complete=false serial=263
+2026-10-03T14:13:26.834869Z DEBUG DIAG idle serial=263 current=263 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.834877Z DEBUG DIAG complete serial=263 current=263 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264298 ust=4415100018
+2026-10-03T14:13:26.842804Z DEBUG DIAG dirty but waiting idle=false complete=false serial=264
+2026-10-03T14:13:26.851461Z DEBUG DIAG idle serial=264 current=264 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.851469Z DEBUG DIAG complete serial=264 current=264 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264299 ust=4415116685
+2026-10-03T14:13:26.859463Z DEBUG DIAG dirty but waiting idle=false complete=false serial=265
+2026-10-03T14:13:26.868115Z DEBUG DIAG idle serial=265 current=265 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.868123Z DEBUG DIAG complete serial=265 current=265 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264300 ust=4415133351
+2026-10-03T14:13:26.876136Z DEBUG DIAG dirty but waiting idle=false complete=false serial=266
+2026-10-03T14:13:26.884793Z DEBUG DIAG idle serial=266 current=266 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.884801Z DEBUG DIAG complete serial=266 current=266 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264301 ust=4415150018
+2026-10-03T14:13:26.892786Z DEBUG DIAG dirty but waiting idle=false complete=false serial=267
+2026-10-03T14:13:26.901432Z DEBUG DIAG idle serial=267 current=267 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.901440Z DEBUG DIAG complete serial=267 current=267 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264302 ust=4415166685
+2026-10-03T14:13:26.909369Z DEBUG DIAG dirty but waiting idle=false complete=false serial=268
+2026-10-03T14:13:26.909470Z DEBUG DIAG dirty but waiting idle=false complete=false serial=268
+2026-10-03T14:13:26.918079Z DEBUG DIAG idle serial=268 current=268 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.918087Z DEBUG DIAG complete serial=268 current=268 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264303 ust=4415183352
+2026-10-03T14:13:26.926133Z DEBUG DIAG dirty but waiting idle=false complete=false serial=269
+2026-10-03T14:13:26.934770Z DEBUG DIAG idle serial=269 current=269 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.934777Z DEBUG DIAG complete serial=269 current=269 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264304 ust=4415200018
+2026-10-03T14:13:26.942796Z DEBUG DIAG dirty but waiting idle=false complete=false serial=270
+2026-10-03T14:13:26.951457Z DEBUG DIAG idle serial=270 current=270 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.951464Z DEBUG DIAG complete serial=270 current=270 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264305 ust=4415216685
+2026-10-03T14:13:26.959459Z DEBUG DIAG dirty but waiting idle=false complete=false serial=271
+2026-10-03T14:13:26.968083Z DEBUG DIAG idle serial=271 current=271 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.968091Z DEBUG DIAG complete serial=271 current=271 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264306 ust=4415233352
+2026-10-03T14:13:26.976131Z DEBUG DIAG dirty but waiting idle=false complete=false serial=272
+2026-10-03T14:13:26.984753Z DEBUG DIAG idle serial=272 current=272 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:26.984761Z DEBUG DIAG complete serial=272 current=272 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264307 ust=4415250019
+2026-10-03T14:13:26.992787Z DEBUG DIAG dirty but waiting idle=false complete=false serial=273
+2026-10-03T14:13:27.001843Z DEBUG DIAG idle serial=273 current=273 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.001849Z DEBUG DIAG complete serial=273 current=273 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264308 ust=4415266685
+2026-10-03T14:13:27.009472Z DEBUG DIAG dirty but waiting idle=false complete=false serial=274
+2026-10-03T14:13:27.018068Z DEBUG DIAG idle serial=274 current=274 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.018074Z DEBUG DIAG complete serial=274 current=274 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264309 ust=4415283352
+2026-10-03T14:13:27.026121Z DEBUG DIAG dirty but waiting idle=false complete=false serial=275
+2026-10-03T14:13:27.034930Z DEBUG DIAG idle serial=275 current=275 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.034940Z DEBUG DIAG complete serial=275 current=275 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264310 ust=4415300019
+2026-10-03T14:13:27.039166Z DEBUG DIAG dirty but waiting idle=false complete=false serial=276
+2026-10-03T14:13:27.042808Z DEBUG DIAG dirty but waiting idle=false complete=false serial=276
+2026-10-03T14:13:27.051430Z DEBUG DIAG idle serial=276 current=276 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.051437Z DEBUG DIAG complete serial=276 current=276 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264311 ust=4415316686
+2026-10-03T14:13:27.059441Z DEBUG DIAG dirty but waiting idle=false complete=false serial=277
+2026-10-03T14:13:27.068071Z DEBUG DIAG dirty but waiting idle=false complete=false serial=277
+2026-10-03T14:13:27.068184Z DEBUG DIAG idle serial=277 current=277 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.068189Z DEBUG DIAG complete serial=277 current=277 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264312 ust=4415333352
+2026-10-03T14:13:27.076134Z DEBUG DIAG dirty but waiting idle=false complete=false serial=278
+2026-10-03T14:13:27.084757Z DEBUG DIAG idle serial=278 current=278 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.084765Z DEBUG DIAG complete serial=278 current=278 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264313 ust=4415350019
+2026-10-03T14:13:27.093113Z DEBUG DIAG dirty but waiting idle=false complete=false serial=279
+2026-10-03T14:13:27.093180Z DEBUG DIAG dirty but waiting idle=false complete=false serial=279
+2026-10-03T14:13:27.101398Z DEBUG DIAG idle serial=279 current=279 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.101408Z DEBUG DIAG complete serial=279 current=279 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264314 ust=4415366686
+2026-10-03T14:13:27.109449Z DEBUG DIAG dirty but waiting idle=false complete=false serial=280
+2026-10-03T14:13:27.118094Z DEBUG DIAG idle serial=280 current=280 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.118099Z DEBUG DIAG complete serial=280 current=280 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264315 ust=4415383353
+2026-10-03T14:13:27.126113Z DEBUG DIAG dirty but waiting idle=false complete=false serial=281
+2026-10-03T14:13:27.133924Z DEBUG DIAG dirty but waiting idle=false complete=false serial=281
+2026-10-03T14:13:27.134733Z DEBUG DIAG idle serial=281 current=281 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.134738Z DEBUG DIAG complete serial=281 current=281 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264316 ust=4415400019
+2026-10-03T14:13:27.142828Z DEBUG DIAG dirty but waiting idle=false complete=false serial=282
+2026-10-03T14:13:27.151467Z DEBUG DIAG idle serial=282 current=282 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.151473Z DEBUG DIAG complete serial=282 current=282 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264317 ust=4415416686
+2026-10-03T14:13:27.159440Z DEBUG DIAG dirty but waiting idle=false complete=false serial=283
+2026-10-03T14:13:27.168069Z DEBUG DIAG idle serial=283 current=283 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.168074Z DEBUG DIAG complete serial=283 current=283 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264318 ust=4415433353
+2026-10-03T14:13:27.176137Z DEBUG DIAG dirty but waiting idle=false complete=false serial=284
+2026-10-03T14:13:27.184778Z DEBUG DIAG idle serial=284 current=284 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.184785Z DEBUG DIAG complete serial=284 current=284 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264319 ust=4415450020
+2026-10-03T14:13:27.192802Z DEBUG DIAG dirty but waiting idle=false complete=false serial=285
+2026-10-03T14:13:27.201476Z DEBUG DIAG idle serial=285 current=285 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.201482Z DEBUG DIAG complete serial=285 current=285 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264320 ust=4415466686
+2026-10-03T14:13:27.209468Z DEBUG DIAG dirty but waiting idle=false complete=false serial=286
+2026-10-03T14:13:27.218084Z DEBUG DIAG idle serial=286 current=286 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.218091Z DEBUG DIAG complete serial=286 current=286 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264321 ust=4415483353
+2026-10-03T14:13:27.226109Z DEBUG DIAG dirty but waiting idle=false complete=false serial=287
+2026-10-03T14:13:27.234741Z DEBUG DIAG idle serial=287 current=287 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.234747Z DEBUG DIAG complete serial=287 current=287 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264322 ust=4415500020
+2026-10-03T14:13:27.242777Z DEBUG DIAG dirty but waiting idle=false complete=false serial=288
+2026-10-03T14:13:27.251441Z DEBUG DIAG idle serial=288 current=288 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.251446Z DEBUG DIAG complete serial=288 current=288 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264323 ust=4415516687
+2026-10-03T14:13:27.259467Z DEBUG DIAG dirty but waiting idle=false complete=false serial=289
+2026-10-03T14:13:27.261997Z DEBUG DIAG dirty but waiting idle=false complete=false serial=289
+2026-10-03T14:13:27.268128Z DEBUG DIAG idle serial=289 current=289 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.268135Z DEBUG DIAG complete serial=289 current=289 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264324 ust=4415533353
+2026-10-03T14:13:27.276124Z DEBUG DIAG dirty but waiting idle=false complete=false serial=290
+2026-10-03T14:13:27.284802Z DEBUG DIAG idle serial=290 current=290 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.284809Z DEBUG DIAG complete serial=290 current=290 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264325 ust=4415550020
+2026-10-03T14:13:27.292813Z DEBUG DIAG dirty but waiting idle=false complete=false serial=291
+2026-10-03T14:13:27.301451Z DEBUG DIAG idle serial=291 current=291 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.301456Z DEBUG DIAG complete serial=291 current=291 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264326 ust=4415566687
+2026-10-03T14:13:27.309480Z DEBUG DIAG dirty but waiting idle=false complete=false serial=292
+2026-10-03T14:13:27.318123Z DEBUG DIAG idle serial=292 current=292 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.318129Z DEBUG DIAG complete serial=292 current=292 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264327 ust=4415583354
+2026-10-03T14:13:27.326159Z DEBUG DIAG dirty but waiting idle=false complete=false serial=293
+2026-10-03T14:13:27.334812Z DEBUG DIAG idle serial=293 current=293 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.334820Z DEBUG DIAG complete serial=293 current=293 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264328 ust=4415600021
+2026-10-03T14:13:27.342807Z DEBUG DIAG dirty but waiting idle=false complete=false serial=294
+2026-10-03T14:13:27.351478Z DEBUG DIAG idle serial=294 current=294 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.351486Z DEBUG DIAG complete serial=294 current=294 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264329 ust=4415616687
+2026-10-03T14:13:27.358995Z DEBUG DIAG dirty but waiting idle=false complete=false serial=295
+2026-10-03T14:13:27.359436Z DEBUG DIAG dirty but waiting idle=false complete=false serial=295
+2026-10-03T14:13:27.368129Z DEBUG DIAG idle serial=295 current=295 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.368136Z DEBUG DIAG complete serial=295 current=295 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264330 ust=4415633354
+2026-10-03T14:13:27.376130Z DEBUG DIAG dirty but waiting idle=false complete=false serial=296
+2026-10-03T14:13:27.384769Z DEBUG DIAG idle serial=296 current=296 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.384775Z DEBUG DIAG complete serial=296 current=296 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264331 ust=4415650021
+2026-10-03T14:13:27.392813Z DEBUG DIAG dirty but waiting idle=false complete=false serial=297
+2026-10-03T14:13:27.401466Z DEBUG DIAG idle serial=297 current=297 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.401471Z DEBUG DIAG complete serial=297 current=297 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264332 ust=4415666687
+2026-10-03T14:13:27.409447Z DEBUG DIAG dirty but waiting idle=false complete=false serial=298
+2026-10-03T14:13:27.418089Z DEBUG DIAG idle serial=298 current=298 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.418093Z DEBUG DIAG complete serial=298 current=298 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264333 ust=4415683354
+2026-10-03T14:13:27.426116Z DEBUG DIAG dirty but waiting idle=false complete=false serial=299
+2026-10-03T14:13:27.434779Z DEBUG DIAG idle serial=299 current=299 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.434786Z DEBUG DIAG complete serial=299 current=299 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264334 ust=4415700021
+2026-10-03T14:13:27.442801Z DEBUG DIAG dirty but waiting idle=false complete=false serial=300
+2026-10-03T14:13:27.451472Z DEBUG DIAG idle serial=300 current=300 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.451479Z DEBUG DIAG complete serial=300 current=300 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264335 ust=4415716688
+2026-10-03T14:13:27.459469Z DEBUG DIAG dirty but waiting idle=false complete=false serial=301
+2026-10-03T14:13:27.468134Z DEBUG DIAG idle serial=301 current=301 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.468141Z DEBUG DIAG complete serial=301 current=301 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264336 ust=4415733354
+2026-10-03T14:13:27.476148Z DEBUG DIAG dirty but waiting idle=false complete=false serial=302
+2026-10-03T14:13:27.484793Z DEBUG DIAG idle serial=302 current=302 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.484798Z DEBUG DIAG complete serial=302 current=302 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264337 ust=4415750021
+2026-10-03T14:13:27.488363Z DEBUG DIAG dirty but waiting idle=false complete=false serial=303
+2026-10-03T14:13:27.492786Z DEBUG DIAG dirty but waiting idle=false complete=false serial=303
+2026-10-03T14:13:27.501466Z DEBUG DIAG idle serial=303 current=303 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.501471Z DEBUG DIAG complete serial=303 current=303 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264338 ust=4415766688
+2026-10-03T14:13:27.509470Z DEBUG DIAG dirty but waiting idle=false complete=false serial=304
+2026-10-03T14:13:27.518104Z DEBUG DIAG idle serial=304 current=304 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.518109Z DEBUG DIAG complete serial=304 current=304 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264339 ust=4415783355
+2026-10-03T14:13:27.526128Z DEBUG DIAG dirty but waiting idle=false complete=false serial=305
+2026-10-03T14:13:27.534783Z DEBUG DIAG idle serial=305 current=305 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.534790Z DEBUG DIAG complete serial=305 current=305 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264340 ust=4415800021
+2026-10-03T14:13:27.542801Z DEBUG DIAG dirty but waiting idle=false complete=false serial=306
+2026-10-03T14:13:27.551479Z DEBUG DIAG idle serial=306 current=306 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.551489Z DEBUG DIAG complete serial=306 current=306 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264341 ust=4415816688
+2026-10-03T14:13:27.559471Z DEBUG DIAG dirty but waiting idle=false complete=false serial=307
+2026-10-03T14:13:27.568134Z DEBUG DIAG idle serial=307 current=307 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.568142Z DEBUG DIAG complete serial=307 current=307 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264342 ust=4415833355
+2026-10-03T14:13:27.576144Z DEBUG DIAG dirty but waiting idle=false complete=false serial=308
+2026-10-03T14:13:27.584805Z DEBUG DIAG idle serial=308 current=308 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.584811Z DEBUG DIAG complete serial=308 current=308 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264343 ust=4415850022
+2026-10-03T14:13:27.588288Z DEBUG DIAG dirty but waiting idle=false complete=false serial=309
+2026-10-03T14:13:27.592968Z DEBUG DIAG dirty but waiting idle=false complete=false serial=309
+2026-10-03T14:13:27.601438Z DEBUG DIAG idle serial=309 current=309 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.601448Z DEBUG DIAG complete serial=309 current=309 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264344 ust=4415866688
+2026-10-03T14:13:27.609480Z DEBUG DIAG dirty but waiting idle=false complete=false serial=310
+2026-10-03T14:13:27.618110Z DEBUG DIAG idle serial=310 current=310 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.618118Z DEBUG DIAG complete serial=310 current=310 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264345 ust=4415883355
+2026-10-03T14:13:27.626151Z DEBUG DIAG dirty but waiting idle=false complete=false serial=311
+2026-10-03T14:13:27.634795Z DEBUG DIAG idle serial=311 current=311 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.634802Z DEBUG DIAG complete serial=311 current=311 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264346 ust=4415900022
+2026-10-03T14:13:27.642826Z DEBUG DIAG dirty but waiting idle=false complete=false serial=312
+2026-10-03T14:13:27.651470Z DEBUG DIAG idle serial=312 current=312 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.651478Z DEBUG DIAG complete serial=312 current=312 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264347 ust=4415916689
+2026-10-03T14:13:27.659494Z DEBUG DIAG dirty but waiting idle=false complete=false serial=313
+2026-10-03T14:13:27.668123Z DEBUG DIAG idle serial=313 current=313 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.668131Z DEBUG DIAG complete serial=313 current=313 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264348 ust=4415933355
+2026-10-03T14:13:27.676201Z DEBUG DIAG dirty but waiting idle=false complete=false serial=314
+2026-10-03T14:13:27.684792Z DEBUG DIAG idle serial=314 current=314 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.684799Z DEBUG DIAG complete serial=314 current=314 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264349 ust=4415950022
+2026-10-03T14:13:27.692830Z DEBUG DIAG dirty but waiting idle=false complete=false serial=315
+2026-10-03T14:13:27.701479Z DEBUG DIAG idle serial=315 current=315 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.701497Z DEBUG DIAG complete serial=315 current=315 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264350 ust=4415966689
+2026-10-03T14:13:27.709495Z DEBUG DIAG dirty but waiting idle=false complete=false serial=316
+2026-10-03T14:13:27.713629Z DEBUG DIAG dirty but waiting idle=false complete=false serial=316
+2026-10-03T14:13:27.718108Z DEBUG DIAG idle serial=316 current=316 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.718116Z DEBUG DIAG complete serial=316 current=316 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264351 ust=4415983356
+2026-10-03T14:13:27.726148Z DEBUG DIAG dirty but waiting idle=false complete=false serial=317
+2026-10-03T14:13:27.734829Z DEBUG DIAG idle serial=317 current=317 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.734836Z DEBUG DIAG complete serial=317 current=317 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264352 ust=4416000022
+2026-10-03T14:13:27.742819Z DEBUG DIAG dirty but waiting idle=false complete=false serial=318
+2026-10-03T14:13:27.751431Z DEBUG DIAG idle serial=318 current=318 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.751439Z DEBUG DIAG complete serial=318 current=318 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264353 ust=4416016689
+2026-10-03T14:13:27.759492Z DEBUG DIAG dirty but waiting idle=false complete=false serial=319
+2026-10-03T14:13:27.768108Z DEBUG DIAG idle serial=319 current=319 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.768116Z DEBUG DIAG complete serial=319 current=319 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264354 ust=4416033356
+2026-10-03T14:13:27.776160Z DEBUG DIAG dirty but waiting idle=false complete=false serial=320
+2026-10-03T14:13:27.784793Z DEBUG DIAG idle serial=320 current=320 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.784800Z DEBUG DIAG complete serial=320 current=320 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264355 ust=4416050023
+2026-10-03T14:13:27.793658Z DEBUG DIAG dirty but waiting idle=false complete=false serial=321
+2026-10-03T14:13:27.801450Z DEBUG DIAG idle serial=321 current=321 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.801457Z DEBUG DIAG complete serial=321 current=321 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264356 ust=4416066690
+2026-10-03T14:13:27.809690Z DEBUG DIAG dirty but waiting idle=false complete=false serial=322
+2026-10-03T14:13:27.818136Z DEBUG DIAG idle serial=322 current=322 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.818143Z DEBUG DIAG complete serial=322 current=322 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264357 ust=4416083356
+2026-10-03T14:13:27.834815Z DEBUG DIAG idle serial=323 current=323 eid=54525961 mine=Some(54525961) pixmap=54525954
+2026-10-03T14:13:27.834823Z DEBUG DIAG complete serial=323 current=323 eid=54525961 mine=Some(54525961) kind=PIXMAP mode=COPY msc=264358 ust=4416100023
+2026-10-03T14:13:28.068746Z DEBUG DIAG randr screen change width=3840 height=1080
+2026-10-03T14:13:28.068761Z DEBUG DIAG randr notify sub=CRTC_CHANGE
+2026-10-03T14:13:28.068766Z DEBUG DIAG randr notify sub=OUTPUT_CHANGE
+2026-10-03T14:13:28.068770Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.068870Z DEBUG DIAG root configure width=3840 height=1080
+2026-10-03T14:13:28.356651Z DEBUG DIAG randr screen change width=3200 height=1080
+2026-10-03T14:13:28.356668Z DEBUG DIAG root configure width=3200 height=1080
+2026-10-03T14:13:28.356804Z DEBUG DIAG randr screen change width=3200 height=1080
+2026-10-03T14:13:28.356809Z DEBUG DIAG randr notify sub=CRTC_CHANGE
+2026-10-03T14:13:28.356812Z DEBUG DIAG randr notify sub=OUTPUT_CHANGE
+2026-10-03T14:13:28.356814Z DEBUG DIAG root configure width=3200 height=1080
+2026-10-03T14:13:28.356841Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.356862Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.356916Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.358266Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.358350Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.358785Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.358993Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.360119Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.360170Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.360332Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.360829Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.360932Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.361047Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.361342Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.361820Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.361920Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.362486Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.363440Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.364875Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.365753Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.370100Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.387642Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:28.451316Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:29.452385Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:30.452874Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:31.454011Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:32.455357Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:33.368100Z DEBUG DIAG dirty but waiting idle=false complete=false serial=324
+2026-10-03T14:13:33.368323Z  INFO compositor stopped

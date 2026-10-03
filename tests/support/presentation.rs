@@ -11,14 +11,17 @@ use std::{
 use x11rb::{
     NONE,
     connection::{Connection, RequestConnection},
-    protocol::{present, xproto::ConnectionExt as _},
+    protocol::{present, sync::ConnectionExt as _, xproto::ConnectionExt as _},
     rust_connection::RustConnection,
 };
 
 pub(crate) enum Fault {
+    /// An incompatible pixmap: the server rejects the submission with `BadMatch`.
     Depth,
     Pixmap,
     Window,
+    /// A wait fence that is never triggered: neither completion nor idle events follow.
+    Fence,
 }
 
 pub(crate) struct Presentation {
@@ -44,6 +47,9 @@ impl Presentation {
             .major_opcode;
         let incompatible = conn.generate_id()?;
         conn.create_pixmap(8, incompatible, root, 1, 1)?.check()?;
+        conn.sync_initialize(3, 1)?.reply()?;
+        let fence = conn.generate_id()?;
+        conn.sync_create_fence(root, fence, false)?.check()?;
         let (commands, receive) = sync_channel(1);
         let (send, intercepted) = sync_channel(1);
         let submissions = Arc::new(AtomicU32::new(0));
@@ -56,6 +62,7 @@ impl Presentation {
                         Fault::Depth => (4, incompatible),
                         Fault::Pixmap => (4, NONE),
                         Fault::Window => (0, NONE),
+                        Fault::Fence => (28, fence),
                     };
                     body.get_mut(offset..offset + 4)
                         .context("short Present request")?
@@ -77,12 +84,12 @@ impl Presentation {
         ))
     }
 
-    pub(crate) fn reject_next(&self, fault: Fault) -> Result<()> {
+    pub(crate) fn inject(&self, fault: Fault) -> Result<()> {
         self.commands.send(fault)?;
         Ok(())
     }
 
-    pub(crate) fn rejected(&self) -> Result<u32> {
+    pub(crate) fn injected(&self) -> Result<u32> {
         self.intercepted
             .recv_timeout(Duration::from_secs(5))
             .context("Present request was not intercepted")?;

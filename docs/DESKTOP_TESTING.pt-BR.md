@@ -2,7 +2,7 @@
 
 [English (US)](DESKTOP_TESTING.md) | [Português (Brasil)](DESKTOP_TESTING.pt-BR.md)
 
-Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. O hotplug físico da etapa 2 e a validação de desktops em hardware da etapa 3 continuam em aberto.
+Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. Uma sessão AMD/XLibre registrada abaixo cobre as transições físicas de monitores da etapa 2; outros hardwares e os cenários de desktop da etapa 3 em hardware continuam em aberto.
 
 ## Executar a medição isolada
 
@@ -62,12 +62,73 @@ Dois testes negativos trocaram somente as configurações em cópias temporária
 
 Os logs do Xmonad mantêm diagnósticos `BadAtom` e `getWindowAttributes` também presentes nos arquivos anteriores. A causa não foi resolvida neste incremento; todas as verificações de cenas passaram. O aviso de consulta de gama do Xephyr e sua taxa virtual não validam o comportamento de monitores físicos. Hotplug em hardware, drivers de GPU, gerenciadores com decoração/reparenting e desempenho com efeitos pesados permanecem sem verificação aqui.
 
+## Amostrar transições de monitores
+
+`tools/hotplug-check.sh` executa o Compust em uma sessão X11 existente enquanto um operador altera os monitores; ele não inicia servidor nem gerenciador de janelas. Use uma sessão Xorg ou XLibre dedicada. Pare antes o compositor dela, guarde o comando que o restaura e mantenha um terminal em um monitor que continuará conectado. `SERVER_PID` identifica o servidor X para medir CPU e RSS; `WM_PID` é opcional. Ajuste os nomes de processos abaixo ao seu servidor e gerenciador.
+
+```sh
+cargo build --release --locked --bin compust --example desktop_probe
+SERVER_PID=$(pgrep -x Xorg) WM_PID=$(pgrep -n xmonad) \
+    tools/hotplug-check.sh artifacts/hotplug-present present
+```
+
+Depois de `READY`, faça uma transição por vez, espere o desktop se estabilizar e digite `sample RÓTULO`; os rótulos usam letras minúsculas sem acento, dígitos e hífens. Digite `quit` ao terminar. O script então encerra o Compust com SIGTERM e exige saída bem-sucedida. Cada amostra faz o seguinte:
+
+- grava em `topology.txt` o tamanho da raiz, a conexão, o CRTC, a geometria, o modo e a taxa de atualização de cada saída, a saída principal e os monitores RandR ativos;
+- move um marcador override-redirect de 128×96 para perto de cantos opostos de cada monitor ativo e sobre cada borda compartilhada por dois monitores, alternando verde e vermelho até o overlay exibir cada cor;
+- mede dois segundos de aquecimento e fases ociosa e ativa de dez segundos, como na medição isolada, gravando `processes.csv` e `frames.csv`;
+- grava em `resources.csv` as contagens de recursos XRes do compositor e o total de bytes dos pixmaps dele.
+
+O probe não cria janelas gerenciadas nem troca workspaces, então aplicativos comuns podem continuar abertos; as atualizações deles entram na medição ociosa. As verificações de pixels leem o framebuffer do servidor X pelo overlay, não a luz emitida pelos painéis. O relatório omite os dados EDID de `xrandr --verbose` porque eles contêm números de série dos monitores. Os registros locais de processos ainda contêm linhas de comando, então revise o relatório antes de compartilhá-lo.
+
+Uma sequência útil começa com uma referência inicial e depois muda o modo, a disposição e desativa uma saída, restaurando após cada mudança. Para cada conector, registre amostras com ele desconectado enquanto o CRTC ainda está atribuído, após a reação do desktop (`xrandr --auto` abaixo), reconectado e restaurado. Execute a sequência uma vez por modo de apresentação.
+
+## Sessão registrada em hardware: 2026-10-03
+
+A sessão rodou no CachyOS com Linux 7.2.8-2-cachyos e XLibre 25.1.9 nativo usando o driver modesetting. Ela usou o driver de kernel amdgpu, um AMD Ryzen 5 5600GT com gráficos Radeon Vega integrados, Mesa 26.2.4, libdrm 2.4.134 e Xmonad 0.18.1 com xmonad-contrib 0.18.2. O desktop manteve sua configuração habitual do Xmonad, barra de status e bandeja. HDMI-1 era a saída principal, à direita; DP-1, um adaptador DisplayPort para VGA, ficava à esquerda. Ambas usaram 1920×1080 a 60 Hz, formando uma raiz de 3840×1080. O Picom foi parado antes das execuções e reiniciado depois. As [versões dos pacotes](benchmarks/2026-10-03/hardware/packages.txt) estão arquivadas com os relatórios.
+
+A base testada foi `36bd7e8876a6abea564907a610bcabf62794db77` mais as [alterações registradas](benchmarks/2026-10-03/hardware/present/source.patch), incluindo a correção abaixo. Os [hashes dos fontes](benchmarks/2026-10-03/hardware/present/source-sha256.txt) coincidem nas duas execuções, e o SHA-256 do binário do compositor foi `1220413a892149d2c12bbf56dded047c20bf7956e5063dc246c61a5989ddb2bf`. Esse hash vem do comando de build combinado acima; compilar apenas o compositor gera outro binário, porque o probe ativa um recurso adicional do x11rb. As duas execuções usaram as configurações [Present](../tools/desktop/compust.toml) e [direta](../tools/desktop/compust-direct.toml) da medição isolada, com fades e desfoque desativados.
+
+### Travamento encontrado e corrigido
+
+A primeira execução Present [parou na segunda amostra](benchmarks/2026-10-03/hardware/stall/probe.log): após `xrandr --output HDMI-1 --mode 1280x720`, o marcador não foi atualizado em cinco segundos. Um build com [registros adicionais](benchmarks/2026-10-03/hardware/stall/diagnosis/instrumentation.patch) reproduziu o problema. Os eventos RandR mostram uma mudança de CRTC ainda no tamanho 3840×1080, o redimensionamento da raiz para 3200×1080 e uma segunda mudança de CRTC, tudo enquanto o serial 324 estava pendente. O servidor nunca enviou os eventos de conclusão e ociosidade desse serial, e o Compust [continuou esperando](benchmarks/2026-10-03/hardware/stall/diagnosis/compust-debug.log) em vez de recriar seus buffers. O [roteiro](ROADMAP.pt-BR.md#etapa-2-em-hardware-hotplug-físico-no-xlibre-com-amd) descreve a correção e as regressões.
+
+### Resultados
+
+As duas execuções passaram nas quinze amostras e encerraram com sucesso após SIGTERM. As linhas correspondem aos diretórios `001-baseline` a `015-dp-restored` nos relatórios [Present](benchmarks/2026-10-03/hardware/present/) e [direto](benchmarks/2026-10-03/hardware/direct/). A CPU é o percentual de um núcleo na fase ativa; os bytes são idênticos nos dois modos.
+
+| Amostra | Raiz | Monitores ativos | Present: CPU Compust / Xorg | Direto: CPU Compust / Xorg | Bytes de pixmaps |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Referência inicial | 3840×1080 | 2 | 0,5% / 4,1% | 0,3% / 3,7% | 49.580.389 |
+| HDMI-1 em 1280×720 | 3200×1080 | 2 | 0,4% / 4,2% | 0,4% / 3,8% | 39.544.229 |
+| Modo restaurado | 3840×1080 | 2 | 0,4% / 4,0% | 0,4% / 3,8% | 49.580.389 |
+| Disposição vertical | 1920×2160 | 2 | 0,4% / 3,9% | 0,3% / 3,8% | 49.763.749 |
+| Disposição restaurada | 3840×1080 | 2 | 0,5% / 3,9% | 0,3% / 3,9% | 49.580.389 |
+| DP-1 desligado | 1920×1080 | 1 | 0,4% / 3,4% | 0,3% / 3,3% | 25.000.149 |
+| DP-1 religado | 3840×1080 | 2 | 0,5% / 4,0% | 0,4% / 3,6% | 49.580.389 |
+| HDMI-1 desconectado | 3840×1080 | 2 | 0,4% / 4,1% | 0,4% / 3,9% | 49.580.389 |
+| `xrandr --auto` | 1920×1080 | 1 | 0,4% / 3,4% | 0,4% / 3,4% | 25.000.149 |
+| HDMI-1 reconectado | 1920×1080 | 1 | 0,4% / 3,4% | 0,3% / 3,7% | 25.000.149 |
+| Disposição restaurada | 3840×1080 | 2 | 0,4% / 4,1% | 0,4% / 4,0% | 49.580.389 |
+| DP-1 desconectado | 3840×1080 | 2 | 0,4% / 4,2% | 0,5% / 4,4% | 49.580.389 |
+| `xrandr --auto` | 1920×1080 | 1 | 0,4% / 3,3% | 0,4% / 3,2% | 25.000.149 |
+| DP-1 reconectado | 1920×1080 | 1 | 0,3% / 3,5% | 0,4% / 3,6% | 25.000.149 |
+| Disposição restaurada | 3840×1080 | 2 | 0,3% / 4,1% | 0,4% / 3,8% | 49.580.389 |
+
+Cada fase ativa emitiu 600 atualizações do marcador. As amostras Present receberam 600 ou 601 conclusões, todas `COPY`. As amostras diretas não receberam conclusões e tiveram 709–728 notificações Damage do overlay, incluindo atualizações causadas por outros clientes. Nas fases ociosas, o Compust usou 0,0–0,2% e o Xorg 0,9–1,5% de um núcleo; os próprios clientes do desktop ainda causaram 126–147 atualizações do compositor a cada dez segundos.
+
+Em 8.988 intervalos Present das fases ativas, a mediana e o p95 nearest-rank foram 16,667 ms e o máximo foi 16,670 ms. As amostras em que o DP-1 cobria a maior parte da raiz, com o HDMI-1 em 1280×720 ou desligado, tiveram mediana de 16,635 ms, o que indica que o Present acompanhou o CRTC do DP-1; as demais tiveram 16,667 ms. Com o HDMI-1 desconectado, mas ainda com um CRTC atribuído, os intervalos continuaram em 16,667 ms.
+
+Cada topologia repetida reproduziu o mesmo `resources.csv` em cada modo. Com um único monitor ativo, o compositor manteve um pixmap, uma imagem e um objeto Damage de janela a menos, porque havia uma janela mapeada a menos; o modo direto não tem seleção de eventos Present. O RSS do Compust passou de 3.884 para 3.896 KiB na execução Present, sem mudanças a partir da terceira amostra, e de 3.760 para 3.772 KiB na direta, sem mudanças a partir da sexta. O RSS do Xorg subiu de 118.604 para 119.244 KiB na primeira mudança de modo e chegou a 119.340 KiB ao fim da execução direta.
+
+Esses resultados validam transições de monitores somente neste ambiente. Eles não cobrem outros drivers de GPU, Xorg em hardware, taxas de atualização mistas, mais de dois monitores, fades, desfoque ou sessões longas. Desligar o DP-1 pelo `xrandr` também moveu o HDMI-1 para a origem e reduziu a raiz. Mudanças de CRTC sem redimensionar a raiz são cobertas pela regressão no Xvfb. O hotplug do DP-1 é a conexão DisplayPort do adaptador. As verificações do marcador comprovam atualizações no servidor, não o que cada painel exibiu.
+
 ## Concluir os critérios de hardware
 
-Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces.
+Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.
 
 Repita os cenários de ciclo de vida, menus, tela cheia e workspaces com aplicativos reais. Acrescente janelas decoradas/com reparenting, mudanças de papel de parede, encerramento da sessão, fades e janelas translúcidas com desfoque ativado. Registre os cenários aprovados, suas reproduções e os logs de cada falha. Os testes aninhados com Xmonad não validam outro gerenciador.
 
-Para a etapa 2, registre nomes dos conectores, resoluções, taxas de atualização e disposição dos monitores antes e depois de desconectar/reconectar fisicamente cada monitor externo. Exercite mudanças de disposição e resolução, incluindo janelas entre saídas, nos dois modos de apresentação. Verifique a continuidade das atualizações e os pixels restaurados após cada transição. Desativação/ativação de CRTC virtual já está coberta na automação e não substitui esses testes de conectores.
+Para a etapa 2, execute o [procedimento de transições de monitores](#amostrar-transições-de-monitores) nos dois modos de apresentação em cada ambiente proposto para suporte. Ele registra nomes dos conectores, modos, taxas de atualização e disposição dos monitores em torno de cada desconexão e reconexão física, além de verificar atualizações sobre bordas compartilhadas entre monitores. Desativação/ativação de CRTC virtual está coberta na automação e não substitui esses testes de conectores. A sessão acima cobre um ambiente AMD/XLibre.
 
 Para a etapa 3, meça CPU ociosa e ativa de Compust e servidor X, tendências de memória em operações repetidas e intervalos Present quando disponíveis. Inclua duração da carga, quantidade de janelas, opacidade/desfoque e taxas dos monitores. Compare com picom somente identificando versão/backend e usando cenas e efeitos equivalentes. Publique evidências para cada combinação servidor/gerenciador/driver antes de declará-la suportada; a distribuição da beta continua condicionada a esse escopo.

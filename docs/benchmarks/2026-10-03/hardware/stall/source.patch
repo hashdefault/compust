@@ -1,0 +1,540 @@
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index 7ef7fcd..e7f1514 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -0,0 +1,2 @@
++#[path = "desktop/hotplug.rs"]
++mod hotplug;
+@@ -14 +16 @@ use std::{
+-    path::PathBuf,
++    path::{Path, PathBuf},
+@@ -38,0 +41,4 @@ struct Args {
++    /// Keep one marker window instead of running the desktop scenarios. Read
++    /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
++    #[arg(long)]
++    hotplug: bool,
+@@ -56,0 +63,5 @@ fn main() -> Result<()> {
++    let mut processes = args.process.clone();
++    processes.push(Process::probe());
++    if args.hotplug {
++        return hotplug::run(&surface, &args, &processes);
++    }
+@@ -59 +70,21 @@ fn main() -> Result<()> {
+-    let mut frames = BufWriter::new(File::create(args.output.join("frames.csv"))?);
++    measure(&surface, window, &args, &processes, &args.output)?;
++    surface.paint(window, 0x00ff_0000)?;
++    surface.until("final survivor pixels", || {
++        surface.window_has_color(window, 0x00ff_0000)
++    })?;
++    surface.screenshot(&args.output.join("final.ppm"))?;
++    println!(
++        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
++    );
++    Ok(())
++}
++
++/// Warm up, then record idle and active phases in `output`.
++fn measure(
++    surface: &Surface,
++    window: u32,
++    args: &Args,
++    processes: &[Process],
++    output: &Path,
++) -> Result<()> {
++    let mut frames = BufWriter::new(File::create(output.join("frames.csv"))?);
+@@ -61 +92 @@ fn main() -> Result<()> {
+-    let mut cpu = BufWriter::new(File::create(args.output.join("processes.csv"))?);
++    let mut cpu = BufWriter::new(File::create(output.join("processes.csv"))?);
+@@ -66,3 +97 @@ fn main() -> Result<()> {
+-    let mut processes = args.process;
+-    processes.push(Process::probe());
+-    run_phase(&surface, window, Duration::from_secs(2), |_| Ok(()))?;
++    run_phase(surface, window, Duration::from_secs(2), |_| Ok(()))?;
+@@ -71 +100 @@ fn main() -> Result<()> {
+-        let before = Snapshot::read(&processes)?;
++        let before = Snapshot::read(processes)?;
+@@ -78 +107 @@ fn main() -> Result<()> {
+-            &surface,
++            surface,
+@@ -106 +135 @@ fn main() -> Result<()> {
+-        let after = Snapshot::read(&processes)?;
++        let after = Snapshot::read(processes)?;
+@@ -131,8 +159,0 @@ fn main() -> Result<()> {
+-    surface.paint(window, 0x00ff_0000)?;
+-    surface.until("final survivor pixels", || {
+-        surface.window_has_color(window, 0x00ff_0000)
+-    })?;
+-    surface.screenshot(&args.output.join("final.ppm"))?;
+-    println!(
+-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
+-    );
+diff --git a/examples/desktop/hotplug.rs b/examples/desktop/hotplug.rs
+new file mode 100644
+index 0000000..eb115c3
+--- /dev/null
++++ b/examples/desktop/hotplug.rs
+@@ -0,0 +1,144 @@
++use super::{Args, Surface, measure, metrics::Process};
++use anyhow::{Context, Result, bail, ensure};
++use std::{
++    fs::create_dir,
++    io::{BufRead, Write},
++    path::Path,
++};
++use topology::{Area, Point};
++use x11rb::protocol::{
++    randr::ConnectionExt as _,
++    xproto::{ConfigureWindowAux, ConnectionExt as _, StackMode},
++};
++
++#[path = "topology.rs"]
++mod topology;
++
++const RED: u32 = 0x00ff_0000;
++const GREEN: u32 = 0x0000_ff00;
++/// Marker size; each check moves it to a new origin.
++const MARKER: Area = Area {
++    x: 0,
++    y: 0,
++    width: 128,
++    height: 96,
++};
++
++/// Keep one override-redirect marker alive while an operator changes monitors.
++pub(super) fn run(surface: &Surface, args: &Args, processes: &[Process]) -> Result<()> {
++    let version = surface.conn.randr_query_version(1, 5)?.reply()?;
++    ensure!(
++        (version.major_version, version.minor_version) >= (1, 5),
++        "monitor sampling requires RandR 1.5"
++    );
++    let marker = surface.window(RED, true)?;
++    println!("READY: enter 'sample LABEL' after each monitor transition, then 'quit'");
++    std::io::stdout().flush()?;
++    let mut count = 0_u32;
++    for line in std::io::stdin().lock().lines() {
++        let line = line?;
++        let Some(label) = command(&line)? else {
++            return Ok(());
++        };
++        count = count.checked_add(1).context("too many samples")?;
++        let output = args.output.join(format!("{count:03}-{label}"));
++        create_dir(&output)?;
++        let monitors = sample(surface, args, processes, marker, &output)
++            .with_context(|| format!("sample {count} ({label})"))?;
++        println!("PASS sample={count} label={label} monitors={monitors}");
++        std::io::stdout().flush()?;
++    }
++    bail!("standard input closed before 'quit'")
++}
++
++fn command(line: &str) -> Result<Option<&str>> {
++    match line.split_whitespace().collect::<Vec<_>>().as_slice() {
++        ["quit"] => Ok(None),
++        ["sample", label]
++            if label.len() <= 40
++                && label
++                    .bytes()
++                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-') =>
++        {
++            Ok(Some(label))
++        }
++        _ => bail!("expected 'sample LABEL' (a-z, 0-9, and '-') or 'quit'"),
++    }
++}
++
++/// Record the topology, redraw the marker on every monitor and seam, then measure.
++fn sample(
++    surface: &Surface,
++    args: &Args,
++    processes: &[Process],
++    marker: u32,
++    output: &Path,
++) -> Result<usize> {
++    let monitors = topology::capture(surface, output)?;
++    ensure!(!monitors.is_empty(), "no active monitor for the marker");
++    for monitor in &monitors {
++        ensure!(
++            monitor.width >= MARKER.width + 40 && monitor.height >= MARKER.height + 80,
++            "monitor is too small for the marker"
++        );
++        // Opposite corners expose buffers that did not follow a size or position change.
++        for origin in [
++            (monitor.x + 20, monitor.y + 40),
++            (
++                monitor.x + monitor.width - 20 - MARKER.width,
++                monitor.y + monitor.height - 40 - MARKER.height,
++            ),
++        ] {
++            let center = (origin.0 + MARKER.width / 2, origin.1 + MARKER.height / 2);
++            flash(surface, marker, origin, &[center])?;
++        }
++        println!(
++            "monitor={}x{}+{}+{} marker_pixels=PASS",
++            monitor.width, monitor.height, monitor.x, monitor.y
++        );
++    }
++    for seam in topology::seams(&monitors, &MARKER) {
++        flash(surface, marker, seam.origin, &seam.points)?;
++        let [(x1, y1), (x2, y2)] = seam.points;
++        println!("seam={x1},{y1};{x2},{y2} marker_pixels=PASS");
++    }
++    measure(surface, marker, args, processes, output)?;
++    surface.paint(marker, GREEN)?;
++    surface.until("marker redraw after measurement", || {
++        surface.window_has_color(marker, GREEN)
++    })?;
++    topology::resources(surface, output)?;
++    Ok(monitors.len())
++}
++
++/// Move the marker, then require each color at every root point in turn.
++fn flash(surface: &Surface, marker: u32, origin: Point, points: &[Point]) -> Result<()> {
++    surface
++        .conn
++        .configure_window(
++            marker,
++            &ConfigureWindowAux::new()
++                .x(origin.0)
++                .y(origin.1)
++                .width(u32::try_from(MARKER.width)?)
++                .height(u32::try_from(MARKER.height)?)
++                .stack_mode(StackMode::ABOVE),
++        )?
++        .check()?;
++    let points = points
++        .iter()
++        .map(|&(x, y)| Ok((i16::try_from(x)?, i16::try_from(y)?)))
++        .collect::<Result<Vec<_>>>()?;
++    for color in [GREEN, RED] {
++        surface.paint(marker, color)?;
++        surface.until("monitor marker pixels", || {
++            for &point in &points {
++                if surface.pixel(point)? != color {
++                    return Ok(false);
++                }
++            }
++            Ok(true)
++        })?;
++    }
++    Ok(())
++}
+diff --git a/examples/desktop/topology.rs b/examples/desktop/topology.rs
+new file mode 100644
+index 0000000..8564ee3
+--- /dev/null
++++ b/examples/desktop/topology.rs
+@@ -0,0 +1,217 @@
++use super::Surface;
++use anyhow::{Context, Result, ensure};
++use std::{
++    fs::File,
++    io::{BufWriter, Write},
++    path::Path,
++};
++use x11rb::{
++    NONE,
++    connection::Connection,
++    protocol::{
++        randr::{ConnectionExt as _, ModeFlag, ModeInfo, SetConfig},
++        res::{ConnectionExt as _, ResourceIdSpec},
++        xproto::{AtomEnum, ConnectionExt as _},
++    },
++};
++
++/// A pixel position in root coordinates.
++pub(super) type Point = (i32, i32);
++
++/// A marker origin straddling a shared monitor edge, with one point on each side.
++pub(super) struct Seam {
++    pub(super) origin: Point,
++    pub(super) points: [Point; 2],
++}
++
++/// A rectangle in root coordinates.
++pub(super) struct Area {
++    pub(super) x: i32,
++    pub(super) y: i32,
++    pub(super) width: i32,
++    pub(super) height: i32,
++}
++
++/// Write outputs, CRTCs, and active monitors to `topology.txt`; return the monitors.
++pub(super) fn capture(surface: &Surface, output: &Path) -> Result<Vec<Area>> {
++    let conn = &surface.conn;
++    let mut file = BufWriter::new(File::create(output.join("topology.txt"))?);
++    let root = conn.get_geometry(surface.root)?.reply()?;
++    writeln!(file, "root={}x{}", root.width, root.height)?;
++    let resources = conn
++        .randr_get_screen_resources_current(surface.root)?
++        .reply()?;
++    let primary = conn.randr_get_output_primary(surface.root)?.reply()?.output;
++    for &id in &resources.outputs {
++        let info = conn
++            .randr_get_output_info(id, resources.config_timestamp)?
++            .reply()?;
++        write!(
++            file,
++            "output={} connection={:?} primary={}",
++            String::from_utf8_lossy(&info.name),
++            info.connection,
++            id == primary
++        )?;
++        if info.crtc == NONE {
++            writeln!(file, " crtc=none")?;
++            continue;
++        }
++        let crtc = conn
++            .randr_get_crtc_info(info.crtc, resources.config_timestamp)?
++            .reply()?;
++        ensure!(crtc.status == SetConfig::SUCCESS, "querying a CRTC failed");
++        write!(
++            file,
++            " crtc={} geometry={}x{}+{}+{} rotation={:?}",
++            info.crtc, crtc.width, crtc.height, crtc.x, crtc.y, crtc.rotation
++        )?;
++        match resources.modes.iter().find(|mode| mode.id == crtc.mode) {
++            Some(mode) => {
++                let rate = refresh_millihertz(mode);
++                writeln!(
++                    file,
++                    " mode={}x{}@{}.{:03}Hz",
++                    mode.width,
++                    mode.height,
++                    rate / 1000,
++                    rate % 1000
++                )?;
++            }
++            None => writeln!(file, " mode=none")?,
++        }
++    }
++    let monitors = conn
++        .randr_get_monitors(surface.root, true)?
++        .reply()?
++        .monitors;
++    let mut areas = Vec::with_capacity(monitors.len());
++    for monitor in monitors {
++        let name = conn.get_atom_name(monitor.name)?.reply()?.name;
++        writeln!(
++            file,
++            "monitor={} primary={} automatic={} geometry={}x{}+{}+{} outputs={}",
++            String::from_utf8_lossy(&name),
++            monitor.primary,
++            monitor.automatic,
++            monitor.width,
++            monitor.height,
++            monitor.x,
++            monitor.y,
++            monitor.outputs.len()
++        )?;
++        areas.push(Area {
++            x: monitor.x.into(),
++            y: monitor.y.into(),
++            width: monitor.width.into(),
++            height: monitor.height.into(),
++        });
++    }
++    file.flush()?;
++    Ok(areas)
++}
++
++/// Vertical refresh as xrandr reports it, in millihertz; zero for incomplete timings.
++fn refresh_millihertz(mode: &ModeInfo) -> u64 {
++    let mut lines = u64::from(mode.vtotal);
++    if mode.mode_flags.contains(ModeFlag::DOUBLE_SCAN) {
++        lines *= 2;
++    }
++    if mode.mode_flags.contains(ModeFlag::INTERLACE) {
++        lines /= 2;
++    }
++    let pixels = u64::from(mode.htotal) * lines;
++    if pixels == 0 {
++        return 0;
++    }
++    u64::from(mode.dot_clock) * 1000 / pixels
++}
++
++/// Find every edge shared by two monitors that can hold the straddling marker.
++pub(super) fn seams(monitors: &[Area], marker: &Area) -> Vec<Seam> {
++    let mut seams = Vec::new();
++    for first in monitors {
++        for second in monitors {
++            let top = first.y.max(second.y);
++            let bottom = (first.y + first.height).min(second.y + second.height);
++            if first.x + first.width == second.x && bottom - top >= marker.height + 80 {
++                let origin = (second.x - marker.width / 2, top + 40);
++                let y = origin.1 + marker.height / 2;
++                let offset = marker.width / 4;
++                seams.push(Seam {
++                    origin,
++                    points: [(second.x - offset, y), (second.x + offset, y)],
++                });
++            }
++            let left = first.x.max(second.x);
++            let right = (first.x + first.width).min(second.x + second.width);
++            if first.y + first.height == second.y && right - left >= marker.width + 40 {
++                let origin = (left + 20, second.y - marker.height / 2);
++                let x = origin.0 + marker.width / 2;
++                let offset = marker.height / 4;
++                seams.push(Seam {
++                    origin,
++                    points: [(x, second.y - offset), (x, second.y + offset)],
++                });
++            }
++        }
++    }
++    seams
++}
++
++/// Write the compositor's X resource counts and full owned pixmap bytes to `resources.csv`.
++pub(super) fn resources(surface: &Surface, output: &Path) -> Result<()> {
++    let conn = &surface.conn;
++    let version = conn.res_query_version(1, 2)?.reply()?;
++    ensure!(
++        (version.server_major, version.server_minor) >= (1, 2),
++        "XRes 1.2 is required"
++    );
++    let screen = conn
++        .setup()
++        .roots
++        .iter()
++        .position(|screen| screen.root == surface.root)
++        .context("missing screen")?;
++    let selection = surface.atom(&format!("_NET_WM_CM_S{screen}"))?;
++    // XRes accepts any XID owned by the client, including its selection window.
++    let owner = conn.get_selection_owner(selection)?.reply()?.owner;
++    ensure!(owner != NONE, "compositor lost its selection");
++    let mut file = BufWriter::new(File::create(output.join("resources.csv"))?);
++    writeln!(file, "resource,value")?;
++    let mut pixmaps = 0;
++    for resource in conn.res_query_client_resources(owner)?.reply()?.types {
++        let name = conn.get_atom_name(resource.resource_type)?.reply()?.name;
++        if resource.resource_type == u32::from(AtomEnum::PIXMAP) {
++            pixmaps = resource.count;
++        }
++        writeln!(file, "{},{}", String::from_utf8(name)?, resource.count)?;
++    }
++    let mut sizes = conn
++        .res_query_resource_bytes(
++            owner,
++            &[ResourceIdSpec {
++                resource: NONE,
++                type_: NONE,
++            }],
++        )?
++        .reply()?
++        .sizes;
++    sizes.retain(|size| size.size.spec.type_ == u32::from(AtomEnum::PIXMAP));
++    ensure!(
++        u32::try_from(sizes.len())? == pixmaps,
++        "XRes omitted pixmap allocations"
++    );
++    ensure!(
++        sizes.iter().all(|size| size.size.bytes > 0),
++        "XRes omitted pixmap bytes"
++    );
++    // Full allocation sizes stay stable when Present changes pixmap reference counts.
++    let bytes = sizes.iter().try_fold(0_u64, |sum, size| {
++        sum.checked_add(u64::from(size.size.bytes))
++            .context("pixmap byte overflow")
++    })?;
++    writeln!(file, "owned_pixmap_bytes,{bytes}")?;
++    file.flush()?;
++    Ok(())
++}
+diff --git a/tools/hotplug-check.sh b/tools/hotplug-check.sh
+new file mode 100755
+index 0000000..64c2ea4
+--- /dev/null
++++ b/tools/hotplug-check.sh
+@@ -0,0 +1,91 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++usage() {
++    printf 'Usage: SERVER_PID=PID [WM_PID=PID] tools/hotplug-check.sh NEW_REPORT_DIRECTORY [present|direct]\n'
++}
++if [[ ${1:-} == --help ]]; then
++    usage
++    printf 'Sample monitor transitions on DISPLAY after stopping its compositor; Present is the default.\n'
++    printf 'Enter "sample LABEL" after each transition, then "quit". Build release binaries first.\n'
++    exit 0
++fi
++if (( $# < 1 || $# > 2 )); then
++    usage >&2
++    exit 2
++fi
++presentation=${2:-present}
++case "$presentation" in
++    present) config=tools/desktop/compust.toml ;;
++    direct) config=tools/desktop/compust-direct.toml ;;
++    *) printf 'Unknown presentation mode: %s\n' "$presentation" >&2; exit 2 ;;
++esac
++if [[ -z ${DISPLAY:-} || -z ${SERVER_PID:-} ]]; then
++    usage >&2
++    printf 'DISPLAY and SERVER_PID must identify the dedicated test session.\n' >&2
++    exit 2
++fi
++report=$1
++mkdir -- "$report"
++report=$(realpath "$report")
++measured=(--process "server:$SERVER_PID")
++if [[ -n ${WM_PID:-} ]]; then
++    measured+=(--process "wm:$WM_PID")
++fi
++# Monitor EDIDs contain serial numbers; keep the other output properties.
++outputs() {
++    xrandr --verbose | awk '/^\t[^\t]/ { edid = /^\tEDID:/ } !(edid && /^\t\t/)'
++}
++compositor_pid=
++cleanup() {
++    if [[ -n $compositor_pid ]] && kill -0 "$compositor_pid" 2>/dev/null; then
++        kill -TERM "$compositor_pid" || true
++        wait "$compositor_pid" || true
++    fi
++}
++trap cleanup EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
++
++sources=(src examples tools Cargo.toml Cargo.lock rust-toolchain.toml)
++git rev-parse HEAD >"$report/commit.txt"
++git status --short >"$report/worktree.txt"
++{
++    git diff HEAD -- "${sources[@]}"
++    while IFS= read -r -d '' file; do
++        git diff --no-index -- /dev/null "$file" || [[ $? == 1 ]]
++    done < <(git ls-files -z --others --exclude-standard -- "${sources[@]}")
++} >"$report/source.patch"
++git ls-files -z --cached --others --exclude-standard -- "${sources[@]}" \
++    | xargs -0 sha256sum >"$report/source-sha256.txt"
++uname -srmo >"$report/kernel.txt"
++lscpu >"$report/cpu.txt"
++if command -v lspci >/dev/null; then
++    lspci -nnk -d ::0300 >"$report/gpu.txt"
++fi
++rustc --version >"$report/rust-version.txt"
++ps -o pid=,args= -p "$SERVER_PID" >"$report/server-process.txt"
++if [[ -n ${WM_PID:-} ]]; then
++    ps -o pid=,args= -p "$WM_PID" >"$report/wm-process.txt"
++fi
++xdpyinfo >"$report/server.txt"
++xrandr --listproviders >"$report/providers.txt"
++outputs >"$report/outputs.txt"
++target/release/compust --diagnose >"$report/diagnose.txt"
++cp "$config" "$report/compust.toml"
++sha256sum target/release/compust target/release/examples/desktop_probe >"$report/binaries.txt"
++date -Is >"$report/started.txt"
++
++target/release/compust --display "$DISPLAY" --config "$report/compust.toml" \
++    >"$report/compust.log" 2>&1 &
++compositor_pid=$!
++target/release/examples/desktop_probe --display "$DISPLAY" --hotplug \
++    --process "compust:$compositor_pid" "${measured[@]}" \
++    --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" --presentation "$presentation" \
++    2>&1 | tee "$report/probe.log"
++kill -TERM "$compositor_pid"
++wait "$compositor_pid"
++compositor_pid=
++printf 'Compositor exited successfully after SIGTERM.\n' >"$report/shutdown.txt"
++outputs >"$report/outputs-final.txt"
++printf 'Monitor checks passed: %s\n' "$report"

@@ -1,0 +1,12 @@
+vendor=XLibre release=12501009 geometry=3840x1080 depth=24
+READY: enter 'sample LABEL' after each monitor transition, then 'quit'
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000062 updates=0 completions=144 damage_events=144
+phase=active seconds=10.000060 updates=600 completions=600 damage_events=600
+PASS sample=1 label=baseline monitors=2
+Error: sample 2 (hdmi-1280x720)
+
+Caused by:
+    timed out: monitor marker pixels

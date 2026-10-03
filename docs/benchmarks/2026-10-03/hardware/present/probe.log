@@ -1,0 +1,82 @@
+vendor=XLibre release=12501009 geometry=3840x1080 depth=24
+READY: enter 'sample LABEL' after each monitor transition, then 'quit'
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000067 updates=0 completions=147 damage_events=147
+phase=active seconds=10.000074 updates=600 completions=600 damage_events=600
+PASS sample=1 label=baseline monitors=2
+monitor=1280x720+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000108 updates=0 completions=132 damage_events=132
+phase=active seconds=10.000059 updates=600 completions=601 damage_events=601
+PASS sample=2 label=hdmi-1280x720 monitors=2
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000092 updates=0 completions=144 damage_events=144
+phase=active seconds=10.000058 updates=600 completions=600 damage_events=600
+PASS sample=3 label=mode-restored monitors=2
+monitor=1920x1080+0+1080 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=84,1056;84,1104 marker_pixels=PASS
+phase=idle seconds=10.000091 updates=0 completions=142 damage_events=142
+phase=active seconds=10.000070 updates=600 completions=600 damage_events=600
+PASS sample=4 label=vertical monitors=2
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000374 updates=0 completions=137 damage_events=137
+phase=active seconds=10.000059 updates=600 completions=600 damage_events=600
+PASS sample=5 label=layout-restored monitors=2
+monitor=1920x1080+0+0 marker_pixels=PASS
+phase=idle seconds=10.000377 updates=0 completions=133 damage_events=133
+phase=active seconds=10.000096 updates=600 completions=600 damage_events=600
+PASS sample=6 label=dp-off monitors=1
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000115 updates=0 completions=137 damage_events=137
+phase=active seconds=10.000074 updates=600 completions=600 damage_events=600
+PASS sample=7 label=dp-on monitors=2
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000417 updates=0 completions=141 damage_events=141
+phase=active seconds=10.000069 updates=600 completions=600 damage_events=600
+PASS sample=8 label=hdmi-unplugged monitors=2
+monitor=1920x1080+0+0 marker_pixels=PASS
+phase=idle seconds=10.000223 updates=0 completions=134 damage_events=134
+phase=active seconds=10.000357 updates=600 completions=601 damage_events=601
+PASS sample=9 label=hdmi-auto monitors=1
+monitor=1920x1080+0+0 marker_pixels=PASS
+phase=idle seconds=10.000059 updates=0 completions=143 damage_events=143
+phase=active seconds=10.000074 updates=600 completions=601 damage_events=601
+PASS sample=10 label=hdmi-replugged monitors=1
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000397 updates=0 completions=134 damage_events=134
+phase=active seconds=10.000059 updates=600 completions=600 damage_events=600
+PASS sample=11 label=hdmi-restored monitors=2
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000381 updates=0 completions=140 damage_events=140
+phase=active seconds=10.000059 updates=600 completions=600 damage_events=600
+PASS sample=12 label=dp-unplugged monitors=2
+monitor=1920x1080+0+0 marker_pixels=PASS
+phase=idle seconds=10.000096 updates=0 completions=138 damage_events=138
+phase=active seconds=10.000060 updates=600 completions=600 damage_events=600
+PASS sample=13 label=dp-auto monitors=1
+monitor=1920x1080+0+0 marker_pixels=PASS
+phase=idle seconds=10.000060 updates=0 completions=133 damage_events=133
+phase=active seconds=10.000058 updates=600 completions=600 damage_events=600
+PASS sample=14 label=dp-replugged monitors=1
+monitor=1920x1080+1920+0 marker_pixels=PASS
+monitor=1920x1080+0+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+phase=idle seconds=10.000341 updates=0 completions=137 damage_events=137
+phase=active seconds=10.000057 updates=600 completions=600 damage_events=600
+PASS sample=15 label=dp-restored monitors=2

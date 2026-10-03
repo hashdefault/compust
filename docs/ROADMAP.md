@@ -17,8 +17,8 @@ The first beta will use the existing XRender backend and declare support only fo
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
-| 2. Monitors and resources | Automated checks complete; physical hotplug pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
-| 3. Real desktops | Nested Xmonad baseline recorded; hardware pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
+| 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
+| 3. Real desktops | Nested Xmonad baseline and one AMD/XLibre session recorded; hardware scenarios pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Pending | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
@@ -33,7 +33,7 @@ Test RandR resolution changes and physical hotplug, supported presentation failu
 
 **Acceptance:** output recovers after each supported transition, presentation continues, and repeated operations do not produce unbounded growth in memory or server resources.
 
-The Xvfb scenarios below pass. Physical connector hotplug and multiple-monitor arrangements remain open; disabling a virtual CRTC does not establish those behaviors.
+The Xvfb scenarios below pass. A native XLibre session on AMD hardware also passed physical unplugging and reconnection of both connectors, plus two-monitor mode and layout changes, in both presentation modes. Other drivers and servers, mixed refresh rates, and more than two monitors remain unverified; disabling a virtual CRTC does not establish physical behavior.
 
 ### 3. Real desktops
 
@@ -41,7 +41,7 @@ Run documented scenarios with real window managers on Xorg and XLibre. Record th
 
 **Acceptance:** publish a compatibility matrix with evidence for each advertised environment, a reproducible measurement baseline, and remaining limitations. Untested driver/server combinations remain unqualified.
 
-The [desktop qualification guide](DESKTOP_TESTING.md) documents the isolated runner, measurements, and hardware procedure. The recorded Xephyr/Xmonad runs start this step; they do not close its driver and physical-display requirements.
+The [desktop qualification guide](DESKTOP_TESTING.md) documents the isolated runner, measurements, and hardware procedure. The recorded Xephyr/Xmonad runs start this step; they do not close its driver and physical-display requirements. The AMD/XLibre monitor session adds hardware CPU, memory, and Present pacing for one environment. The desktop scenarios still need a dedicated hardware session: window lifecycle, menus, fullscreen, and workspaces with real applications, plus fades and blur.
 
 ### 4. Beta distribution
 
@@ -91,9 +91,9 @@ Four lifecycle tests in [resources.rs](../tests/cases/resources.rs) repeat mappe
 
 A fifth resource test holds extra pixmap references from another client. The full allocation total stays unchanged, while the old reference-weighted attribution drops from 641,066 to 429,600 bytes. The fixture uses XRes 1.2 `QueryResourceBytes` and verifies complete size coverage; `QueryClientPixmapBytes` is unsuitable for strict allocation comparisons while Present references change. Recorded Linux compositor RSS endpoints were unchanged or increased by one 4 KiB page. These finite checks detect growth in the exercised workloads; they do not establish a general memory bound or hardware GPU-memory usage.
 
-Three tests in [presentation.rs](../tests/cases/presentation.rs) cover rejected submissions. A test proxy substitutes an incompatible pixmap in one Present request, producing a real server `BadMatch`. Previously the compositor exited. It now matches that exact submission, checks that its original back buffer and output still exist with compatible screen/depth, and continues through XRender for the rest of the session, including later root resizes. Invalid pixmap and window errors still terminate the compositor. Missing completion events and other presentation errors are outside this recovery policy.
+Three tests in [presentation.rs](../tests/cases/presentation.rs) cover rejected submissions. A test proxy substitutes an incompatible pixmap in one Present request, producing a real server `BadMatch`. Previously the compositor exited. It now matches that exact submission, checks that its original back buffer and output still exist with compatible screen/depth, and continues through XRender for the rest of the session, including later root resizes. Invalid pixmap and window errors still terminate the compositor. Missing completion events outside monitor reconfiguration, covered below, and other presentation errors are outside this recovery policy.
 
-The full suite now has 59 passing tests: six unit, three CLI, and fifty X11 integration tests. Formatting, strict Clippy, the release build, and documentation checks pass. Step 2 remains open for physical hotplug, multiple-monitor layouts, and hardware measurements. The automated configuration is one virtual output at 320×240, temporarily 240×180, with `fade_ms = 0`, `blur_radius = 0`, and each vsync mode.
+The full suite now has 59 passing tests: six unit, three CLI, and fifty X11 integration tests. Formatting, strict Clippy, the release build, and documentation checks pass. Physical hotplug, multiple-monitor layouts, and hardware measurements were still open at that point; see the hardware session below. The automated configuration is one virtual output at 320×240, temporarily 240×180, with `fade_ms = 0`, `blur_radius = 0`, and each vsync mode.
 
 ### Step 3 started: Xmonad on nested Xorg and XLibre
 
@@ -103,14 +103,27 @@ The [desktop runner](../tools/desktop-check.sh) now accepts `present` or `direct
 
 All four server/path combinations passed at base `cb0796c8e42a95d3c80ab11c557b75809f791d43` plus the archived probe/runner changes. The [bilingual qualification guide and raw evidence](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) record ten-second idle/active phases, separate compositor/server CPU, unchanged RSS endpoints, Present intervals, and two negative checks. The full 59-test suite, formatting, strict Clippy, and release build pass. This completes the isolated baseline increment, not step 3's hardware gate. Existing Xmonad diagnostics and untested environments are recorded in the guide.
 
+### Step 2 on hardware: physical hotplug on XLibre with AMD
+
+A native XLibre 25.1.9 session with the modesetting driver, the amdgpu kernel driver, an AMD Ryzen 5 5600GT (Radeon Vega graphics, Mesa 26.2.4), and Xmonad 0.18.1 ran the new [monitor-transition runner](../tools/hotplug-check.sh). HDMI-1 (primary, right) and DP-1 (a DisplayPort-to-VGA adapter, left) both used 1920×1080 at 60 Hz. The [desktop probe](../examples/desktop_probe.rs) keeps one override-redirect marker. After each transition, it checks redraws near opposite corners of every active monitor and across each shared monitor edge, then records the RandR topology, ten-second idle and active phases, and the compositor's XRes accounting.
+
+The first run found a defect. Changing HDMI-1 to 1280×720 froze output in Present mode: a CRTC reconfiguration and root resize happened while one submission was pending, and the server never sent its completion or idle event. Compust waited for those events before rebuilding its buffers. An [instrumented reproduction](benchmarks/2026-10-03/hardware/stall/diagnosis/compust-debug.log) recorded the missing events. A RandR change now replaces the renderer without waiting, and a same-size root `ConfigureNotify` no longer cancels a replacement requested earlier in the same event batch. Two regressions in [presentation.rs](../tests/cases/presentation.rs) withhold a submission's events with a never-triggered SYNC wait fence. Both failed before the fix; the output-toggle case also failed with only the first change.
+
+With the fix, both presentation modes passed fifteen samples: the baseline, a 1280×720 mode and its restoration, a vertical 1920×2160 layout and its restoration, DP-1 off and on, and, for each connector, physical unplugging with the CRTC still assigned, `xrandr --auto`, reconnection, and restoration. Across 8,988 active-phase intervals, Present had a 16.667 ms median and p95 and a 16.670 ms maximum. While the marker updated 60 times per second, Compust used 0.3–0.5% of one core and Xorg 3.2–4.4%. Repeated topologies reported identical owned-pixmap bytes and resource counts, and Compust RSS stayed within 3,760–3,896 KiB. Details and raw evidence are in the [desktop qualification guide](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03).
+
+The full suite now has 61 passing tests: six unit, three CLI, and fifty-two X11 integration tests. Formatting, strict Clippy, and the release build pass. This qualifies monitor transitions only in the recorded environment, with fades and blur disabled. Intel and NVIDIA drivers, Xorg on hardware, mixed refresh rates, more than two monitors, and the step 3 desktop scenarios on hardware remain open.
+
+### Compatibility matrix
+
 | Environment | Verified coverage | Evidence / limits |
 | --- | --- | --- |
 | Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, queued destruction events, and eleven capture-request boundaries; all 47 tests pass | Recorded 2026-10-02. Capture races use `fade_ms = 0`, `blur_radius = 0`, and default vsync. Earlier fade/shape cases also use `fade_ms = 1000`, `blur_radius = 4`, or `vsync = false` as described above. Hierarchies are created directly, without real window-manager or GPU qualification. |
-| Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors remain unverified. |
+| Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors are outside this virtual setup. |
 | Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
-| XLibre with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires the same environment evidence; Xvfb results do not establish support. |
+| XLibre with Intel/NVIDIA drivers or other AMD configurations | Pending | Requires the same environment evidence; one AMD session does not establish other drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios, idle/active CPU and RSS, Present and direct XRender, shutdown | Recorded 2026-10-03; fade/blur disabled. [Results and limitations](DESKTOP_TESTING.md#recorded-baseline-2026-10-03). No physical display or driver qualification. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in both paths | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
+| XLibre 25.1.9 native, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP-to-VGA at 1920×1080 60 Hz | Mode, layout, and output changes; physical unplugging and reconnection of both connectors; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with fade/blur disabled while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). The desktop scenario probe was not run on hardware. |
 
 Reproduce the lifecycle checks with the repository's pinned toolchain and Xvfb installed. The [CI runs](https://github.com/hashdefault/compust/actions/workflows/ci.yml) record results against each exact commit; include the revision printed below in local reports.
 
@@ -134,7 +147,7 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 Test Xorg and XLibre with actual window managers and Intel, AMD, and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
-Exercise physical monitor hotplug and multiple-monitor layouts on real hardware, and measure longer-running memory and presentation behavior. The virtual RandR transitions, narrow Present rejection recovery, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
+Repeat physical hotplug and multiple-monitor layouts with other drivers and servers, mixed refresh rates, and more than two monitors, and measure longer-running memory and presentation behavior. The AMD/XLibre monitor session, virtual RandR transitions, recovery from rejected or unfinished Present submissions, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 
