@@ -469,6 +469,45 @@ fn cycle_window(
     Ok((open, closed.elapsed()))
 }
 
+/// Vblanks without a completion between consecutive frames, from MSC. Present can switch the
+/// CRTC it follows on a multi-monitor root, and the new CRTC's counter has another base. The
+/// vblank period is the median of each pair's time per MSC step; a step that disagrees with
+/// its pair's time by more than a quarter, and by more than two vblanks, is counted as a
+/// discontinuity, and its skipped vblanks are estimated from the time instead.
+fn skipped_vblanks(frames: &[(u64, u64)]) -> (u64, u32) {
+    let gap = |pair: &[(u64, u64)]| match pair {
+        [(ust0, msc0), (ust1, msc1)] => {
+            Some((ust1.saturating_sub(*ust0), msc1.wrapping_sub(*msc0)))
+        }
+        _ => None,
+    };
+    let mut periods: Vec<u64> = frames
+        .windows(2)
+        .filter_map(gap)
+        .filter_map(|(time, step)| time.checked_div(step))
+        .collect();
+    periods.sort_unstable();
+    let period = periods
+        .get(periods.len().saturating_sub(1) / 2)
+        .copied()
+        .unwrap_or(0);
+    let (mut skipped, mut discontinuities) = (0_u64, 0_u32);
+    for (time, step) in frames.windows(2).filter_map(gap) {
+        let by_time = time
+            .saturating_add(period / 2)
+            .checked_div(period)
+            .unwrap_or(step)
+            .max(1);
+        if step >= 1 && step.abs_diff(by_time) <= (by_time / 4).max(2) {
+            skipped += step - 1;
+        } else {
+            discontinuities += 1;
+            skipped += by_time - 1;
+        }
+    }
+    (skipped, discontinuities)
+}
+
 /// Nearest-rank percentile of sorted values.
 fn percentile(sorted: &[f64], percent: usize) -> Option<f64> {
     let rank = (sorted.len() * percent).div_ceil(100);
@@ -506,16 +545,15 @@ fn write(
 
     // Intervals only between consecutive completions; a skipped vblank advances MSC by more.
     let mut intervals = Vec::new();
-    let mut skipped = 0_u64;
     for pair in observed.frames.windows(2) {
-        let [(ust0, msc0), (ust1, msc1)] = pair else {
+        let [(ust0, _), (ust1, _)] = pair else {
             continue;
         };
         ensure!(ust1 >= ust0, "Present timestamps moved backwards");
         intervals.push(f64::from(u32::try_from(ust1 - ust0)?) / 1000.0);
-        skipped += msc1.saturating_sub(*msc0).saturating_sub(1);
     }
     intervals.sort_by(f64::total_cmp);
+    let (skipped, discontinuities) = skipped_vblanks(&observed.frames);
     let (mut open, mut close) = (Vec::new(), Vec::new());
     if let Some(latencies) = latencies {
         let mut file = BufWriter::new(File::create(output.join("latency.csv"))?);
@@ -536,7 +574,7 @@ fn write(
     let mut summary = BufWriter::new(File::create(output.join("summary.csv"))?);
     writeln!(
         summary,
-        "scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max"
+        "scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,msc_discontinuities,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max"
     )?;
     let gpu = observed.gpu.as_ref().map(|gpu| &gpu.samples);
     let gpu_mean = gpu
@@ -553,7 +591,7 @@ fn write(
         .map_or_else(String::new, ToString::to_string);
     writeln!(
         summary,
-        "{},{:.3},{},{},{},{},{},{skipped},{},{},{},{},{},{},{},{},{},{},{},{},{gpu_mean},{gpu_max}",
+        "{},{:.3},{},{},{},{},{},{skipped},{discontinuities},{},{},{},{},{},{},{},{},{},{},{},{},{gpu_mean},{gpu_max}",
         scene.name(),
         elapsed.as_secs_f64(),
         observed.frames.len(),
