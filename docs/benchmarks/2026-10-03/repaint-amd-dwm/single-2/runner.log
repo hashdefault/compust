@@ -1,0 +1,4 @@
+compust small-update: PASS scene=small-update seconds=20.000 completions=1200 damage_events=1200
+compust move-resize: PASS scene=move-resize seconds=20.000 completions=1200 damage_events=1200
+compust open-close: PASS scene=open-close seconds=3.333 completions=200 damage_events=200
+Benchmark report: <reports>/single-2
