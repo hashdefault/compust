@@ -1,3 +1,5 @@
+#[path = "cases/borders.rs"]
+mod borders;
 #[path = "cases/capture_races.rs"]
 mod capture_races;
 #[path = "cases/client_lifecycle.rs"]

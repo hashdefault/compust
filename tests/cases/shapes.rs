@@ -107,6 +107,14 @@ fn tracks_bordered_window_across_screen_edges() -> Result<()> {
     desktop.map(window)?;
     desktop.until_pixel((5, 5), |p| p == [0, 255, 0])?;
     desktop.until_pixel((15, 15), |p| p == [255, 0, 0])?;
+    desktop.screenshot("shape-border-all-edges")?;
+    for point in [(5, 5), (115, 15), (15, 115), (115, 115)] {
+        assert_eq!(
+            desktop.pixel(point)?,
+            [0, 255, 0],
+            "border missing at {point:?}"
+        );
+    }
 
     desktop
         .conn

@@ -49,9 +49,15 @@ Publish a versioned beta prerelease with build or binary installation instructio
 
 **Acceptance:** a tester can install and run the exact release, return to their previous compositor, and report a failure from the supplied instructions. CI passes for the release commit and the previous three gates are satisfied for its declared support scope.
 
-There is no beta date yet. These are four acceptance gates, not a fixed number of commits. GPU backend expansion and advanced effects can follow the first beta.
+Version 0.2.0-beta.1 completed these four acceptance gates for its declared scope. GPU backend expansion and advanced effects can follow the first beta.
 
 ## Progress and verification
+
+### Local beta testing: complete Xmonad borders
+
+Daily use after `v0.2.0-beta.1` exposed missing right and bottom borders. On a window without a client bounding shape, `ShapeGetRectangles` returned dimensions shorter than the captured pixmap by one border width. Compust now uses the full pixmap bounds for these windows and preserves explicit client shapes.
+
+The existing [off-screen border regression](../tests/cases/shapes.rs) failed before the fix and passes afterward. [Border regressions](../tests/cases/borders.rs) cover focus color updates, resize with a changed border width, and removal of a custom shape. All 68 tests, formatting, strict Clippy, and the release build pass. In the local Xmonad session, both Alacritty windows retain all four 2-pixel border strips in focused and unfocused states. This continues beta testing; the animation tasks below remain planned.
 
 ### Client/frame lifecycle: implemented
 

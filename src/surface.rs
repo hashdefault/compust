@@ -118,15 +118,32 @@ impl Surface {
                 .context("window height exceeds X11 limits")?,
         };
         let border = i16::try_from(border)?;
-        self.shape = self
-            .conn
-            .shape_get_rectangles(self.window, SK::BOUNDING)?
-            .reply()?
-            .rectangles;
-        for rect in &mut self.shape {
-            rect.x = rect.x.saturating_add(border);
-            rect.y = rect.y.saturating_add(border);
-        }
+        self.shape = if border > 0
+            && !self
+                .conn
+                .shape_query_extents(self.window)?
+                .reply()?
+                .bounding_shaped
+        {
+            // The default ShapeGetRectangles rectangle can omit the right/bottom border.
+            vec![Rectangle {
+                x: 0,
+                y: 0,
+                width: self.size.width,
+                height: self.size.height,
+            }]
+        } else {
+            let mut shape = self
+                .conn
+                .shape_get_rectangles(self.window, SK::BOUNDING)?
+                .reply()?
+                .rectangles;
+            for rect in &mut shape {
+                rect.x = rect.x.saturating_add(border);
+                rect.y = rect.y.saturating_add(border);
+            }
+            shape
+        };
         Ok(())
     }
 

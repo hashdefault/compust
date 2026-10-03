@@ -49,9 +49,15 @@ Publicar uma prévia beta versionada com instruções de compilação ou instala
 
 **Aceitação:** uma pessoa consegue instalar e executar a versão exata, retornar ao compositor anterior e relatar uma falha seguindo as instruções fornecidas. O CI passa para o commit da versão, e as três etapas anteriores estão aprovadas dentro do escopo de suporte declarado.
 
-Ainda não há data para a beta. São quatro critérios de liberação, não uma quantidade fixa de commits. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta.
+A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu escopo declarado. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta.
 
 ## Progresso e verificação
+
+### Teste local da beta: bordas completas no Xmonad
+
+O uso diário após `v0.2.0-beta.1` revelou bordas direitas e inferiores ausentes. Em uma janela sem formato delimitador definido pelo cliente, `ShapeGetRectangles` retornava dimensões menores que o pixmap capturado por uma largura de borda. O Compust agora usa os limites completos do pixmap nessas janelas e preserva os formatos explícitos do cliente.
+
+A [regressão de bordas fora da tela](../tests/cases/shapes.rs) existente falhou antes da correção e passa depois. As [regressões de bordas](../tests/cases/borders.rs) cobrem mudanças de cor por foco, redimensionamento com mudança da largura da borda e remoção de formato personalizado. Todos os 68 testes, formatação, Clippy estrito e build de release passam. Na sessão local do Xmonad, as duas janelas do Alacritty mantêm as quatro faixas de borda de 2 pixels com e sem foco. Isso continua os testes da beta; as tarefas de animação abaixo permanecem planejadas.
 
 ### Ciclo de vida de clientes e molduras: implementado
 
