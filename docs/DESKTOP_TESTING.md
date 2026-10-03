@@ -246,6 +246,8 @@ Each sample checks marker redraws near opposite corners of every active monitor 
 
 Across 6,590 active-phase Present intervals, the median was 16.662 ms and the nearest-rank p95 16.679 ms. Three samples each had one interval spanning two vblanks; in the rest, every MSC advanced by one. The median was 16.632–16.654 ms with the panel alone and 16.656–16.677 ms with both outputs, consistent with Present following one CRTC rather than each monitor's own refresh. In idle phases Compust used at most 0.1% of a core.
 
+This session did not detect a defect that the same cable test showed in ordinary use: tiled windows kept stale contents after i3 resized and restored them. The runner checks only its own override-redirect marker, which a window manager does not resize. The [roadmap](ROADMAP.md#local-beta-testing-stale-window-after-a-restored-resize) describes the defect and its fix, which came after these records.
+
 One connector on one external display was tested, with Xorg and i3. The marker checks prove server-side redraws, not what each screen displayed. Refresh rates that differ by more than this, more than two monitors, and fades or blur during a transition remain untested.
 
 ## Recorded Openbox sessions: 2026-10-03

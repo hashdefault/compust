@@ -9,7 +9,7 @@ use x11rb::{
     protocol::{
         Event,
         damage::ConnectionExt as _,
-        xproto::{ConnectionExt as _, Window},
+        xproto::{ConfigureNotifyEvent, ConnectionExt as _, Window},
     },
 };
 
@@ -67,7 +67,7 @@ impl Compositor {
                     self.resizing |= event.width != self.renderer.size.width
                         || event.height != self.renderer.size.height;
                 } else {
-                    self.configure(event.window)?;
+                    self.configure(&event)?;
                 }
                 self.scene.restack(&self.session)?;
                 self.dirty = true;
@@ -184,7 +184,8 @@ impl Compositor {
         Ok(())
     }
 
-    fn configure(&mut self, window: Window) -> Result<()> {
+    fn configure(&mut self, event: &ConfigureNotifyEvent) -> Result<()> {
+        let window = event.window;
         let Some(surface) = self
             .scene
             .windows
@@ -195,9 +196,16 @@ impl Compositor {
         };
         let result = (|| -> Result<()> {
             let geometry = self.session.conn.get_geometry(window)?.reply()?;
-            if geometry.width != surface.geometry.width
-                || geometry.height != surface.geometry.height
-                || geometry.border_width != surface.geometry.border_width
+            let captured = &surface.geometry;
+            // Each resize gives the window a new pixmap. A window resized and restored before
+            // this event is handled has its old size again, so the event's size counts too.
+            let resized = |width: u16, height: u16, border: u16| {
+                width != captured.width
+                    || height != captured.height
+                    || border != captured.border_width
+            };
+            if resized(event.width, event.height, event.border_width)
+                || resized(geometry.width, geometry.height, geometry.border_width)
             {
                 if let Some(mut replacement) = Surface::capture(
                     window,

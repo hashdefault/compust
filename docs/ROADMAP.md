@@ -59,6 +59,14 @@ Daily use after `v0.2.0-beta.1` exposed missing right and bottom borders. On a w
 
 The existing [off-screen border regression](../tests/cases/shapes.rs) failed before the fix and passes afterward. [Border regressions](../tests/cases/borders.rs) cover focus color updates, resize with a changed border width, and removal of a custom shape. All 68 tests, formatting, strict Clippy, and the release build pass. In the local Xmonad session, both Alacritty windows retain all four 2-pixel border strips in focused and unfocused states. This continues beta testing; the animation tasks below remain planned.
 
+### Local beta testing: stale window after a restored resize
+
+On the Intel/Xorg laptop with i3, connecting or disconnecting an HDMI cable froze every tiled window until another window opened. i3 re-tiled twice in quick succession and ended at the original sizes. The X server allocates a new window pixmap on each resize, but Compust compared only the window's current size with the captured one, saw no change, and kept compositing the old pixmap, which no longer received drawing or Damage. A recording showed a tiled test window frozen for 26 seconds, from the unplug until a new window resized it, while an override-redirect window kept updating.
+
+Compust now also compares the size carried by each `ConfigureNotify` and recaptures when it differs. A [regression](../tests/cases/stability.rs) resizes and restores a window under a server grab, then repaints it; it failed before the fix and passes afterward. With the fix, the same cable test left the tiled window updating through the unplug and the reconnection. All 70 tests, formatting, strict Clippy, and the release build pass.
+
+The defect is not specific to hotplug or i3: any window manager that resizes a window and restores it before Compust handles the first event can trigger it. It is present in 0.2.0-beta.1 and 0.2.0-beta.2. The monitor-transition runner did not detect it, because it checks only its own override-redirect marker.
+
 ### Local beta testing: Present timeout
 
 Compust reuses its Present buffer only after the completion and idle events of the previous submission. Outside a RandR change, a lost event left the screen frozen while the compositor kept running. No such loss has been observed on hardware; the risk was found by reviewing the code. A submission that reports nothing within one second is now abandoned: Compust replaces its buffers and repaints the frame once. If the next submission also times out, it waits for new damage before painting again.

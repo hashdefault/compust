@@ -59,6 +59,14 @@ O uso diário após `v0.2.0-beta.1` revelou bordas direitas e inferiores ausente
 
 A [regressão de bordas fora da tela](../tests/cases/shapes.rs) existente falhou antes da correção e passa depois. As [regressões de bordas](../tests/cases/borders.rs) cobrem mudanças de cor por foco, redimensionamento com mudança da largura da borda e remoção de formato personalizado. Todos os 68 testes, formatação, Clippy estrito e build de release passam. Na sessão local do Xmonad, as duas janelas do Alacritty mantêm as quatro faixas de borda de 2 pixels com e sem foco. Isso continua os testes da beta; as tarefas de animação abaixo permanecem planejadas.
 
+### Teste local da beta: janela parada após um redimensionamento restaurado
+
+No laptop Intel/Xorg com i3, conectar ou desconectar um cabo HDMI congelava todas as janelas em tiling até que outra janela fosse aberta. O i3 reorganizava as janelas duas vezes em rápida sucessão e terminava nos tamanhos originais. O servidor X aloca um novo pixmap da janela a cada redimensionamento, mas o Compust comparava apenas o tamanho atual da janela com o capturado, não via mudança e continuava compondo o pixmap antigo, que não recebia mais desenho nem Damage. Uma gravação mostrou uma janela de teste em tiling parada por 26 segundos, da desconexão até que uma nova janela a redimensionasse, enquanto uma janela override-redirect continuava atualizando.
+
+O Compust agora também compara o tamanho informado em cada `ConfigureNotify` e recaptura quando ele difere. Uma [regressão](../tests/cases/stability.rs) redimensiona e restaura uma janela sob um grab do servidor e depois a repinta; ela falhou antes da correção e passa depois. Com a correção, o mesmo teste com o cabo manteve a janela em tiling atualizando durante a desconexão e a reconexão. Todos os 70 testes, formatação, Clippy estrito e build de release passam.
+
+O defeito não é específico de hotplug nem do i3: qualquer gerenciador de janelas que redimensione uma janela e a restaure antes de o Compust tratar o primeiro evento pode acioná-lo. Ele está presente na 0.2.0-beta.1 e na 0.2.0-beta.2. O executor de transições de monitores não o detectou, porque verifica apenas seu próprio marcador override-redirect.
+
 ### Teste local da beta: tempo limite do Present
 
 O Compust só reutiliza seu buffer do Present após os eventos de conclusão e liberação do envio anterior. Fora de uma mudança RandR, um evento perdido deixava a tela congelada enquanto o compositor continuava em execução. Nenhuma perda desse tipo foi observada em hardware; o risco foi encontrado em uma revisão do código. Um envio que não informa nada em um segundo agora é abandonado: o Compust substitui seus buffers e repinta o quadro uma vez. Se o envio seguinte também exceder o tempo limite, ele espera por novo dano antes de pintar de novo.

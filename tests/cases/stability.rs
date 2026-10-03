@@ -131,3 +131,37 @@ fn restores_geometry_after_fullscreen_sized_resize() -> Result<()> {
     assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }
+
+#[test]
+fn recaptures_window_resized_and_restored_before_handling() -> Result<()> {
+    let desktop = Desktop::new("fade_ms = 0\nblur_radius = 0")?;
+    let window = desktop.window(rect(20, 20), 0x00ff_0000)?;
+    desktop.map(window)?;
+    desktop.until_pixel((40, 40), |pixel| pixel == [255, 0, 0])?;
+    let size = desktop.conn.get_geometry(window)?.reply()?;
+
+    // A window manager can re-tile twice before the compositor handles the first event. The
+    // server gives the window a new pixmap each time, although its final size is unchanged.
+    desktop.conn.grab_server()?.check()?;
+    for width in [size.width + 16, size.width] {
+        desktop
+            .conn
+            .configure_window(window, &ConfigureWindowAux::new().width(u32::from(width)))?
+            .check()?;
+    }
+    desktop.conn.ungrab_server()?.check()?;
+
+    desktop
+        .conn
+        .change_window_attributes(
+            window,
+            &ChangeWindowAttributesAux::new().background_pixel(0x0000_00ff),
+        )?
+        .check()?;
+    desktop
+        .conn
+        .clear_area(false, window, 0, 0, 0, 0)?
+        .check()?;
+    desktop.until_pixel((40, 40), |pixel| pixel == [0, 0, 255])?;
+    Ok(())
+}

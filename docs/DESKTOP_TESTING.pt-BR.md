@@ -246,6 +246,8 @@ Cada amostra verifica repinturas do marcador perto de cantos opostos de cada mon
 
 Nos 6.590 intervalos do Present das fases ativas, a mediana foi de 16,662 ms e o p95 pelo posto mais próximo de 16,679 ms. Três amostras tiveram, cada uma, um intervalo de dois vblanks; nas demais, cada MSC avançou uma unidade. A mediana foi de 16,632–16,654 ms só com o painel e de 16,656–16,677 ms com as duas saídas, o que é consistente com o Present seguindo um único CRTC, e não a atualização própria de cada monitor. Nas fases ociosas, o Compust usou no máximo 0,1% de um núcleo.
 
+Esta sessão não detectou um defeito que o mesmo teste com o cabo mostrou no uso comum: janelas em tiling mantinham conteúdo antigo depois que o i3 as redimensionava e restaurava. O executor verifica apenas seu próprio marcador override-redirect, que um gerenciador de janelas não redimensiona. O [roteiro](ROADMAP.pt-BR.md#teste-local-da-beta-janela-parada-após-um-redimensionamento-restaurado) descreve o defeito e sua correção, que veio depois destes registros.
+
 Foi testado um conector com uma tela externa, com Xorg e i3. As verificações do marcador comprovam repinturas no servidor, não o que cada tela exibiu. Taxas de atualização com diferença maior que essa, mais de dois monitores e fades ou desfoque durante uma transição continuam sem teste.
 
 ## Sessões registradas com Openbox: 2026-10-03
