@@ -8,7 +8,10 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use client::{ClientTree, window_gone};
-use std::{rc::Rc, time::Instant};
+use std::{
+    rc::Rc,
+    time::{Duration, Instant},
+};
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -173,9 +176,9 @@ impl Surface {
         Ok(())
     }
 
-    pub(crate) fn close(&mut self, now: Instant) {
+    pub(crate) fn close(&mut self, now: Instant, fade: Duration) {
         if self.mapped {
-            self.fade.close(now);
+            self.fade.close(now, fade);
             self.mapped = false;
         }
     }

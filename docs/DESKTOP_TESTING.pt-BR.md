@@ -307,6 +307,29 @@ As seis amostras dos relatórios [Present](benchmarks/2026-10-03/intel-xorg/susp
 
 Isso é uma suspensão por modo em uma máquina, com fades e desfoque desativados. Não cobre hibernação, suspensão com uma animação pendente nem outros drivers.
 
+## Sessão registrada de recarga: 2026-10-03
+
+Uma terceira máquina manteve um único processo do Compust durante três execuções do [executor de transições de monitores](#amostrar-transições-de-monitores) e recarregou sua configuração com SIGUSR1 entre as amostras. Ela tem um AMD Ryzen 5 5600X e uma Radeon RX 9060 XT (Navi 44, driver de kernel amdgpu, radeonsi no Mesa 26.2.4) e executa CachyOS com Linux 7.2.8 e XLibre 25.1.9 nativo com seu driver modesetting embutido. O dwm 6.8 gerenciava um desktop habitual em DP-2 a 1920×1080 e 60 Hz; HDMI-1, também a 1920×1080 e 60 Hz, foi ligado ao lado para as amostras com dois monitores. A base era `4d7b058b124dbac47df68f05424930891bda65ea` mais o [patch registrado](benchmarks/2026-10-03/reload-amd-dwm/source.patch) que adiciona a recarga, com o binário do compositor `87ab455db7f64f0c7fe20d0d2e836ea9a45c8676b2c83dca4b10dcfb0471f2b7`. O [executor](benchmarks/2026-10-03/reload-amd-dwm/runner.sh) segue `tools/hotplug-check.sh`, mas mantém o compositor em execução entre as execuções da sonda, com fases de três segundos.
+
+| Passo antes da amostra | Raiz | Opções em uso | Mediana dos intervalos do Present | Bytes de pixmaps próprios |
+| --- | --- | --- | ---: | ---: |
+| Início, execução Present | 1920×1080 | Present, sem fade nem desfoque | 16,667 ms | 16.637.953 |
+| HDMI-1 ligado, à direita de DP-2 | 3840×1080 | iguais | 16,667 ms | 25.093.633 |
+| Recarga com `fade_ms = 120`, `blur_radius = 4` | 3840×1080 | desfoque 4 | 16,667 ms | 30.277.633 |
+| Recarga com `opacity = 101`, rejeitada | 3840×1080 | inalteradas | 16,667 ms | 30.277.633 |
+| HDMI-1 à esquerda de DP-2 | 3840×1080 | inalteradas | 16,667 ms | 30.277.633 |
+| Recarga com `blur_radius = 16` | 3840×1080 | desfoque 16 | 16,667 ms | 30.602.113 |
+| Recarga sem fade nem desfoque; HDMI-1 de novo à direita | 3840×1080 | sem fade nem desfoque | 16,667 ms | 25.093.633 |
+| Recarga com `vsync = false`; execução direta da sonda | 3840×1080 | direta | — | 25.093.633 |
+| Recarga com `blur_radius = 4` | 3840×1080 | direta, desfoque 4 | — | 30.277.633 |
+| HDMI-1 desligado | 1920×1080 | direta, desfoque 4 | — | 19.229.953 |
+| Recarga com `vsync = true`, sem desfoque; execução Present da sonda | 1920×1080 | Present, sem desfoque | 16,667 ms | 16.637.953 |
+| HDMI-1 ligado, à direita de DP-2 | 3840×1080 | iguais | 16,667 ms | 25.093.633 |
+
+As doze amostras passaram nas verificações do marcador em cada monitor e na borda compartilhada, e na repintura da janela que o dwm organizou lado a lado. A sonda também confere o caminho de apresentação: uma execução direta falha diante de qualquer conclusão do Present, e uma execução Present as exige; portanto, as recargas de `vsync` trocaram o caminho em hardware nos dois sentidos. Cada combinação de topologia e opções que aparece mais de uma vez reproduziu os mesmos bytes de pixmaps próprios depois de o renderizador ter sido substituído no intervalo. A recarga rejeitada registrou um aviso e manteve as opções em uso. Em 1.611 intervalos do Present nas fases ativas, a mediana foi 16,667 ms, o p95 por posição mais próxima 16,674 ms e o máximo 16,678 ms; todo MSC avançou de um em um. Nas fases ativas, o Compust usou no máximo 0,7% de um núcleo e o servidor X 7,7–8,0%, com os aplicativos do próprio desktop em execução; o RSS do Compust foi de 3.920 a 3.936 KiB. O Compust encerrou com sucesso após SIGTERM, e a configuração das saídas terminou como começou.
+
+As janelas são as sintéticas da sonda. Nenhuma janela abriu ou fechou enquanto os fades estavam ativos, então nenhum fade atravessou uma recarga; recargas de `opacity` e `max_fps` e fades em andamento são cobertos apenas pelos [testes no Xvfb](../tests/cases/reload.rs). HDMI-1 foi ligado e desligado com `xrandr`, sem desconectar o cabo, e o log do servidor não pôde ser lido para confirmar a aceleração por glamor.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

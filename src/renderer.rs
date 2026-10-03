@@ -38,6 +38,8 @@ pub(crate) struct Renderer {
     pub(crate) submitted: Option<Instant>,
     /// Blur pyramid, each level half the size of the previous one; empty without blur.
     levels: Vec<Picture>,
+    /// The `blur_radius` and `vsync` settings the buffers and presentation were made for.
+    built_for: (u8, bool),
 }
 
 impl Renderer {
@@ -129,8 +131,14 @@ impl Renderer {
             submission: None,
             submitted: None,
             levels,
+            built_for: (config.blur_radius, config.vsync),
         };
         renderer.refresh_wallpaper(session)?;
         Ok(renderer)
+    }
+
+    /// Whether a reloaded configuration can keep this renderer.
+    pub(crate) fn fits(&self, config: &Config) -> bool {
+        self.built_for == (config.blur_radius, config.vsync)
     }
 }

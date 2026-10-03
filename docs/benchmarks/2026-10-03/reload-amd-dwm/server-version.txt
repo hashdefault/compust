@@ -1,0 +1,4 @@
+
+XLibre X Server 1.25.1.9
+X Protocol Version 11, Revision 0
+Current version of pixman: 0.46.4

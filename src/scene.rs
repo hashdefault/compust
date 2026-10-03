@@ -3,7 +3,7 @@ use crate::{
     surface::{Capture, Surface},
 };
 use anyhow::Result;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use x11rb::{
     errors::ReplyError,
     protocol::{
@@ -25,7 +25,9 @@ impl Scene {
         match Surface::capture(window, context) {
             Ok(Some(mut surface)) => {
                 if let Some(previous) = self.windows.iter_mut().find(|s| s.window == window) {
-                    previous.fade.reopen(Instant::now());
+                    previous
+                        .fade
+                        .reopen(Instant::now(), context.config.fade_duration());
                     std::mem::swap(&mut surface.fade, &mut previous.fade);
                     *previous = surface;
                 } else {
@@ -67,9 +69,9 @@ impl Scene {
         Ok(())
     }
 
-    pub(crate) fn close(&mut self, window: Window) {
+    pub(crate) fn close(&mut self, window: Window, fade: Duration) {
         if let Some(surface) = self.windows.iter_mut().find(|s| s.window == window) {
-            surface.close(Instant::now());
+            surface.close(Instant::now(), fade);
         }
     }
 

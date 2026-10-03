@@ -1,0 +1,1 @@
+compositor exited successfully after SIGTERM

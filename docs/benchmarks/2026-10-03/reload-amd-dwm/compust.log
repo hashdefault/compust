@@ -1,0 +1,10 @@
+2026-10-03T22:06:48.192519Z  INFO configuration loaded path=<report>/compust.toml
+2026-10-03T22:06:48.194590Z  INFO compositor started present=true windows=2
+2026-10-03T22:07:08.123186Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:07:16.374545Z  WARN keeping the current configuration: loading <report>/compust.toml: opacity must be between 0 and 100
+2026-10-03T22:07:35.591316Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:07:43.844081Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:07:54.816856Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:08:03.075550Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:08:21.761834Z  INFO configuration reloaded path=<report>/compust.toml
+2026-10-03T22:08:40.913713Z  INFO compositor stopped

@@ -1,0 +1,4 @@
+xlibre-xserver 25.1.9-1
+mesa 3:26.2.4-1
+linux 7.2.8.arch1-1
+dwm 6.8-3

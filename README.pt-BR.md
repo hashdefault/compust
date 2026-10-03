@@ -60,7 +60,9 @@ Escolha um número de display livre. O exemplo desativa a autenticação apenas 
 
 ## Configuração
 
-O arquivo de exemplo contém todas as opções. Sem `--config`, valem os padrões internos; ainda não há busca automática de arquivo nem recarga durante a execução. Campos desconhecidos e valores fora do intervalo geram erro antes da conexão com o X11.
+O arquivo de exemplo contém todas as opções. Sem `--config`, o Compust lê o primeiro `compust/compust.toml` que encontrar em `$XDG_CONFIG_HOME` (por padrão `~/.config`) e depois em cada diretório de `$XDG_CONFIG_DIRS` (por padrão `/etc/xdg`); se não houver arquivo, valem os padrões internos. Campos desconhecidos e valores fora do intervalo geram erro antes da conexão com o X11.
+
+Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity` e `max_fps` valem a partir do próximo quadro. Um novo `fade_ms` vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius` ou `vsync` substitui os buffers de renderização assim que o quadro em apresentação termina.
 
 ```toml
 opacity = 100
@@ -78,10 +80,11 @@ vsync = true
 | `max_fps` | Limite de redesenho, de 1 a 1000; não garante essa taxa de quadros |
 | `vsync` | Usa Present quando disponível; `false` seleciona cópia direta com XRender |
 
-O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento.
+O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
+./target/release/compust --check-config  # informa qual arquivo seria lido
 RUST_LOG=compust=debug ./target/release/compust
 ```
 
@@ -101,7 +104,7 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 ## Limitações atuais
 
-O protótipo redesenha a tela inteira quando recebe dano, e cada janela translúcida repete as passadas de desfoque na própria área. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto; o [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por esses benchmarks. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
+O protótipo redesenha a tela inteira quando recebe dano, e cada janela translúcida repete as passadas de desfoque na própria área. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto; o [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por esses benchmarks. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 

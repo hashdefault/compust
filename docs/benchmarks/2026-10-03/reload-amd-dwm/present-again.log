@@ -1,0 +1,14 @@
+vendor=XLibre release=12501009 geometry=1920x1080 depth=24
+READY: enter 'sample LABEL' after each monitor transition, then 'quit'
+monitor=1920x1080+0+0 marker_pixels=PASS
+ordinary_window_pixels=PASS
+phase=idle seconds=3.000117 updates=0 completions=26 damage_events=26
+phase=active seconds=3.000064 updates=180 completions=180 damage_events=180
+PASS sample=1 label=single-present-again monitors=1
+monitor=1920x1080+0+0 marker_pixels=PASS
+monitor=1920x1080+1920+0 marker_pixels=PASS
+seam=1888,88;1952,88 marker_pixels=PASS
+ordinary_window_pixels=PASS
+phase=idle seconds=3.000147 updates=0 completions=31 damage_events=31
+phase=active seconds=3.000059 updates=180 completions=180 damage_events=180
+PASS sample=2 label=dual-present-again monitors=2

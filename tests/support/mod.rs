@@ -45,7 +45,7 @@ pub(crate) struct Desktop {
     pub(crate) display: String,
     pub(crate) compositor: Process,
     _server: Process,
-    _config: NamedTempFile,
+    config: NamedTempFile,
     damage: u32,
 }
 
@@ -139,11 +139,31 @@ impl Desktop {
                 display,
                 compositor,
                 _server: server,
-                _config: config,
+                config,
                 damage,
             },
             transport,
         ))
+    }
+
+    /// Replaces the configuration file and asks the running compositor to reload it.
+    pub(crate) fn reload(&self, settings: &str) -> Result<()> {
+        std::fs::write(self.config.path(), settings)?;
+        self.signal_reload()
+    }
+
+    /// Removes the configuration file, then asks the compositor to reload it.
+    pub(crate) fn reload_missing(&self) -> Result<()> {
+        std::fs::remove_file(self.config.path())?;
+        self.signal_reload()
+    }
+
+    fn signal_reload(&self) -> Result<()> {
+        let status = Command::new("kill")
+            .args(["-USR1", &self.compositor.0.id().to_string()])
+            .status()?;
+        ensure!(status.success(), "could not signal the compositor");
+        Ok(())
     }
 
     pub(crate) fn window(&self, rect: Rectangle, color: u32) -> Result<Window> {

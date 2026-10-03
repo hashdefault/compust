@@ -1,6 +1,13 @@
-use crate::{config::Config, renderer::Renderer, scene::Scene, session::Session, surface::Capture};
+use crate::{
+    config::{Config, Source},
+    renderer::Renderer,
+    scene::Scene,
+    session::Session,
+    surface::Capture,
+};
 use anyhow::Result;
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
+use signal_hook::consts::{SIGINT, SIGTERM, SIGUSR1};
 use std::{
     sync::{
         Arc,
@@ -19,14 +26,24 @@ pub(crate) struct Compositor {
     pub(crate) scene: Scene,
     pub(crate) renderer: Renderer,
     pub(crate) config: Config,
+    source: Source,
     pub(crate) session: Session,
     pub(crate) dirty: bool,
     pub(crate) resizing: bool,
     pub(crate) running: bool,
+    shutdown: Arc<AtomicBool>,
+    reload: Arc<AtomicBool>,
 }
 
 impl Compositor {
-    pub(crate) fn new(mut session: Session, config: Config) -> Result<Self> {
+    pub(crate) fn new(mut session: Session, source: Source, config: Config) -> Result<Self> {
+        // A client that sees the selection may signal at once, and SIGUSR1 would otherwise
+        // end the process, so the handlers come before the claim.
+        let shutdown = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(SIGINT, Arc::clone(&shutdown))?;
+        signal_hook::flag::register(SIGTERM, Arc::clone(&shutdown))?;
+        let reload = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(SIGUSR1, Arc::clone(&reload))?;
         session.acquire()?;
         let renderer = Renderer::new(&session, &config)?;
         let mut scene = Scene::default();
@@ -55,22 +72,22 @@ impl Compositor {
             scene,
             renderer,
             config,
+            source,
             session,
             dirty: true,
             resizing: false,
             running: true,
+            shutdown,
+            reload,
         })
     }
 
     pub(crate) fn run(&mut self) -> Result<()> {
-        let shutdown = Arc::new(AtomicBool::new(false));
-        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))?;
-        signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown))?;
         let mut next_frame = Instant::now();
         let mut was_animating = false;
         // A submission timed out and no later one has finished.
         let mut stalled = false;
-        while self.running && !shutdown.load(Ordering::Relaxed) {
+        while self.running && !self.shutdown.load(Ordering::Relaxed) {
             let mut budget_exhausted = true;
             for _ in 0..512 {
                 let Some(event) = self.session.conn.poll_for_event()? else {
@@ -78,6 +95,9 @@ impl Compositor {
                     break;
                 };
                 self.handle(event)?;
+            }
+            if self.reload.swap(false, Ordering::Relaxed) {
+                self.reload_config();
             }
             let now = Instant::now();
             if self.renderer.submitted.is_some() && !self.resizing && self.can_paint() {
@@ -99,7 +119,8 @@ impl Compositor {
             self.dirty |= previous_count != self.scene.windows.len() || animating || was_animating;
             was_animating = animating;
             if self.dirty && now >= next_frame && self.can_paint() {
-                if self.resizing {
+                // A reload that changes blur or vsync waits for the buffer like any paint.
+                if self.resizing || !self.renderer.fits(&self.config) {
                     self.renderer = Renderer::new(&self.session, &self.config)?;
                     self.resizing = false;
                 }
@@ -129,6 +150,25 @@ impl Compositor {
         }
         tracing::info!("compositor stopped");
         Ok(())
+    }
+
+    /// Reads the configuration again, as a restart would. A file that cannot be read or is
+    /// invalid leaves the running configuration in place. Fades in progress keep their duration.
+    fn reload_config(&mut self) {
+        let (config, path) = match self.source.load() {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                tracing::warn!("keeping the current configuration: {error:#}");
+                return;
+            }
+        };
+        self.dirty |= config != self.config;
+        self.config = config;
+        if let Some(path) = path {
+            tracing::info!(path = %path.display(), "configuration reloaded");
+        } else {
+            tracing::info!("no configuration file found; reloaded built-in defaults");
+        }
     }
 
     /// Present must release a buffer before it is painted again. A monitor reconfiguration can

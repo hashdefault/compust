@@ -18,16 +18,21 @@ impl Fade {
         }
     }
 
-    pub(crate) fn close(&mut self, now: Instant) {
-        self.from = self.sample(now);
-        self.to = 0;
-        self.started = now;
+    /// Retargets from the current opacity. Each transition takes the duration configured when
+    /// it starts, so a reloaded `fade_ms` also applies to windows opened before the reload.
+    pub(crate) fn close(&mut self, now: Instant, duration: Duration) {
+        self.retarget(now, 0, duration);
     }
 
-    pub(crate) fn reopen(&mut self, now: Instant) {
+    pub(crate) fn reopen(&mut self, now: Instant, duration: Duration) {
+        self.retarget(now, u16::MAX, duration);
+    }
+
+    fn retarget(&mut self, now: Instant, to: u16, duration: Duration) {
         self.from = self.sample(now);
-        self.to = u16::MAX;
+        self.to = to;
         self.started = now;
+        self.duration = duration;
     }
 
     pub(crate) fn active(&self, now: Instant) -> bool {
@@ -76,9 +81,27 @@ mod tests {
         let mut fade = Fade::opening(now, Duration::from_millis(100));
         let halfway = now + Duration::from_millis(50);
         let before = fade.sample(halfway);
-        fade.close(halfway);
+        fade.close(halfway, Duration::from_millis(100));
         assert_eq!(fade.sample(halfway), before);
         assert_eq!(fade.sample(halfway + Duration::from_millis(100)), 0);
+    }
+
+    #[test]
+    fn closing_takes_the_duration_given_when_it_starts() {
+        // Given a fade opened with 100 ms, when closed with 400 ms, then the close is
+        // continuous and lasts the new duration.
+        let now = Instant::now();
+        let mut fade = Fade::opening(now, Duration::from_millis(100));
+        let opened = now + Duration::from_millis(100);
+        fade.close(opened, Duration::from_millis(400));
+        assert_eq!(fade.sample(opened), u16::MAX);
+        let halfway = fade.sample(opened + Duration::from_millis(200));
+        assert!(
+            (u16::MAX / 4..u16::MAX / 4 * 3).contains(&halfway),
+            "{halfway}"
+        );
+        assert!(fade.active(opened + Duration::from_millis(399)));
+        assert_eq!(fade.sample(opened + Duration::from_millis(400)), 0);
     }
 
     #[test]
@@ -93,11 +116,11 @@ mod tests {
         let now = Instant::now();
         let duration = Duration::from_millis(100);
         let mut fade = Fade::opening(now, duration);
-        fade.close(now + duration);
+        fade.close(now + duration, duration);
         let halfway = now + duration + Duration::from_millis(50);
         let before = fade.sample(halfway);
 
-        fade.reopen(halfway);
+        fade.reopen(halfway, duration);
 
         assert_eq!(fade.sample(halfway), before);
         let values: Vec<_> = (0..=100)

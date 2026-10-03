@@ -307,6 +307,29 @@ All six samples in the [Present](benchmarks/2026-10-03/intel-xorg/suspend/presen
 
 This is one suspension per mode on one machine, with fades and blur disabled. It does not cover hibernation, suspending with a pending animation, or other drivers.
 
+## Recorded reload session: 2026-10-03
+
+A third machine kept one Compust process through three [monitor-sampler](#sample-monitor-transitions) runs and reloaded its configuration with SIGUSR1 between samples. It has an AMD Ryzen 5 5600X and a Radeon RX 9060 XT (Navi 44, amdgpu kernel driver, radeonsi in Mesa 26.2.4), and runs CachyOS with Linux 7.2.8 and native XLibre 25.1.9 with its built-in modesetting driver. dwm 6.8 managed an ordinary desktop on DP-2 at 1920×1080 and 60 Hz; HDMI-1, also 1920×1080 at 60 Hz, was turned on beside it for the two-monitor samples. The base was `4d7b058b124dbac47df68f05424930891bda65ea` plus the [recorded patch](benchmarks/2026-10-03/reload-amd-dwm/source.patch) that adds reload, with compositor binary `87ab455db7f64f0c7fe20d0d2e836ea9a45c8676b2c83dca4b10dcfb0471f2b7`. The [runner](benchmarks/2026-10-03/reload-amd-dwm/runner.sh) follows `tools/hotplug-check.sh` but keeps the compositor running between probe runs, with three-second phases.
+
+| Step before the sample | Root | Running settings | Present interval median | Owned pixmap bytes |
+| --- | --- | --- | ---: | ---: |
+| Start, Present run | 1920×1080 | Present, no fade or blur | 16.667 ms | 16,637,953 |
+| HDMI-1 on, right of DP-2 | 3840×1080 | same | 16.667 ms | 25,093,633 |
+| Reload `fade_ms = 120`, `blur_radius = 4` | 3840×1080 | blur 4 | 16.667 ms | 30,277,633 |
+| Reload with `opacity = 101`, rejected | 3840×1080 | unchanged | 16.667 ms | 30,277,633 |
+| HDMI-1 left of DP-2 | 3840×1080 | unchanged | 16.667 ms | 30,277,633 |
+| Reload `blur_radius = 16` | 3840×1080 | blur 16 | 16.667 ms | 30,602,113 |
+| Reload without fade or blur; HDMI-1 right again | 3840×1080 | no fade or blur | 16.667 ms | 25,093,633 |
+| Reload `vsync = false`; direct probe run | 3840×1080 | direct | — | 25,093,633 |
+| Reload `blur_radius = 4` | 3840×1080 | direct, blur 4 | — | 30,277,633 |
+| HDMI-1 off | 1920×1080 | direct, blur 4 | — | 19,229,953 |
+| Reload `vsync = true`, no blur; Present probe run | 1920×1080 | Present, no blur | 16.667 ms | 16,637,953 |
+| HDMI-1 on, right of DP-2 | 3840×1080 | same | 16.667 ms | 25,093,633 |
+
+All twelve samples passed the marker checks on each monitor and across the shared edge, and the repaint of the window dwm tiled. The probe also checks the presentation path: a direct run fails on any Present completion and a Present run requires them, so the `vsync` reloads switched the path on hardware in both directions. Each combination of topology and settings that occurs more than once reproduced the same owned pixmap bytes after the renderer had been replaced in between. The rejected reload logged a warning and left the running settings in place. Across 1,611 active-phase Present intervals the median was 16.667 ms, the nearest-rank p95 16.674 ms, and the maximum 16.678 ms; every MSC advanced by one. In active phases Compust used at most 0.7% of a core and the X server 7.7–8.0%, with the desktop's own applications running; Compust RSS went from 3,920 to 3,936 KiB. Compust exited successfully after SIGTERM, and the output configuration ended as it began.
+
+The windows are the probe's synthetic ones. No window opened or closed while fades were enabled, so no fade crossed a reload; `opacity` and `max_fps` reloads and fades in progress are covered only by the [Xvfb tests](../tests/cases/reload.rs). HDMI-1 was switched with `xrandr`, not unplugged, and the server log was not readable to confirm glamor acceleration.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

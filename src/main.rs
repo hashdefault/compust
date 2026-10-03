@@ -24,7 +24,8 @@ struct Cli {
     /// X display (defaults to DISPLAY).
     #[arg(long)]
     display: Option<String>,
-    /// TOML configuration (defaults are used when omitted).
+    /// TOML configuration (defaults to compust/compust.toml in the XDG configuration
+    /// directories, then built-in defaults). SIGUSR1 reloads it.
     #[arg(short, long)]
     config: Option<PathBuf>,
     /// Inspect server extensions without becoming the compositor.
@@ -45,9 +46,14 @@ fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .with_target(false)
         .init();
-    let config = config::Config::load(cli.config.as_deref())?;
+    let source = config::Source::new(cli.config);
+    let (config, path) = source.load()?;
     if cli.check_config {
-        writeln!(std::io::stdout().lock(), "configuration valid")?;
+        let mut out = std::io::stdout().lock();
+        match path {
+            Some(path) => writeln!(out, "configuration valid: {}", path.display())?,
+            None => writeln!(out, "no configuration file found; built-in defaults apply")?,
+        }
         return Ok(());
     }
     let session = session::Session::connect(cli.display.as_deref())?;
@@ -55,5 +61,10 @@ fn main() -> Result<()> {
         session.capabilities.report()?;
         return Ok(());
     }
-    compositor::Compositor::new(session, config)?.run()
+    if let Some(path) = &path {
+        tracing::info!(path = %path.display(), "configuration loaded");
+    } else {
+        tracing::info!("no configuration file found; using built-in defaults");
+    }
+    compositor::Compositor::new(session, source, config)?.run()
 }

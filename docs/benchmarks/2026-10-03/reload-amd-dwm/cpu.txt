@@ -1,0 +1,3 @@
+CPU(s):                                  12
+Model name:                              AMD Ryzen 5 5600X 6-Core Processor
+CPU(s) scaling MHz:                      83%

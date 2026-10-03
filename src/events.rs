@@ -35,11 +35,11 @@ impl Compositor {
                 self.dirty = true;
             }
             Event::UnmapNotify(event) => {
-                self.scene.close(event.window);
+                self.scene.close(event.window, self.config.fade_duration());
                 self.dirty = true;
             }
             Event::DestroyNotify(event) => {
-                self.scene.close(event.window);
+                self.scene.close(event.window, self.config.fade_duration());
                 self.clients_changed(&[event.event, event.window])?;
                 self.dirty = true;
             }
@@ -55,7 +55,7 @@ impl Compositor {
                         },
                     )?;
                 } else {
-                    self.scene.close(event.window);
+                    self.scene.close(event.window, self.config.fade_duration());
                 }
                 self.clients_changed(&[event.event, event.parent, event.window])?;
                 self.scene.restack(&self.session)?;
@@ -109,7 +109,8 @@ impl Compositor {
                 self.running = false;
             }
             Event::Error(error) if self.renderer.recover_present(&error)? => {
-                self.config.vsync = false;
+                // Later renderers, after a root resize or a reload, must not use Present again.
+                self.session.capabilities.present = false;
                 self.dirty = true;
             }
             Event::Error(error) => bail!("X11 request failed: {error:?}"),
@@ -127,7 +128,9 @@ impl Compositor {
         {
             match surface.refresh_shape() {
                 Ok(()) => (),
-                Err(error) if vanished(&error) => surface.close(std::time::Instant::now()),
+                Err(error) if vanished(&error) => {
+                    surface.close(std::time::Instant::now(), self.config.fade_duration());
+                }
                 Err(error) => return Err(error),
             }
             self.dirty = true;
@@ -157,7 +160,7 @@ impl Compositor {
                 match surface.refresh_opacity(&self.session.atoms) {
                     Ok(()) => (),
                     Err(error) if vanished(&error) => {
-                        surface.close(std::time::Instant::now());
+                        surface.close(std::time::Instant::now(), self.config.fade_duration());
                     }
                     Err(error) => return Err(error),
                 }
@@ -176,7 +179,9 @@ impl Compositor {
         {
             match surface.refresh_client(&self.session.atoms) {
                 Ok(()) => (),
-                Err(error) if vanished(&error) => surface.close(std::time::Instant::now()),
+                Err(error) if vanished(&error) => {
+                    surface.close(std::time::Instant::now(), self.config.fade_duration());
+                }
                 Err(error) => return Err(error),
             }
             self.dirty = true;
@@ -227,7 +232,9 @@ impl Compositor {
         })();
         match result {
             Ok(()) => (),
-            Err(error) if vanished(&error) => surface.close(std::time::Instant::now()),
+            Err(error) if vanished(&error) => {
+                surface.close(std::time::Instant::now(), self.config.fade_duration());
+            }
             Err(error) => return Err(error),
         }
         Ok(())

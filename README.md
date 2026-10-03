@@ -60,7 +60,9 @@ Choose an unused display number. This example disables X authentication only for
 
 ## Configuration
 
-The example is a complete configuration. Without `--config`, built-in defaults apply; there is currently no implicit configuration-file search or live reload. Unknown fields and out-of-range values produce an error before connecting to X11.
+The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11.
+
+Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity` and `max_fps` apply from the next frame. A new `fade_ms` applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius` or `vsync` replaces the render buffers once the frame being presented is done.
 
 ```toml
 opacity = 100
@@ -78,10 +80,11 @@ vsync = true
 | `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
 
-Blur applies behind translucent or ARGB windows. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown signals.
+Blur applies behind translucent or ARGB windows. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
+./target/release/compust --check-config  # names the file it would read
 RUST_LOG=compust=debug ./target/release/compust
 ```
 
@@ -101,7 +104,7 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints the full screen when damaged, and every translucent window repeats the blur passes for its own area. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work; the [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with those benchmarks. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints the full screen when damaged, and every translucent window repeats the blur passes for its own area. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work; the [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with those benchmarks. It has no shadows, rounded corners, movement/scale animations, per-window rules, fullscreen unredirection, or picom configuration compatibility.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 
