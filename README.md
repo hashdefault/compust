@@ -103,6 +103,8 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 This prototype repaints the full screen when damaged. Blur performs full-screen intermediate work for each translucent window; it can be expensive. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
 
+The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
+
 One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, physical hotplug, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Native Wayland support is outside the current scope.
 
 ## Background and license

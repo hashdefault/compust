@@ -144,8 +144,112 @@ Gerenciamento de cores, HDR, VRR, extensões específicas do XLibre e agendament
 
 ## Uso cotidiano
 
-Adicione regras por janela com tipos definidos, descoberta e recarga de configuração, diagnóstico mais claro e empacotamento para distribuições. Amplie as animações para movimento e escala somente depois de resolver a interação com coordenadas de entrada e geometria do gerenciador. Considere sombras e cantos arredondados com tratamento correto de formato e dano.
+Adicione descoberta e recarga de configuração, diagnóstico mais claro e empacotamento para distribuições. O marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e introduz as primeiras regras por janela com tipos definidos. Reutilize esse modelo de regras em efeitos futuros. Considere sombras e cantos arredondados com tratamento correto de formato e dano.
 
 **Aceitação:** o comportamento é configurável, documentado nos dois idiomas e testável, sem anunciar implicitamente compatibilidade com a configuração ou a linguagem de animação do picom.
+
+## Animações de janelas: planejadas
+
+**Objetivo:** generalizar o fade já implementado para um sistema de animação por janela na abertura e no fechamento: fade (opacidade), pop (escala e opacidade) e slide (translação), com curvas configuráveis e regras por janela. Este marco detalha as animações e regras citadas acima. É uma proposta posterior à primeira beta, sem versão ou data atribuída; os quatro critérios da beta permanecem iguais.
+
+### Ponto de partida
+
+| Área | Implementação atual e consequência para este marco |
+| --- | --- |
+| Fade | [animation.rs](../src/animation.rs) armazena `from`, `to`, `started` monotônico e `duration` em `Fade`. O smoothstep inteiro produz opacidade `u16`; fechar/reabrir começa no valor amostrado. O fade está implementado, incluindo duração zero e interrupções. Preserve esse comportamento. |
+| Captura e fechamento | [surface.rs](../src/surface.rs) usa `CompositeNameWindowPixmap` e uma `Picture` XRender, sem importação de textura da GPU. `Surface::close` marca a superfície como não mapeada e preserva imagem, pixmap nomeado, geometria, formato e objeto Damage. [scene.rs](../src/scene.rs) a remove quando o fade termina; os destrutores de `Surface`/`Picture` liberam Damage, imagem e pixmap próprio. O pixmap nomeado já mantém o conteúdo do fechamento após a janela original desaparecer. |
+| Remapeamento e configuração | `Scene::add` captura o conteúdo novo antes de substituir uma superfície em fechamento, preservando o fade amostrado e o empilhamento. [events.rs](../src/events.rs) mapeia filhos da raiz, fecha em unmap/destroy e trata mudanças de parentesco. Configure atualiza a posição imediatamente; mudanças de tamanho/borda recapturam o pixmap preservando o fade. Generalize essas transferências para o estado completo da animação. |
+| Renderização | [paint.rs](../src/renderer/paint.rs) multiplica as opacidades do fade, da janela e global por uma máscara A8 e compõe na geometria real. Shape e [desfoque](../src/renderer/blur.rs) também usam essa geometria. Não há shader, buffer de vértices, caminho de matriz de modelo, sombras ou cantos arredondados implementados. |
+| Agendamento e dano | [compositor.rs](../src/compositor.rs) continua pintando enquanto algum fade está ativo, solicita o redesenho final e volta à espera sem redesenho contínuo. `max_fps` limita o trabalho; Present exige conclusão e liberação antes de reutilizar seu único buffer. Damage é reconhecido e marca a cena inteira para redesenho. Não há redesenho parcial nem controle de idade dos buffers. |
+| Configuração e metadados | [config.rs](../src/config.rs) aceita TOML estrito, com `fade_ms = 180` nas duas direções. Campos desconhecidos são rejeitados; não há motor de regras nem recarga. A descoberta de clientes por `WM_STATE` existe, mas não há seleção de animação por classe, título e tipo. Eventos de propriedades da raiz são assinados, mas `_NET_CURRENT_DESKTOP` não é tratado. |
+| Saídas e exclusões | RandR atualmente aciona a recriação dos buffers da raiz; não há cache de geometria por saída. Tooltips override-redirect não são excluídas do fade pelo tipo. A suspensão da composição em tela cheia não existe; estar em tela cheia não equivale a estar fora do redirecionamento. |
+
+### Escopo e preparação
+
+1. Substituir `Fade` por um estado `Anim` com tipo, início, duração, curva, direção de abertura/fechamento e transformações inicial/final. Amostrar uma vez por quadro em `Transform { opacity, scale, offset }`. Redirecionar todos os componentes a partir dos valores atuais, inclusive ao remapear durante o fechamento; não reiniciar de um extremo nem presumir que continuidade de valor também preserve velocidade.
+2. Aplicar uma transformação centrada somente durante a renderização. Para ponto local `p`, origem da janela `o` e centro `c` incluindo a borda, usar `p_out = o + c + scale * (p - c) + offset`. Preservar geometria X e regiões de entrada reais. Prototipar em XRender com `SetPictureTransform` e limites/recortes de destino transformados: sua matriz de amostragem leva coordenadas do destino à origem, portanto é preciso calcular a inversa e considerar as origens de Composite. Verificar filtragem, restauração da identidade e conversões verificadas de ponto fixo antes de adicionar efeitos. Um backend de GPU não é pré-requisito. Consulte o [protocolo Render](https://xorg.freedesktop.org/archive/current/doc/renderproto/renderproto.txt).
+3. Pop abre de aproximadamente `scale = 0.85`, opacidade zero, para identidade e opacidade de animação plena; o fechamento termina no estado pequeno e transparente. Oferecer `ease_out_cubic` ou `ease_out_back` na abertura e `ease_in_cubic` no fechamento. Preservar `smoothstep`; adicionar `linear`, curvas cúbicas de entrada/saída e back-out como cálculos puros. Limitar opacidade, manter escala positiva/invertível e incluir a ultrapassagem da curva back nos limites pintados. Um modelo de mola é trabalho futuro opcional.
+4. Slide abre pela borda mais próxima da saída atual da janela e fecha em direção à borda selecionada; permitir top/right/bottom/left explícitos. Escolher a saída RandR ativa com maior interseção com a janela, desempatar de forma determinística e preservar essa seleção para a captura em fechamento. Tratar origens negativas, saídas sobrepostas, janelas entre saídas e mudanças de saída explicitamente. Sem geometria confiável de saída, usar fade em vez de tratar uma raiz com vários monitores como um só monitor. Menus dropdown podem usar deslocamento curto, proposto em 24 pixels, em vez do trajeto inteiro até a borda.
+5. Antes da implementação, confirmar a propriedade dos recursos retidos em unmap/destroy, falha de recaptura, remapeamento e encerramento usando a cobertura existente de [fade](../tests/cases/fades.rs), [corridas de captura](../tests/cases/capture_races.rs) e [recursos](../tests/cases/resources.rs). Preservar a última captura válida e seus metadados até a conclusão; manter capturas destruídas na posição de empilhamento já definida. Reutilizar imagens e máscaras próprias em vez de nomear/copiar pixmaps a cada quadro.
+6. Manter redesenho da tela inteira durante as animações neste marco, incluindo o quadro final de limpeza. Preservar propriedade dos buffers Present, alternativa por XRender direto, limite de quadros e retorno à espera ociosa. Confirmar esses caminhos com várias animações simultâneas e duração zero. Redesenho parcial continua no roteiro de desempenho; uma implementação posterior por regiões deve invalidar a união dos limites transformados anterior/atual, extensões de filtro/desfoque, ultrapassagem e eventual extensão de sombras.
+
+### Configuração e elegibilidade propostas
+
+Ampliar o TOML existente com `[animations]` e `[[animation_rules]]` ordenadas. **Esses campos são uma proposta e não são aceitos pelo binário atual.** Manter `compust.example.toml` válido até a implementação. O responsável pelo projeto deve confirmar o esquema público antes de programar, seguindo o [modelo de proposta de recurso](../.github/ISSUE_TEMPLATE/feature.yml).
+
+- Campos globais: `kind` (`none`, `fade`, `pop`, `slide`), `open_ms`/`close_ms` separados, `open_easing`/`close_easing`, `pop_scale` (padrão `0.85`), `slide_direction` (`nearest` por padrão, ou `top`, `right`, `bottom`, `left`), `slide_offset_px` opcional (ausente significa trajeto até a borda) e `suppress_workspace_switch` (padrão proposto `true`).
+- Padrões de compatibilidade: fade, smoothstep nas duas direções e durações herdadas de `fade_ms` (180 ms quando ausente). As novas durações explícitas prevalecem sobre o valor antigo por direção; zero conclui imediatamente. Os exemplos opcionais de pop/slide usam 220 ms para abrir e 150 ms para fechar. A refatoração preserva exatamente o fade das janelas elegíveis; novas exclusões e supressão em trocas de área são mudanças intencionais de elegibilidade.
+- Regras usam metadados em cache do cliente: classe de recurso de `WM_CLASS`, `_NET_WM_WINDOW_TYPE` e nome (`_NET_WM_NAME`, com alternativa em `WM_NAME`). Reutilizar a associação cliente/moldura, validar tipos/tamanhos das propriedades e preservar os metadados após destruição. A proposta é comparação textual exata e sensível a maiúsculas, com todos os seletores informados satisfeitos; a primeira regra compatível substitui somente os campos globais especificados. Propriedades ausentes/malformadas não satisfazem seletores. Atualizar metadados para transições futuras sem reiniciar uma animação ativa apenas porque o título mudou.
+- Excluir tooltips override-redirect e qualquer superfície realmente fora da composição; regras podem excluir outras janelas com `kind = "none"`. Essas exclusões obrigatórias prevalecem sobre regras que habilitam animações. Menus dropdown override-redirect continuam elegíveis para regras explícitas de slide curto. Não implementar suspensão da composição em tela cheia neste marco; preservar o contrato de exclusão quando esse recurso for introduzido.
+- Rejeitar chaves/tipos/curvas desconhecidos, durações inválidas, escalas não finitas ou não positivas e deslocamentos fora do intervalo antes da conexão X11. As regras são carregadas uma vez junto com a configuração; recarga é trabalho separado.
+
+Exemplo opcional proposto, não uma configuração atual:
+
+```toml
+[animations]
+kind = "pop"
+open_ms = 220
+close_ms = 150
+open_easing = "ease_out_cubic"
+close_easing = "ease_in_cubic"
+pop_scale = 0.85
+suppress_workspace_switch = true
+
+[[animation_rules]]
+window_type = "dropdown_menu"
+kind = "slide"
+slide_direction = "top"
+slide_offset_px = 24
+
+[[animation_rules]]
+wm_class = "ExampleApp"
+name = "No animation"
+kind = "none"
+```
+
+### Interação, efeitos e riscos
+
+- **Entrada:** o X encaminha cliques à geometria real, não à imagem transformada. Manter a abertura proposta entre 200 e 250 ms e o fechamento próximo de 150 ms, oferecer regras de desativação e documentar a diferença. Este marco não move janelas nem sintetiza entrada.
+- **Áreas de trabalho:** observar mudanças em `_NET_CURRENT_DESKTOP` na raiz e suprimir as animações individuais de abertura/fechamento associadas. Agrupar decisões de ciclo de vida nos lotes de eventos/quadros, cancelar ou concluir animações afetadas quando a área mudar e limitar o intervalo de supressão para que aberturas comuns posteriores continuem animadas. Testar a notificação da propriedade antes e depois de map/unmap, atravessando o limite de 512 eventos por lote e em trocas sucessivas rápidas. Registrar a ordem real dos eventos no Xmonad antes de definir o intervalo; contar unmaps isoladamente não é detecção confiável. Gerenciadores que não publicam a mudança exigem uma política explícita de desativação e não devem ser anunciados como cobertos. A [propriedade EWMH](https://specifications.freedesktop.org/wm/1.5/ar01s03.html) fornece o sinal, não uma fronteira genérica de transação.
+- **Gerenciadores em mosaico e Configure:** as vizinhas continuam mudando de tamanho/posição imediatamente quando o gerenciador organiza uma janela nova. Somente a janela que entra/sai anima. Configure deve preservar a animação em andamento ao substituir uma imagem e não iniciar animações para movimentos/redimensionamentos comuns.
+- **Efeitos:** transformar recorte Shape, bordas, alfa por pixel, máscaras de opacidade e cobertura do desfoque com a mesma geometria. O desfoque deve amostrar a cena atrás do destino animado, sem mover um trecho antigo do fundo desfocado. Sombras e cantos arredondados não existem hoje; adicioná-los é trabalho separado, e efeitos futuros devem consumir a mesma transformação e os mesmos limites. Testar ultrapassagem, formatos vazios/desconectados, janelas grandes/fora da tela e limpeza do estado reutilizável de transformação das imagens.
+- **Saídas e custo:** a borda mais próxima depende da geometria da saída, não das dimensões da raiz. Resolver mudanças de topologia sem consultar janelas destruídas nem saltar para coordenadas de saídas antigas. O desfoque de tela inteira pode dominar a CPU do servidor X com animações simultâneas; medir Compust e servidor separadamente, evitar alocações/idas e voltas por quadro e validar a cadência somente para cargas e hardware registrados.
+
+### Verificação e aceitação
+
+Separar testes de amostragem pura de testes de pixels/protocolo em servidor real. Seguir os prazos de eventos e as regras de tempo de vida do CONTRIBUTING; não esconder erros X11 novos nem enfraquecer testes existentes. Usar os testes Xvfb atuais, o [executor isolado do Xmonad](../tools/desktop-check.sh) e sessões físicas Xorg/XLibre registradas quando necessário.
+
+- [ ] O fade legado mantém valores smoothstep, multiplicação de opacidade, durações, extremos com duração zero e redesenho final idênticos para a mesma sequência elegível; as regressões existentes passam.
+- [ ] Pop e slide abrem/fecham janelas normais corretamente, incluindo escala centrada, direções explícitas e slide curto para dropdowns.
+- [ ] Fechamentos após unmap/destroy mantêm o último conteúdo capturado sem quadros pretos/vazios; os recursos são liberados ao terminar.
+- [ ] Abrir e fechar imediatamente, ou remapear durante o fechamento, parte da opacidade, escala e deslocamento atuais sem salto; falha de recaptura preserva a captura anterior e sua ordem.
+- [ ] Trocas de área no Xmonad não geram tempestade de animações individuais nem capturas de fechamento persistentes; aberturas normais voltam a animar depois, inclusive após trocas rápidas repetidas.
+- [ ] Tooltips excluídas e janelas excluídas pelo usuário nunca animam. A proteção de superfícies fora do redirecionamento é coberta sem anunciar que a suspensão da composição em tela cheia existe.
+- [ ] Regras por janela prevalecem sobre padrões globais com precedência documentada; metadados cliente/moldura, valores ausentes/malformados, configuração legada e configuração inválida são cobertos.
+- [ ] Shape, alfa, bordas e desfoque permanecem alinhados e recortados corretamente durante as transformações. Sombras/cantos arredondados futuros devem cumprir o mesmo critério quando implementados.
+- [ ] Saídas com resoluções diferentes, origens negativas, janelas entre saídas, escolha da borda e mudanças de saída durante abertura/fechamento funcionam nas disposições documentadas.
+- [ ] Pelo menos oito aberturas/fechamentos simultâneos respeitam o orçamento de quadro declarado, sem perdas causadas pelas animações no ambiente validado; registrar taxa de atualização, `max_fps`, desfoque, CPU, intervalos Present e comparação sem animação. Testar Present e XRender direto; não inferir ausência de tearing físico a partir de tempos de software.
+- [ ] Ao terminar, o redesenho cessa e a CPU volta à referência ociosa registrada; não há loop ocupado, atraso do quadro final nem animação permanentemente ativa.
+- [ ] Após aquecimento e pelo menos 1.000 ciclos de abrir/fechar, cenas estabilizadas equivalentes não apresentam crescimento nas contagens XRes nem nos bytes totais de pixmaps próprios; registrar tendências de memória do processo/servidor e testar ciclos interrompidos e encerramento.
+- [ ] Formatação, Clippy estrito, regressões completas, build de release e documentação bilíngue passam antes de anunciar o marco como implementado.
+
+### Tarefas ordenadas
+
+Cada item corresponde a uma issue revisável. Os campos seguem o modelo de recurso: **Problema ou caso de uso**, **Comportamento proposto** e **Como verificar**. O último campo é o critério de conclusão.
+
+1. **Confirmar contratos de tempo de vida, agendamento e configuração.** **Problema ou caso de uso:** transformações acrescentam estado a caminhos de fechamento/remapeamento que já funcionam. **Comportamento proposto:** registrar propriedade dos recursos e ordem de eventos em `surface.rs`, `scene.rs`, `events.rs` e `compositor.rs`; aprovar esquema/padrões TOML, redesenho completo, política de saída/recorte e fronteira de supressão de áreas de trabalho. **Como verificar:** cada item preparatório tem decisão concreta e uma regressão existente ou proposta associada; resolver dúvidas do esquema público antes de implementar.
+2. **Generalizar o fade sem mudar a imagem.** **Problema ou caso de uso:** `Fade` amostra somente opacidade. **Comportamento proposto:** adicionar `Anim`, direção/curva e amostragem de transformação com tipos definidos em `animation.rs`; migrar criação, fechamento, remapeamento, substituição por resize e limpeza da cena mantendo escala/deslocamento identidade. **Como verificar:** amostras exatas do fade anterior e todas as regressões de pixels/recursos para interrupções e duração zero passam; falha de recaptura não descarta uma superfície em fechamento.
+3. **Adicionar configuração, metadados, regras e exclusões.** **Problema ou caso de uso:** `fade_ms` global não expressa políticas por janela. **Comportamento proposto:** ampliar `config.rs`, `atoms.rs` e metadados de clientes/superfícies com resolução TOML estrita, primeira regra compatível, opções distintas por direção e exclusões; manter os padrões legados. **Como verificar:** parsing/precedência cobrem dados válidos, ausentes, malformados e conflitantes; casos de moldura/cliente e cliente destruído selecionam a política correta. Expor cada tipo novo de animação somente quando sua tarefa de renderização estiver pronta.
+4. **Introduzir transformações no XRender.** **Problema ou caso de uso:** pintura/desfoque/recortes usam geometria sem transformação. **Comportamento proposto:** adicionar amostragem afim centrada, transformações inversas de imagem, limites de destino, cobertura consistente de efeitos e estado reutilizável de transformação/filtro em `picture.rs` e `renderer/{paint,blur}.rs`. **Como verificar:** identidade reproduz os pixels atuais; amostras controladas de escala/deslocamento preservam centros, formatos, bordas, transparência, desfoque e recortes extremos sem crescimento de recursos por quadro.
+5. **Implementar pop e curvas selecionáveis.** **Problema ou caso de uso:** o caminho genérico precisa de um efeito completo de escala/opacidade. **Comportamento proposto:** adicionar extremos 0,85→1 do pop, amostragem cúbica/back/linear, opacidade/escala limitadas e curvas configuráveis por direção. **Como verificar:** casos puros de extremos/ultrapassagem/interrupção e cenas reais de abertura, unmap, destroy e remapeamento passam com preservação do último conteúdo.
+6. **Implementar slide por saída e deslocamentos de menu.** **Problema ou caso de uso:** bordas da raiz não representam cada monitor. **Comportamento proposto:** manter geometria negociada de monitores/CRTCs RandR, atualizar em mudanças de saída/CRTC, selecionar a saída da janela e adicionar direções automáticas/explícitas, deslocamentos dropdown e alternativa documentada. **Como verificar:** casos geométricos determinísticos e capturas cobrem resoluções diferentes, origens negativas, empates, janelas entre saídas, hotplug/resize durante animação e ausência de informações RandR.
+7. **Suprimir animações provocadas por troca de área.** **Problema ou caso de uso:** a transição pode parecer várias aberturas/fechamentos independentes. **Comportamento proposto:** adicionar acompanhamento da área na raiz e classificação limitada do ciclo de vida em `atoms.rs`, `events.rs` e `compositor.rs`; concluir capturas afetadas e preservar transições posteriores reais. **Como verificar:** cenários de protocolo reordenados/em lotes e uma sessão real do Xmonad passam nos casos de troca, troca rápida, animação interrompida e abertura comum posterior; registrar comportamentos de gerenciadores não cobertos.
+8. **Validar desempenho, limpeza e documentação.** **Problema ou caso de uso:** correção visual sozinha não comprova ociosidade nem estabilidade de recursos. **Comportamento proposto:** ampliar `tests/cases/`, os auxiliares XRes e o programa de verificação de desktop para transformações simultâneas, ciclos repetidos e cadência medida; atualizar README, arquitetura, exemplo TOML válido e os dois roteiros quando implementado. **Como verificar:** cada item de aceitação possui evidências do commit exato e ambiente declarado; recursos apenas propostos continuam marcados como planejados até passar nas verificações.
+
+### Decisões e trabalho posterior
+
+O responsável pelo projeto ainda precisa confirmar o esquema público `[animations]`/`[[animation_rules]]`, a primeira regra com comparação textual exata e os exemplos opcionais de 220/150 ms. O plano preserva o fade legado padrão de 180 ms e propõe habilitar supressão em trocas de área. Nenhuma data de versão ou novo critério da beta foi atribuído.
+
+Animar movimento/redimensionamento de janelas existentes e transições de slide da área de trabalho inteira está fora do escopo e permanece como trabalho futuro do roteiro. Modelo de mola, sombras, cantos arredondados, suspensão da composição em tela cheia, redesenho parcial e recarga de configuração continuam separados.
 
 Ainda não há datas de entrega. Abra uma issue para discutir uma mudança delimitada ou relatar uma falha observada; evite iniciar vários projetos de backend sobrepostos antes de alinhar os requisitos.

@@ -144,8 +144,112 @@ Color management, HDR, VRR, XLibre-specific extensions, and per-output schedulin
 
 ## Everyday usability
 
-Add a small, typed per-window rule system, configuration discovery and reload, clearer troubleshooting, and distribution packaging. Extend animations to movement and scale only after their interaction with input coordinates and window-manager geometry is settled. Consider shadows and rounded corners with proper shape and damage semantics.
+Add configuration discovery and reload, clearer troubleshooting, and distribution packaging. The Window Animations milestone below expands the existing movement/scale proposal and introduces the first typed per-window rules. Reuse that rule model for later effects. Consider shadows and rounded corners with proper shape and damage semantics.
 
 **Acceptance:** behavior is configurable, documented in both languages, testable, and does not silently claim compatibility with picom's configuration or scripting language.
+
+## Window Animations: planned
+
+**Goal:** generalize the implemented fade into a per-window animation system for opening and closing: fade (opacity), pop (scale plus opacity), and slide (translation), with configurable easing and per-window rules. This expands the animation and rules work above. It is a proposed follow-up to the first beta, with no assigned release or date; the four beta gates remain unchanged.
+
+### Starting point
+
+| Area | Current implementation and consequence for this milestone |
+| --- | --- |
+| Fade | [animation.rs](../src/animation.rs) stores `from`, `to`, monotonic `started`, and `duration` in `Fade`. Integer smoothstep samples a `u16` opacity; close/reopen begin at the sampled value. Fade is implemented, including zero-duration endpoints and interrupted animations. Preserve this behavior. |
+| Capture and close | [surface.rs](../src/surface.rs) uses `CompositeNameWindowPixmap` and an XRender `Picture`, not a GPU texture import. `Surface::close` marks the surface unmapped and retains its picture, named pixmap, geometry, shape, and Damage object. [scene.rs](../src/scene.rs) removes it after the fade finishes; `Surface`/`Picture` destructors release Damage, picture, and owned pixmap. A named pixmap already keeps the close contents alive after the original window disappears. |
+| Remap and configure | `Scene::add` captures fresh mapped contents before replacing a closing surface, preserving its sampled fade and stacking. [events.rs](../src/events.rs) maps root children, closes on unmap/destroy, and handles reparenting. Configure updates position immediately; size/border changes recapture the pixmap while preserving the fade. Generalize those transfers to the complete animation state. |
+| Render path | [paint.rs](../src/renderer/paint.rs) multiplies fade, window, and global opacity through an A8 mask and composites at the real window geometry. Shape and [blur](../src/renderer/blur.rs) also use that geometry. There is no shader, vertex buffer, model-matrix path, shadow, or rounded-corner implementation. |
+| Scheduling and damage | [compositor.rs](../src/compositor.rs) keeps painting while any fade is active, requests a final repaint, and then polls without continuous repainting. `max_fps` limits work; Present requires both completion and idle before reusing its single buffer. Damage is acknowledged and marks the whole scene dirty. There is no partial repaint or buffer-age tracking. |
+| Configuration and metadata | [config.rs](../src/config.rs) accepts strict TOML, with `fade_ms = 180` for both directions. Unknown fields are rejected; there is no rules engine or live reload. Client discovery through `WM_STATE` exists, but animation matching by class, title, and window type does not. Root property events are selected, but `_NET_CURRENT_DESKTOP` is not handled. |
+| Outputs and exclusions | RandR currently triggers root-buffer recreation; there is no per-output geometry cache. Override-redirect tooltips are not excluded from fade by type. Fullscreen unredirection is not implemented, so fullscreen state must not be confused with an actually unredirected surface. |
+
+### Scope and preparation
+
+1. Replace `Fade` with an `Anim` state containing kind, start time, duration, easing, open/close direction, and sampled start/target transforms. Sample once per frame into `Transform { opacity, scale, offset }`. Retarget every component from its current value, including remap during close; do not restart from an endpoint or assume value continuity also preserves velocity.
+2. Apply a center-based model transform only when rendering. For local point `p`, window origin `o`, and center `c` including the border, use `p_out = o + c + scale * (p - c) + offset`. Keep actual X window geometry and input regions unchanged. Prototype this on XRender with `SetPictureTransform` and transformed destination bounds/clips: its sampling matrix maps destination coordinates back to the source, so derive the inverse and account for Composite source/destination origins. Verify filtering, identity reset, and checked fixed-point conversion before adding effects. A GPU backend is not a prerequisite. See the [Render protocol](https://xorg.freedesktop.org/archive/current/doc/renderproto/renderproto.txt).
+3. Pop opens from approximately `scale = 0.85`, opacity zero, to identity and full animation opacity; closing targets the small transparent state. Offer `ease_out_cubic` or `ease_out_back` for opening and `ease_in_cubic` for closing. Keep legacy `smoothstep`; add `linear` and the cubic in/out and back-out curves as pure calculations. Clamp opacity, keep scale positive/invertible, and include back-curve overshoot in painted bounds. A spring model is optional future work.
+4. Slide opens from the nearest edge of the window's current output and closes toward the selected edge; allow top/right/bottom/left overrides. Select the active RandR output with the greatest window intersection, use a deterministic tie-break, and freeze the selection for a closing snapshot. Handle negative origins, overlapping outputs, spanning windows, and output changes explicitly. If output geometry cannot be established, use fade rather than treating a multi-monitor root as one monitor. Dropdown menus can use a short displacement, proposed at 24 pixels, instead of a full edge traversal.
+5. Before implementation, confirm retained-resource ownership on unmap/destroy, failed recapture, remap, and shutdown against the existing [fade](../tests/cases/fades.rs), [capture-race](../tests/cases/capture_races.rs), and [resource](../tests/cases/resources.rs) coverage. Preserve the last successful capture and its metadata until completion; keep destroyed snapshots in their established stacking position. Reuse owned pictures and masks instead of naming/copying pixmaps on every animation frame.
+6. Keep full-screen repainting while animations are active for this milestone, including the final cleanup frame. Preserve Present buffer ownership, direct-XRender fallback, frame limiting, and return to the existing idle poll. Confirm these paths for several simultaneous animations and zero duration. Partial repaint remains in the performance roadmap; a later region implementation must invalidate the union of previous/current transformed bounds, filter/blur extents, overshoot, and any future shadow extent.
+
+### Proposed configuration and eligibility
+
+Extend the existing TOML format with `[animations]` and ordered `[[animation_rules]]`. **These fields are a proposal and are not accepted by the current binary.** Keep `compust.example.toml` valid until implementation. The owner must confirm the public schema before coding, following the [feature proposal template](../.github/ISSUE_TEMPLATE/feature.yml).
+
+- Global fields: `kind` (`none`, `fade`, `pop`, `slide`), separate `open_ms`/`close_ms`, `open_easing`/`close_easing`, `pop_scale` (default `0.85`), `slide_direction` (`nearest` by default, or `top`, `right`, `bottom`, `left`), optional `slide_offset_px` (absent means edge traversal), and `suppress_workspace_switch` (proposed default `true`).
+- Compatibility defaults: fade, smoothstep in both directions, and durations inherited from `fade_ms` (180 ms when absent). Explicit new duration fields override that legacy value per direction; zero completes immediately. Proposed opt-in pop/slide examples use 220 ms open and 150 ms close. The refactor preserves eligible-window fade output exactly; new exclusions and workspace suppression are intentional eligibility changes.
+- Rules match cached client `WM_CLASS` resource class, `_NET_WM_WINDOW_TYPE`, and name (`_NET_WM_NAME`, falling back to `WM_NAME`). Use the existing client/frame association, validate property types/lengths, and preserve close metadata after destruction. Proposed matching is case-sensitive exact text, all supplied selectors must match, and the first matching rule overrides only specified global fields. Missing/malformed properties do not satisfy a selector. Refresh metadata for future transitions without restarting an active animation merely because a title changes.
+- Exclude override-redirect tooltips and any surface actually outside compositing; rules may exclude other windows with `kind = "none"`. These hard exclusions take precedence over enabling rules. Override-redirect dropdown menus remain eligible for explicit short-slide rules. Do not add fullscreen unredirection in this milestone; preserve the exclusion contract if that feature is introduced later.
+- Reject unknown keys/kinds/curves, invalid durations, non-finite or non-positive scales, and out-of-range offsets before connecting to X11. Rules are loaded once with the configuration; live reload is separate work.
+
+Proposed opt-in example, not a current configuration:
+
+```toml
+[animations]
+kind = "pop"
+open_ms = 220
+close_ms = 150
+open_easing = "ease_out_cubic"
+close_easing = "ease_in_cubic"
+pop_scale = 0.85
+suppress_workspace_switch = true
+
+[[animation_rules]]
+window_type = "dropdown_menu"
+kind = "slide"
+slide_direction = "top"
+slide_offset_px = 24
+
+[[animation_rules]]
+wm_class = "ExampleApp"
+name = "No animation"
+kind = "none"
+```
+
+### Interaction, effects, and risks
+
+- **Input:** X routes clicks to real geometry, not the transformed image. Keep the proposed open duration within 200–250 ms and close near 150 ms, expose disabling rules, and document the mismatch. This milestone does not move windows or synthesize input.
+- **Workspaces:** observe changes to the root `_NET_CURRENT_DESKTOP` property and suppress the associated per-window open/close animations. Coalesce lifecycle decisions around frame/event batches, cancel or settle affected animations on a desktop change, and bound the suppression interval so later ordinary opens still animate. Test property notifications both before and after map/unmap events, across the 512-event batch boundary, and with rapid successive switches. Record actual Xmonad event ordering before fixing the interval; a count of unmaps alone is not reliable detection. WMs that do not publish a desktop change require an explicit disabling policy and must not be advertised as covered. The [EWMH property](https://specifications.freedesktop.org/wm/1.5/ar01s03.html) provides the signal, not a generic transaction boundary.
+- **Tiling and configure:** neighbors still resize/move immediately when the WM arranges a new window. Only the entering/leaving window animates. Configure must preserve its ongoing animation when replacing a picture and must not launch animations for ordinary movement/resizing.
+- **Effects:** transform Shape clipping, borders, per-pixel alpha, opacity masks, and blur coverage with the same geometry. Blur must sample the scene behind the animated destination, not move an old blurred background patch. Shadows and rounded corners do not exist today; adding them is separate work, and any future effect must consume the same transform and bounds. Test overshoot, empty/disjoint shapes, large/off-screen windows, and cleanup of reusable picture transform state.
+- **Outputs and cost:** nearest-edge calculations require output geometry, not root dimensions. Resolve topology changes without accessing destroyed windows or jumping to stale output coordinates. Full-screen blur can dominate X-server CPU during simultaneous animations; measure Compust and the server separately, avoid allocations/round trips per frame, and qualify frame pacing only for recorded workloads and hardware.
+
+### Verification and acceptance
+
+Keep pure sampling tests separate from real-server pixel/protocol tests. Follow CONTRIBUTING's event deadlines and resource-lifetime rules; do not hide new X11 errors or weaken existing tests. Use the current Xvfb fixtures, the isolated [Xmonad runner](../tools/desktop-check.sh), and recorded physical Xorg/XLibre sessions where required.
+
+- [ ] Legacy fade has identical smoothstep values, opacity multiplication, duration behavior, zero-duration endpoints, and final repaint for the same eligible event sequence; existing regressions still pass.
+- [ ] Pop and slide open and close normal windows correctly, including center scaling, direction overrides, and short dropdown slides.
+- [ ] Unmap/destroy close animations keep the last captured contents without black/blank frames; resources are released after completion.
+- [ ] Open-then-close and remap-during-close start from the current opacity, scale, and offset without a jump; recapture failure preserves the previous snapshot and ordering.
+- [ ] Xmonad workspace switches produce no per-window animation storm or lingering close snapshots; normal opens resume afterward, including rapid repeated switches.
+- [ ] Excluded tooltips and user-excluded windows never animate. The unredirected-surface guard is covered without claiming fullscreen unredirection exists.
+- [ ] Per-window rules override global defaults with documented precedence; client/frame metadata, missing/malformed values, legacy config, and invalid config are covered.
+- [ ] Shape, alpha, borders, and blur remain attached and correctly clipped throughout transforms. Future shadows/rounded corners must meet this same check when implemented.
+- [ ] Mixed-resolution outputs, negative origins, spanning windows, nearest-edge selection, and output changes during opening/closing are correct on documented monitor layouts.
+- [ ] At least eight simultaneous opens/closes meet the declared frame budget without animation-induced frame drops on the qualified setup; record refresh rate, `max_fps`, blur setting, CPU, Present intervals, and the no-animation comparison. Test Present and direct-XRender paths; do not infer tear-free scanout from software timings.
+- [ ] After animations finish, repainting stops and CPU returns to the recorded idle baseline; no busy loop, delayed final frame, or permanently active animation remains.
+- [ ] After warmup and at least 1,000 open/close cycles, matching settled scenes show no growth in XRes resource counts or full owned-pixmap bytes; record process/server memory trends and test interrupted cycles and shutdown.
+- [ ] Formatting, strict Clippy, full regressions, release build, and bilingual documentation pass before advertising the milestone as implemented.
+
+### Ordered tasks
+
+Each item is one reviewable issue. Its fields follow the feature template: **Problem or use case**, **Proposed behavior**, and **How to verify it**. The last field is the done criterion.
+
+1. **Confirm lifetime, scheduling, and configuration contracts.** **Problem or use case:** transforms add state to already working close/remap paths. **Proposed behavior:** record ownership and event-order traces in `surface.rs`, `scene.rs`, `events.rs`, and `compositor.rs`; approve the TOML schema/defaults, full-repaint strategy, output/clipping policy, and workspace suppression boundary. **How to verify it:** every preparation item has a concrete decision and a mapped existing or proposed regression; resolve public-schema questions before implementation.
+2. **Generalize fade without changing its output.** **Problem or use case:** `Fade` samples opacity only. **Proposed behavior:** add typed `Anim`, direction/easing, and transform sampling in `animation.rs`; migrate surface creation, closing, remap, resize replacement, and scene cleanup with identity scale/offset. **How to verify it:** exact old fade samples and all interrupted/zero-duration pixel and lifetime regressions pass; failed recapture does not discard a closing surface.
+3. **Add configuration, metadata, rules, and exclusions.** **Problem or use case:** global `fade_ms` cannot express per-window policy. **Proposed behavior:** extend `config.rs`, `atoms.rs`, and client/surface metadata with strict TOML resolution, first-match rules, separate open/close settings, and exclusions; retain legacy defaults. **How to verify it:** parsing/precedence cases cover valid, absent, malformed, and conflicting data; frame/client and destroyed-client cases select the intended policy. Expose each new animation kind only when its rendering task is ready.
+4. **Introduce the XRender transform path.** **Problem or use case:** painting/blur/clips use untransformed geometry. **Proposed behavior:** add center-based affine sampling, inverse picture transforms, destination bounds, consistent effect coverage, and reusable transform/filter state in `picture.rs` and `renderer/{paint,blur}.rs`. **How to verify it:** identity matches existing pixels; controlled scale/offset samples preserve centers, shapes, borders, transparency, blur, and extreme off-screen clipping without per-frame resource growth.
+5. **Implement pop and selectable easing.** **Problem or use case:** the generic path needs a complete scale/opacity effect. **Proposed behavior:** add the 0.85-to-1 pop endpoints, cubic/back/linear sampling, bounded opacity and scale, and configurable open/close curves. **How to verify it:** pure endpoint/overshoot/interruption cases and real-server open, unmap, destroy, and remap scenes pass with preserved last contents.
+6. **Implement output-aware slide and menu offsets.** **Problem or use case:** root-wide edges are wrong on multiple monitors. **Proposed behavior:** cache negotiated RandR monitor/CRTC geometry, refresh on output/CRTC changes, select the window's output, and add nearest/explicit directions, dropdown offsets, and documented fallback. **How to verify it:** deterministic geometry cases plus pixel captures cover different resolutions, negative origins, ties, spanning windows, hotplug/resize during animation, and missing RandR information.
+7. **Suppress workspace-driven animations.** **Problem or use case:** a workspace transition can resemble many independent window openings/closings. **Proposed behavior:** add root desktop tracking and bounded lifecycle classification in `atoms.rs`, `events.rs`, and `compositor.rs`; settle affected snapshots and preserve genuine later transitions. **How to verify it:** reordered/batched protocol scenarios and an actual Xmonad session pass switch, rapid-switch, interrupted-animation, and subsequent ordinary-open checks; record unsupported WM behavior.
+8. **Qualify performance, cleanup, and documentation.** **Problem or use case:** visible correctness alone cannot establish idle behavior or resource stability. **Proposed behavior:** extend `tests/cases/`, the XRes helpers, and the desktop probe for concurrent transforms, repeated lifecycle changes, and measured pacing; update the README, architecture, valid example TOML, and both roadmaps when implemented. **How to verify it:** every acceptance checkbox has evidence for the exact commit and declared environment; proposed-only features remain labeled planned until their checks pass.
+
+### Decisions and later work
+
+Owner confirmation is still needed for the proposed `[animations]`/`[[animation_rules]]` public schema, first-match exact-string semantics, and the opt-in 220/150 ms presets. The plan preserves the 180 ms legacy fade default and proposes enabling workspace suppression. No new release date or beta gate is assigned.
+
+Animating move/resize geometry of existing windows and whole-workspace slide transitions are out of scope and remain future roadmap items. A spring model, shadows, rounded corners, fullscreen unredirection, partial repaint, and live configuration reload remain separate work.
 
 There are no delivery dates yet. Open an issue to discuss a bounded change or contribute an observed failure; avoid starting several overlapping backend designs before agreeing on the requirements.

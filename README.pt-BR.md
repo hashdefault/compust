@@ -103,6 +103,8 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 O protótipo redesenha a tela inteira quando recebe dano. Para cada janela translúcida, o desfoque faz trabalho intermediário sobre a tela inteira e pode ser caro. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
+O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
+
 Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, hotplug físico, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. Wayland nativo está fora do escopo atual.
 
 ## Contexto e licença
