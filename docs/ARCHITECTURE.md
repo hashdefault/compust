@@ -40,6 +40,8 @@ The renderer paints wallpaper into a reusable root-depth buffer, composites wind
 
 With Present, a single output buffer is submitted in COPY mode and reused only after both completion and idle notifications. Subscription IDs distinguish stale events after buffer recreation, and old subscriptions are released. This is a simple baseline, not a low-latency multi-buffer scheduler. Without Present, XRender copies directly to the overlay.
 
+A `BadMatch` on the exact outstanding PresentPixmap request can fall back to XRender after checked geometry queries confirm that the original back pixmap and output still exist on the same screen with matching depth and expected buffer dimensions. The rejected request does not own the buffer, so the idle/completion wait is cleared. The effective session configuration disables Present, preserving the fallback when a root resize recreates the renderer. A warning records the rejected request. Invalid resources, unrelated errors, and missing completion events are not covered by this recovery.
+
 ## Source map
 
 | Area | Files |
@@ -53,6 +55,12 @@ With Present, a single output buffer is submitted in COPY mode and reused only a
 | Real-server verification | `tests/x11.rs`, `tests/cases/`, `tests/support/` |
 
 All source paths above are relative to `src/` except the test paths. The crate uses `unsafe_code = "forbid"`; that restriction covers this crate, not the internals of its dependencies. Rust prevents several memory errors, but protocol races, rendering mistakes, and resource leaks still require tests.
+
+## Capture verification
+
+Capture-race tests route only the compositor connection through `tests/support/proxy.rs`. The proxy frames native-endian X11 requests with x11rb, forwards replies and events unchanged, and joins its worker on shutdown. `tests/support/capture.rs` discovers extension opcodes from Xvfb and completes a checked window destruction immediately before forwarding the selected request. The test client retains a direct server connection for pixel checks and resource probes. This transport belongs only to the test binary; normal compositor execution has no interception hooks.
+
+The same transport supports presentation tests by substituting a request field before forwarding it; Xvfb generates the actual error. `tests/support/monitors.rs` uses checked RandR requests on that test's isolated server. `tests/support/resources.rs` queries XRes using the compositor selection owner's window as the client identifier. It compares resource counts and the full reported bytes of owned pixmap XIDs at matching rendered states after warmup. XRes 1.2 `QueryResourceBytes` provides these sizes without dividing by reference counts; `QueryClientPixmapBytes` attribution can change while Present holds a reference. The fixture requires size entries for every owned pixmap and excludes cross references to avoid duplicate accounting. XRes is a development-only feature; the production compositor does not require the extension. Test screenshots use the current overlay dimensions.
 
 ## Where to extend it
 

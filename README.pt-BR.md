@@ -30,6 +30,8 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 
 “Suporte moderno a X11” é um objetivo incremental de compatibilidade, não uma promessa de implementar todas as extensões. A disponibilidade de Present não comprova ausência de tearing em todos os drivers. A cópia direta com XRender não é sincronizada com o intervalo vertical do monitor.
 
+Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Os demais erros de protocolo mantêm seus tratamentos existentes.
+
 ## Compilar e executar
 
 Você precisa de Linux, Rust 1.95.0 (selecionado pelo arquivo de toolchain), Cargo, um linker C e um servidor X com as extensões obrigatórias. Se usa rustup, confira se `~/.cargo/bin` está no `PATH`. A conexão X11 usa a implementação Rust do `x11rb`; não é necessário instalar cabeçalhos de desenvolvimento da Xlib.

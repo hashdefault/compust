@@ -16,8 +16,8 @@ The first beta will use the existing XRender backend and declare support only fo
 
 | Step | Status | Required result |
 | --- | --- | --- |
-| 1. Window stability | In progress | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
-| 2. Monitors and resources | Pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
+| 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
+| 2. Monitors and resources | Automated checks complete; physical hotplug pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
 | 3. Real desktops | Pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Pending | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
@@ -25,13 +25,15 @@ The first beta will use the existing XRender backend and declare support only fo
 
 Exercise rapid map/unmap/destroy sequences, interrupted fades, decorated windows, override-redirect menus, entering and leaving fullscreen, malformed properties, and windows disappearing during protocol requests. Start with deterministic Xvfb pixel regressions; record actual window-manager behavior in step 3.
 
-**Acceptance:** each reproduced defect has a regression that fails without the fix; supported scenarios preserve the correct pixels and keep the compositor alive; the full suite, formatting, Clippy, and release build pass. Remaining scenarios stay explicitly open until exercised. Coverage below includes clients and frames, properties, rapid sequences, interrupted fades, extreme/off-screen shapes, and destruction before capture, shape, and geometry queries. Destruction between successive requests within a capture still needs deterministic reproduction.
+**Acceptance:** each reproduced defect has a regression that fails without the fix; supported scenarios preserve the correct pixels and keep the compositor alive; the full suite, formatting, Clippy, and release build pass. Coverage below includes clients and frames, properties, rapid sequences, interrupted fades, extreme/off-screen shapes, and destruction before and between capture requests. The automated Xvfb gate is complete; actual window-manager and driver qualification remains in step 3.
 
 ### 2. Monitors and resources
 
 Test RandR resolution changes and physical hotplug, supported presentation failure recovery, and repeated resizes with X-server resource accounting. Record the configuration and monitor arrangement used.
 
 **Acceptance:** output recovers after each supported transition, presentation continues, and repeated operations do not produce unbounded growth in memory or server resources.
+
+The Xvfb scenarios below pass. Physical connector hotplug and multiple-monitor arrangements remain open; disabling a virtual CRTC does not establish those behaviors.
 
 ### 3. Real desktops
 
@@ -69,11 +71,32 @@ The remap and stacking regressions in [fades.rs](../tests/cases/fades.rs) and th
 
 Three scenarios in [destruction.rs](../tests/cases/destruction.rs) check 32 queued create/map/destroy sequences before capture, plus destruction with a shape or geometry event ahead of the destroy notification. A server grab enforces the ordering; these tests exercise existing recovery without broadening ignored X11 errors. They do not force destruction into each gap between the internal capture requests.
 
-The full suite contains 44 tests: six unit, three CLI, and thirty-five X11 integration tests. All passed, along with formatting, Clippy with warnings treated as errors, and the release build. Step 1 remains in progress for destruction coverage between successive requests.
+This batch brought the suite to 44 passing tests. The remaining capture-request boundaries are covered by the cases below.
+
+### Step 1 complete: destruction between capture requests
+
+Three tests in [capture_races.rs](../tests/cases/capture_races.rs) exercise eleven request boundaries: window attributes, geometry, pixmap naming, picture creation, client event subscription, `WM_STATE`, client tree discovery, shape event subscription, damage creation, shape rectangles, and opacity. A test-only loopback proxy pauses the selected request, completes a checked destruction through a separate Xvfb connection, then forwards the original bytes. Replies and events come from the real server; there are no production hooks or timing sleeps.
+
+Every case waits for a surviving marker to render, checks the underlying window's pixels and compositor liveness, and probes the captured pixmap, picture, and damage identifiers to verify release. The existing capture recovery passed without production changes or broader error suppression. In temporary copies, disabling picture cleanup made the picture case fail with a still-allocated resource; disabling capture recovery made the compositor exit and the survivor case fail.
+
+This completed step 1 with 47 passing tests: six unit, three CLI, and thirty-eight X11 integration tests. Formatting, strict Clippy, and the release build passed. Real desktops and physical hotplug still require their own evidence.
+
+### Step 2: virtual monitor transitions, presentation recovery, and resources
+
+Four tests in [monitors.rs](../tests/cases/monitors.rs) exercise real RandR requests with Present enabled and with direct XRender copying. The single Xvfb output is disabled, the root shrinks from 320×240 to 240×180, then the original size and CRTC configuration are restored. Sixteen measured cycles preserve the survivor's pixels, exact XRes resource counts, and full reported bytes of compositor-owned pixmaps. Separate cases disable and restore the output without changing root size. Disabling renderer replacement in a temporary copy makes both resize cases fail.
+
+Four lifecycle tests in [resources.rs](../tests/cases/resources.rs) repeat mapped-window resizing and map/destroy sequences 32 times per rendering mode after warmup. Restored scenes retain exactly the same X-server resource counts and full reported pixmap bytes: 654,401 for the window scenarios and 878,401 for the larger monitor-test window. Disabling picture cleanup in a temporary copy makes all four lifecycle cases fail on their first measured cycle.
+
+A fifth resource test holds extra pixmap references from another client. The full allocation total stays unchanged, while the old reference-weighted attribution drops from 641,066 to 429,600 bytes. The fixture uses XRes 1.2 `QueryResourceBytes` and verifies complete size coverage; `QueryClientPixmapBytes` is unsuitable for strict allocation comparisons while Present references change. Recorded Linux compositor RSS endpoints were unchanged or increased by one 4 KiB page. These finite checks detect growth in the exercised workloads; they do not establish a general memory bound or hardware GPU-memory usage.
+
+Three tests in [presentation.rs](../tests/cases/presentation.rs) cover rejected submissions. A test proxy substitutes an incompatible pixmap in one Present request, producing a real server `BadMatch`. Previously the compositor exited. It now matches that exact submission, checks that its original back buffer and output still exist with compatible screen/depth, and continues through XRender for the rest of the session, including later root resizes. Invalid pixmap and window errors still terminate the compositor. Missing completion events and other presentation errors are outside this recovery policy.
+
+The full suite now has 59 passing tests: six unit, three CLI, and fifty X11 integration tests. Formatting, strict Clippy, the release build, and documentation checks pass. Step 2 remains open for physical hotplug, multiple-monitor layouts, and hardware measurements. The automated configuration is one virtual output at 320×240, temporarily 240×180, with `fade_ms = 0`, `blur_radius = 0`, and each vsync mode.
 
 | Environment | Verified coverage | Evidence / limits |
 | --- | --- | --- |
-| Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, and destruction with queued events; all 44 tests pass | Recorded 2026-10-02. New cases use `fade_ms = 0` or `1000`, `blur_radius = 0` or `4`; the border scenario uses `vsync = false`, the others use the default. Hierarchies are created directly, without real window-manager or GPU qualification. |
+| Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, queued destruction events, and eleven capture-request boundaries; all 47 tests pass | Recorded 2026-10-02. Capture races use `fade_ms = 0`, `blur_radius = 0`, and default vsync. Earlier fade/shape cases also use `fade_ms = 1000`, `blur_radius = 4`, or `vsync = false` as described above. Hierarchies are created directly, without real window-manager or GPU qualification. |
+| Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors remain unverified. |
 | Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires the same environment evidence; Xvfb results do not establish support. |
 
@@ -87,6 +110,10 @@ cargo test --locked --test x11 stability
 cargo test --locked --test x11 fades
 cargo test --locked --test x11 shapes
 cargo test --locked --test x11 destruction
+cargo test --locked --test x11 capture_races
+cargo test --locked --test x11 monitors
+cargo test --locked --test x11 resources
+cargo test --locked --test x11 presentation
 ```
 
 Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
@@ -95,7 +122,7 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 Test Xorg and XLibre with actual window managers and Intel, AMD, and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
-Add real RandR resize and hotplug coverage, recovery tests for presentation failures, and resource accounting across repeated resizes. Extend destruction races into the gaps between pixmap naming, picture creation, and event subscription requests without hiding unrelated X errors. Preserve the large/off-screen shape and malformed-property coverage recorded above.
+Exercise physical monitor hotplug and multiple-monitor layouts on real hardware, and measure longer-running memory and presentation behavior. The virtual RandR transitions, narrow Present rejection recovery, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 

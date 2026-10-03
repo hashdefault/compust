@@ -40,6 +40,8 @@ O renderizador desenha o papel de parede em um buffer reutilizável com a profun
 
 Com Present, um único buffer é enviado no modo COPY e só volta a ser usado após as notificações de conclusão e liberação. Os IDs de assinatura distinguem eventos antigos depois da recriação dos buffers, e assinaturas anteriores são liberadas. É uma base simples, não um agendador de baixa latência com vários buffers. Sem Present, XRender copia diretamente para a janela de composição.
 
+Um `BadMatch` na requisição PresentPixmap pendente exata pode acionar a cópia via XRender após consultas de geometria confirmarem que o pixmap original e a saída ainda existem na mesma tela, com profundidades iguais e as dimensões esperadas do buffer. A requisição rejeitada não retém o buffer, então a espera por conclusão e liberação é encerrada. A configuração efetiva da sessão desativa Present, preservando a alternativa quando um redimensionamento da raiz recria o renderizador. Um aviso registra a requisição rejeitada. Recursos inválidos, erros não relacionados e ausência de eventos de conclusão não fazem parte dessa recuperação.
+
 ## Mapa do código
 
 | Área | Arquivos |
@@ -53,6 +55,12 @@ Com Present, um único buffer é enviado no modo COPY e só volta a ser usado ap
 | Verificação com servidor real | `tests/x11.rs`, `tests/cases/`, `tests/support/` |
 
 Os caminhos de código são relativos a `src/`, exceto os de teste. O crate usa `unsafe_code = "forbid"`; essa restrição vale para o próprio crate, não para os detalhes internos das dependências. Rust evita várias classes de erro de memória, mas corridas do protocolo, erros de renderização e vazamentos de recursos ainda exigem testes.
+
+## Verificação da captura
+
+Os testes de corridas durante a captura encaminham apenas a conexão do compositor por `tests/support/proxy.rs`. O proxy delimita requisições X11 na ordem de bytes nativa usando x11rb, encaminha respostas e eventos sem alteração e aguarda sua thread terminar no encerramento. `tests/support/capture.rs` consulta os opcodes das extensões no Xvfb e conclui uma destruição de janela com confirmação imediatamente antes de encaminhar a requisição escolhida. O cliente de teste mantém uma conexão direta com o servidor para conferir pixels e recursos. Esse transporte pertence somente ao binário de testes; a execução normal do compositor não possui pontos de interceptação.
+
+O mesmo transporte atende aos testes de apresentação substituindo um campo da requisição antes do envio; o Xvfb produz o erro real. `tests/support/monitors.rs` usa requisições RandR com confirmação no servidor isolado daquele teste. `tests/support/resources.rs` consulta XRes usando a janela proprietária da seleção do compositor como identificador do cliente. Ele compara contagens de recursos e os bytes totais reportados para os XIDs dos pixmaps próprios em estados renderizados equivalentes após aquecimento. `QueryResourceBytes` do XRes 1.2 fornece esses tamanhos sem dividi-los pela contagem de referências; a atribuição de `QueryClientPixmapBytes` pode variar enquanto Present mantém uma referência. O teste exige tamanhos para todos os pixmaps próprios e exclui referências cruzadas para evitar contagem duplicada. XRes é habilitado apenas para desenvolvimento; o compositor de produção não exige a extensão. As capturas dos testes usam as dimensões atuais do overlay.
 
 ## Como estender
 

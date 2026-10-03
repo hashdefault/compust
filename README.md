@@ -30,6 +30,8 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 
 “Modern X11 support” is an incremental compatibility goal, not a promise to implement every extension. Present availability does not establish tear-free behavior on every driver. The XRender fallback is not synchronized to vblank.
 
+If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. Other protocol errors retain their existing handling.
+
 ## Build and run
 
 You need Linux, Rust 1.95.0 (the toolchain file selects it), Cargo, a C linker, and an X server with the required extensions. With a rustup installation, make sure `~/.cargo/bin` is in your `PATH`. The X11 connection uses `x11rb`'s Rust implementation; Compust does not require Xlib development headers.

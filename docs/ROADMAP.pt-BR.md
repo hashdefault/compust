@@ -16,8 +16,8 @@ A primeira beta usará o backend XRender atual e declarará suporte somente aos 
 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
-| 1. Estabilidade das janelas | Em andamento | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
-| 2. Monitores e recursos | Pendente | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
+| 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
+| 2. Monitores e recursos | Verificações automatizadas concluídas; hotplug físico pendente | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
 | 3. Desktops reais | Pendente | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
 | 4. Distribuição da beta | Pendente | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
@@ -25,13 +25,15 @@ A primeira beta usará o backend XRender atual e declarará suporte somente aos 
 
 Exercitar sequências rápidas de map/unmap/destroy, fades interrompidos, janelas decoradas, menus override-redirect, entrada e saída de tela cheia, propriedades malformadas e destruição durante requisições do protocolo. Começar por regressões determinísticas de pixels no Xvfb; registrar o comportamento de gerenciadores reais na etapa 3.
 
-**Aceitação:** cada defeito reproduzido possui uma regressão que falha sem a correção; os cenários cobertos preservam os pixels corretos e mantêm o compositor em execução; suíte completa, formatação, Clippy e build de release passam. Os cenários restantes continuam explicitamente abertos até serem exercitados. A cobertura abaixo inclui clientes e molduras, propriedades, sequências rápidas, fades interrompidos, formatos extremos ou fora da tela e destruição antes das consultas de captura, formato e geometria. Destruição entre requisições sucessivas de uma mesma captura ainda precisa de reprodução determinística.
+**Aceitação:** cada defeito reproduzido possui uma regressão que falha sem a correção; os cenários cobertos preservam os pixels corretos e mantêm o compositor em execução; suíte completa, formatação, Clippy e build de release passam. A cobertura abaixo inclui clientes e molduras, propriedades, sequências rápidas, fades interrompidos, formatos extremos ou fora da tela e destruição antes e entre requisições de captura. A validação automatizada no Xvfb está concluída; a validação de gerenciadores e drivers reais continua na etapa 3.
 
 ### 2. Monitores e recursos
 
 Testar mudanças de resolução via RandR e hotplug físico, recuperação das falhas de apresentação previstas e redimensionamentos repetidos com contagem de recursos do servidor X. Registrar a configuração e a disposição dos monitores utilizadas.
 
 **Aceitação:** a imagem se recupera após cada transição coberta, a apresentação continua e as operações repetidas não provocam crescimento indefinido de memória ou recursos do servidor.
+
+Os cenários com Xvfb descritos abaixo passam. Hotplug físico e configurações com vários monitores continuam em aberto; desativar um CRTC virtual não comprova esses comportamentos.
 
 ### 3. Desktops reais
 
@@ -69,11 +71,32 @@ As regressões de retomada e empilhamento em [fades.rs](../tests/cases/fades.rs)
 
 Três cenários em [destruction.rs](../tests/cases/destruction.rs) verificam 32 criações/map/destruições enfileiradas antes da captura, além de destruição com o evento de formato ou de geometria à frente da notificação de destruição. O bloqueio do servidor impõe a ordem; esses testes exercitam os tratamentos existentes sem ampliar os erros X11 ignorados. Eles não forçam a destruição em cada intervalo entre as requisições internas da captura.
 
-A suíte completa contém 44 testes: seis unitários, três de CLI e trinta e cinco de integração X11. Todos passaram, assim como formatação, Clippy com avisos tratados como erros e build de release. A etapa 1 continua em andamento para a cobertura de destruição entre requisições sucessivas.
+Este conjunto levou a suíte a 44 testes aprovados. Os intervalos restantes entre requisições de captura são cobertos pelos casos abaixo.
+
+### Etapa 1 concluída: destruição entre requisições de captura
+
+Três testes em [capture_races.rs](../tests/cases/capture_races.rs) exercitam onze pontos: atributos da janela, geometria, nomeação do pixmap, criação da imagem, assinatura de eventos do cliente, `WM_STATE`, descoberta da árvore de clientes, assinatura de eventos de formato, criação de damage, retângulos do formato e opacidade. Um proxy local exclusivo dos testes pausa a requisição escolhida, conclui a destruição com confirmação por outra conexão ao Xvfb e encaminha os bytes originais. Respostas e eventos vêm do servidor real; não há instrumentação no código de produção nem esperas arbitrárias.
+
+Cada caso espera a renderização de um marcador sobrevivente, verifica os pixels da janela inferior e que o compositor continua vivo, além de consultar os identificadores de pixmap, imagem e damage para comprovar a liberação. A recuperação existente passou sem mudanças na produção nem ampliação dos erros ignorados. Em cópias temporárias, desativar a liberação da imagem fez o teste falhar por recurso ainda alocado; desativar a recuperação da captura encerrou o compositor e fez o teste do sobrevivente falhar.
+
+Isso concluiu a etapa 1 com 47 testes aprovados: seis unitários, três de CLI e trinta e oito de integração X11. Formatação, Clippy estrito e build de release passaram. Desktops reais e hotplug físico ainda exigem evidências próprias.
+
+### Etapa 2: transições de monitores virtuais, recuperação da apresentação e recursos
+
+Quatro testes em [monitors.rs](../tests/cases/monitors.rs) exercitam requisições RandR reais com Present e com cópia direta via XRender. A única saída do Xvfb é desativada, a tela raiz diminui de 320×240 para 240×180 e depois o tamanho original e a configuração do CRTC são restaurados. Dezesseis ciclos medidos preservam os pixels da janela sobrevivente, as contagens exatas de recursos XRes e os bytes totais reportados dos pixmaps do compositor. Casos separados desativam e restauram a saída sem alterar a resolução. Desativar a recriação do renderizador em uma cópia temporária faz ambos os casos de redimensionamento falharem.
+
+Quatro testes de ciclo de vida em [resources.rs](../tests/cases/resources.rs) repetem redimensionamentos de janela mapeada e sequências de map/destroy 32 vezes por modo de apresentação, após aquecimento. As cenas restauradas mantêm exatamente as mesmas contagens de recursos e os bytes totais reportados dos pixmaps: 654.401 nos cenários de janelas e 878.401 na janela maior dos testes de monitores. Desativar a liberação de imagens em uma cópia temporária faz os quatro casos de ciclo de vida falharem no primeiro ciclo medido.
+
+Um quinto teste de recursos mantém referências adicionais aos pixmaps a partir de outro cliente. O total de alocação permanece igual, enquanto a atribuição anterior, dividida por referências, cai de 641.066 para 429.600 bytes. O teste usa `QueryResourceBytes` do XRes 1.2 e exige tamanhos para todos os pixmaps; `QueryClientPixmapBytes` não serve para comparações exatas de alocação enquanto as referências de Present variam. Os valores registrados de RSS do compositor no Linux permaneceram iguais ou aumentaram em uma página de 4 KiB. Esses testes finitos detectam crescimento nas cargas exercitadas; não estabelecem um limite geral de memória nem medem memória da GPU física.
+
+Três testes em [presentation.rs](../tests/cases/presentation.rs) cobrem envios rejeitados. Um proxy de teste substitui o pixmap em uma requisição Present por outro incompatível, produzindo um `BadMatch` do servidor real. Antes, o compositor encerrava. Agora ele identifica o envio exato, verifica se o buffer original e a saída ainda existem com tela e profundidade compatíveis e continua com XRender pelo restante da sessão, inclusive após redimensionar a raiz. Erros de pixmap ou janela inválidos continuam encerrando o compositor. Ausência de eventos de conclusão e outros erros de apresentação estão fora dessa política de recuperação.
+
+A suíte completa agora tem 59 testes aprovados: seis unitários, três de CLI e cinquenta de integração X11. Formatação, Clippy estrito, build de release e verificações da documentação passam. A etapa 2 continua aberta para hotplug físico, configurações com vários monitores e medições em hardware. A configuração automatizada usa uma saída virtual de 320×240, temporariamente 240×180, com `fade_ms = 0`, `blur_radius = 0` e cada modo de vsync.
 
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
-| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos e destruição com eventos pendentes; todos os 44 testes passam | Registro de 2026-10-02. Novos casos usam `fade_ms = 0` ou `1000`, `blur_radius = 0` ou `4`; o cenário de bordas usa `vsync = false`, os demais usam o padrão. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
+| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos, destruição com eventos pendentes e onze pontos da captura; todos os 47 testes passam | Registro de 2026-10-02. Corridas de captura usam `fade_ms = 0`, `blur_radius = 0` e vsync padrão. Os casos anteriores de fades/formatos também usam `fade_ms = 1000`, `blur_radius = 4` ou `vsync = false`, conforme descrito acima. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
+| Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores ainda não foram verificados. |
 | Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
 
@@ -87,6 +110,10 @@ cargo test --locked --test x11 stability
 cargo test --locked --test x11 fades
 cargo test --locked --test x11 shapes
 cargo test --locked --test x11 destruction
+cargo test --locked --test x11 capture_races
+cargo test --locked --test x11 monitors
+cargo test --locked --test x11 resources
+cargo test --locked --test x11 presentation
 ```
 
 Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
@@ -95,7 +122,7 @@ Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
 
 Teste Xorg e XLibre com gerenciadores de janelas reais e drivers Intel, AMD e NVIDIA. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
-Acrescente cobertura de redimensionamento RandR e hotplug reais, recuperação de falhas de apresentação e contagem de recursos durante redimensionamentos repetidos. Amplie as corridas com destruição para os intervalos entre requisições de nomeação do pixmap, criação da imagem e assinatura de eventos, sem esconder outros erros do X. A cobertura de formatos grandes ou fora da tela e propriedades malformadas já registrada acima deve ser preservada.
+Exercite hotplug físico e configurações com vários monitores em hardware real, além de medir memória e apresentação em execuções mais longas. As transições RandR virtuais, a recuperação restrita de envios Present rejeitados e a contagem repetida via XRes acima estão concluídas. Preserve a cobertura de destruição entre requisições de captura, liberação de recursos, formatos grandes ou fora da tela e propriedades malformadas registrada acima.
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 
