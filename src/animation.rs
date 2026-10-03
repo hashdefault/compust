@@ -24,6 +24,12 @@ impl Fade {
         self.started = now;
     }
 
+    pub(crate) fn reopen(&mut self, now: Instant) {
+        self.from = self.sample(now);
+        self.to = u16::MAX;
+        self.started = now;
+    }
+
     pub(crate) fn active(&self, now: Instant) -> bool {
         now.saturating_duration_since(self.started) < self.duration
     }
@@ -80,5 +86,25 @@ mod tests {
         // Given disabled animations, when sampled, then the endpoint is immediate.
         let now = Instant::now();
         assert_eq!(Fade::opening(now, Duration::ZERO).sample(now), u16::MAX);
+    }
+
+    #[test]
+    fn reopening_mid_close_is_continuous_and_finishes_exactly() {
+        let now = Instant::now();
+        let duration = Duration::from_millis(100);
+        let mut fade = Fade::opening(now, duration);
+        fade.close(now + duration);
+        let halfway = now + duration + Duration::from_millis(50);
+        let before = fade.sample(halfway);
+
+        fade.reopen(halfway);
+
+        assert_eq!(fade.sample(halfway), before);
+        let values: Vec<_> = (0..=100)
+            .map(|ms| fade.sample(halfway + Duration::from_millis(ms)))
+            .collect();
+        assert!(values.windows(2).all(|pair| pair.first() <= pair.last()));
+        assert_eq!(values.last(), Some(&u16::MAX));
+        assert!(!fade.active(halfway + duration));
     }
 }
