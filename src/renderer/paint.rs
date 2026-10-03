@@ -64,7 +64,12 @@ impl Renderer {
             if !self.horizontal.is_empty() && (opacity < u16::MAX || surface.has_alpha) {
                 self.blur(session, surface)?;
             }
-            conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &surface.shape)?;
+            conn.render_set_picture_clip_rectangles(
+                self.back.id,
+                surface.geometry.x,
+                surface.geometry.y,
+                &surface.shape,
+            )?;
             conn.render_fill_rectangles(
                 PictOp::SRC,
                 self.alpha.id,

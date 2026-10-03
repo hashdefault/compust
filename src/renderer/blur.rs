@@ -34,7 +34,12 @@ impl Renderer {
             full.height,
         )?;
         conn.render_set_picture_filter(self.back.id, b"nearest", &[])?;
-        conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &surface.shape)?;
+        conn.render_set_picture_clip_rectangles(
+            self.back.id,
+            surface.geometry.x,
+            surface.geometry.y,
+            &surface.shape,
+        )?;
         conn.render_set_picture_filter(self.scratch.id, b"convolution", &self.vertical)?;
         conn.render_composite(
             PictOp::SRC,

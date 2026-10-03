@@ -124,14 +124,8 @@ impl Surface {
             .reply()?
             .rectangles;
         for rect in &mut self.shape {
-            rect.x = rect
-                .x
-                .saturating_add(border)
-                .saturating_add(self.geometry.x);
-            rect.y = rect
-                .y
-                .saturating_add(border)
-                .saturating_add(self.geometry.y);
+            rect.x = rect.x.saturating_add(border);
+            rect.y = rect.y.saturating_add(border);
         }
         Ok(())
     }

@@ -6,6 +6,8 @@ mod compat;
 mod fades;
 #[path = "cases/properties.rs"]
 mod properties;
+#[path = "cases/shapes.rs"]
+mod shapes;
 #[path = "cases/stability.rs"]
 mod stability;
 mod support;
