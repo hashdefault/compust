@@ -1,0 +1,45 @@
+Arquitetura:                               x86_64
+Modo(s) operacional da CPU:                32-bit, 64-bit
+Tamanhos de endereço:                      39 bits physical, 48 bits virtual
+Ordem dos bytes:                           Little Endian
+CPU(s):                                    4
+Lista de CPU(s) on-line:                   0-3
+ID de fornecedor:                          GenuineIntel
+Nome do modelo:                            Intel(R) Core(TM) i3-1005G1 CPU @ 1.20GHz
+Família da CPU:                            6
+Modelo:                                    126
+Thread(s) per núcleo:                      2
+Núcleo(s) por soquete:                     2
+Soquete(s):                                1
+Step:                                      5
+CPU(s) MHz de escala:                      62%
+CPU MHz máx.:                              3400,0000
+CPU MHz mín.:                              400,0000
+BogoMIPS:                                  2380,80
+Opções:                                    fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves split_lock_detect dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm md_clear flush_l1d arch_capabilities
+Virtualização:                             VT-x
+cache de L1d:                              96 KiB (2 instâncias)
+cache de L1i:                              64 KiB (2 instâncias)
+cache de L2:                               1 MiB (2 instâncias)
+cache de L3:                               4 MiB (1 instância)
+Nó(s) de NUMA:                             1
+CPU(s) de nó0 NUMA:                        0-3
+Vulnerabilidade Gather data sampling:      Vulnerable
+Vulnerabilidade Ghostwrite:                Not affected
+Vulnerabilidade Indirect target selection: Mitigation; Aligned branch/return thunks
+Vulnerabilidade Itlb multihit:             KVM: Mitigation: Split huge pages
+Vulnerabilidade L1tf:                      Not affected
+Vulnerabilidade Mds:                       Not affected
+Vulnerabilidade Meltdown:                  Not affected
+Vulnerabilidade Mmio stale data:           Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerabilidade Old microcode:             Not affected
+Vulnerabilidade Reg file data sampling:    Not affected
+Vulnerabilidade Retbleed:                  Mitigation; Enhanced IBRS
+Vulnerabilidade Spec rstack overflow:      Not affected
+Vulnerabilidade Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerabilidade Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerabilidade Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI SW loop, KVM SW loop
+Vulnerabilidade Srbds:                     Mitigation; Microcode
+Vulnerabilidade Tsa:                       Not affected
+Vulnerabilidade Tsx async abort:           Not affected
+Vulnerabilidade Vmscape:                   Not affected

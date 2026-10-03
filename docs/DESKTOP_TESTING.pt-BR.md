@@ -220,7 +220,33 @@ As execuções Present e de efeitos tiveram, cada uma, um intervalo de dois vbla
 
 Duas verificações informais não têm registro arquivado. O compositor da sessão habitual, usando Present com fades e desfoque padrão, continuou atualizando o relógio da barra de status depois de um DPMS-off forçado de oito segundos e, de novo, depois da troca para o vt3 e do retorno; ele não registrou nenhum tempo limite do Present.
 
-Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas. Aplicativos reais, outros gerenciadores de janelas e taxas de atualização mistas continuam em aberto; um [registro posterior](#suspensão-e-retomada-registradas-2026-10-03) cobre a suspensão e a retomada.
+Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas nessas sessões; uma [sessão posterior](#sessão-registrada-de-hotplug-em-intelxorg-2026-10-03) acrescenta uma tela externa. Aplicativos reais, outros gerenciadores de janelas e taxas de atualização mistas continuam em aberto; um [registro posterior](#suspensão-e-retomada-registradas-2026-10-03) cobre a suspensão e a retomada.
+
+## Sessão registrada de hotplug em Intel/Xorg: 2026-10-03
+
+O [laptop Intel/Xorg](#sessões-registradas-em-intelxorg-2026-10-03) executou o [procedimento de transições de monitores](#amostrar-transições-de-monitores) com uma tela externa de 1920×1080 no HDMI-1, à direita do painel de 1366×768, em um desktop i3 4.23 habitual. O painel atualiza a 60,059 Hz e a tela externa a 60,000 Hz; portanto, este também é o primeiro registro com resoluções diferentes e taxas de atualização ligeiramente diferentes. A árvore era o commit limpo `0485ddcdec633859d3decca695238e2e13e411da`, com o binário do compositor `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31` e fades e desfoque desativados.
+
+Os dois modos de apresentação passaram em onze amostras e encerraram com sucesso após SIGTERM: a referência, um modo de 1280×720 no HDMI-1 e sua restauração, um layout vertical e sua restauração, HDMI-1 desligado e ligado e, por fim, a desconexão física com o CRTC ainda atribuído, `xrandr --auto`, a reconexão e a restauração. A CPU é o percentual de um núcleo na fase ativa.
+
+| Amostra | Raiz | Monitores ativos | Present: CPU do Compust / Xorg | Mediana dos intervalos do Present | Direto: CPU do Compust / Xorg | Bytes de pixmaps próprios |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Referência | 3286×1080 | 2 | 1,2% / 6,5% | 16,677 ms | 1,0% / 4,4% | 18.617.665 |
+| HDMI-1 em 1280×720 | 2646×768 | 2 | 1,1% / 5,7% | 16,656 ms | 1,2% / 4,6% | 12.491.777 |
+| Modo restaurado | 3286×1080 | 2 | 1,6% / 6,8% | 16,670 ms | 0,7% / 4,2% | 18.617.665 |
+| Layout vertical | 1920×1848 | 2 | 1,4% / 6,8% | 16,668 ms | 0,6% / 4,2% | 18.614.785 |
+| Layout restaurado | 3286×1080 | 2 | 1,5% / 6,5% | 16,668 ms | 0,6% / 4,1% | 18.617.665 |
+| HDMI-1 desligado | 1366×768 | 1 | 1,2% / 6,0% | 16,632 ms | 0,7% / 4,2% | 8.441.857 |
+| HDMI-1 ligado | 3286×1080 | 2 | 1,1% / 6,2% | 16,657 ms | 1,2% / 4,8% | 18.617.665 |
+| HDMI-1 desconectado | 3286×1080 | 2 | 1,2% / 5,7% | 16,662 ms | 1,1% / 4,6% | 18.617.665 |
+| `xrandr --auto` | 1366×768 | 1 | 1,5% / 6,3% | 16,647 ms | 1,2% / 4,5% | 8.441.857 |
+| HDMI-1 reconectado | 1366×768 | 1 | 1,0% / 6,1% | 16,654 ms | 0,9% / 4,3% | 8.441.857 |
+| Layout restaurado | 3286×1080 | 2 | 1,1% / 6,7% | 16,669 ms | 1,0% / 4,6% | 18.617.665 |
+
+Cada amostra verifica repinturas do marcador perto de cantos opostos de cada monitor ativo e através da borda que os dois monitores compartilham. Toda topologia que ocorre mais de uma vez reproduziu o mesmo `resources.csv` em cada modo, incluindo a amostra desconectada em relação à referência. O Compust não registrou nenhum tempo limite do Present. Seu RSS foi de 3.432 a 3.476 KiB ao longo da [execução Present](benchmarks/2026-10-03/intel-xorg/hotplug/present/) e de 3.400 a 3.496 KiB ao longo da [execução direta](benchmarks/2026-10-03/intel-xorg/hotplug/direct/); o RSS do Xorg ficou em 96.616 KiB do início ao fim.
+
+Nos 6.590 intervalos do Present das fases ativas, a mediana foi de 16,662 ms e o p95 pelo posto mais próximo de 16,679 ms. Três amostras tiveram, cada uma, um intervalo de dois vblanks; nas demais, cada MSC avançou uma unidade. A mediana foi de 16,632–16,654 ms só com o painel e de 16,656–16,677 ms com as duas saídas, o que é consistente com o Present seguindo um único CRTC, e não a atualização própria de cada monitor. Nas fases ociosas, o Compust usou no máximo 0,1% de um núcleo.
+
+Foi testado um conector com uma tela externa, com Xorg e i3. As verificações do marcador comprovam repinturas no servidor, não o que cada tela exibiu. Taxas de atualização com diferença maior que essa, mais de dois monitores e fades ou desfoque durante uma transição continuam sem teste.
 
 ## Sessões registradas com Openbox: 2026-10-03
 

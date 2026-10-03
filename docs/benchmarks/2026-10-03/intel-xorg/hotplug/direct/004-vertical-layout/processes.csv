@@ -1,0 +1,9 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+idle,compust,10.005107,0,100,0.0000,3484,3484
+idle,server,10.005107,0,100,0.0000,96616,96616
+idle,wm,10.005107,0,100,0.0000,20312,20312
+idle,probe,10.005107,0,100,0.0000,3120,3120
+active,compust,10.000272,6,100,0.6000,3484,3484
+active,server,10.000272,42,100,4.1999,96616,96616
+active,wm,10.000272,0,100,0.0000,20312,20312
+active,probe,10.000272,7,100,0.7000,3120,3120

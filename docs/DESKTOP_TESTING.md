@@ -220,7 +220,33 @@ The Present and effects runs each had one interval spanning two vblanks; in the 
 
 Two informal checks have no archived record. The usual session's compositor, running Present with default fades and blur, kept updating the status bar clock after an eight-second forced DPMS-off, and again after the switch to vt3 and back; it logged no Present timeout.
 
-These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested. Actual applications, other window managers, and mixed refresh rates remain open; a [later record](#recorded-suspend-and-resume-2026-10-03) covers suspend and resume.
+These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested in these sessions; a [later session](#recorded-intelxorg-hotplug-session-2026-10-03) adds an external display. Actual applications, other window managers, and mixed refresh rates remain open; a [later record](#recorded-suspend-and-resume-2026-10-03) covers suspend and resume.
+
+## Recorded Intel/Xorg hotplug session: 2026-10-03
+
+The [Intel/Xorg laptop](#recorded-intelxorg-sessions-2026-10-03) ran the [monitor-transition procedure](#sample-monitor-transitions) with an external 1920×1080 display on HDMI-1, to the right of the 1366×768 panel, in an ordinary i3 4.23 desktop. The panel refreshes at 60.059 Hz and the external display at 60.000 Hz, so this is also the first record with different resolutions and slightly different refresh rates. The tree was the clean commit `0485ddcdec633859d3decca695238e2e13e411da` with compositor binary `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`, and fades and blur disabled.
+
+Both presentation modes passed eleven samples and exited successfully after SIGTERM: the baseline, a 1280×720 mode on HDMI-1 and its restoration, a vertical layout and its restoration, HDMI-1 off and on, then physical unplugging with the CRTC still assigned, `xrandr --auto`, reconnection, and restoration. CPU is the active-phase percentage of one core.
+
+| Sample | Root | Active monitors | Present: Compust / Xorg CPU | Present interval median | Direct: Compust / Xorg CPU | Owned pixmap bytes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 3286×1080 | 2 | 1.2% / 6.5% | 16.677 ms | 1.0% / 4.4% | 18,617,665 |
+| HDMI-1 at 1280×720 | 2646×768 | 2 | 1.1% / 5.7% | 16.656 ms | 1.2% / 4.6% | 12,491,777 |
+| Mode restored | 3286×1080 | 2 | 1.6% / 6.8% | 16.670 ms | 0.7% / 4.2% | 18,617,665 |
+| Vertical layout | 1920×1848 | 2 | 1.4% / 6.8% | 16.668 ms | 0.6% / 4.2% | 18,614,785 |
+| Layout restored | 3286×1080 | 2 | 1.5% / 6.5% | 16.668 ms | 0.6% / 4.1% | 18,617,665 |
+| HDMI-1 off | 1366×768 | 1 | 1.2% / 6.0% | 16.632 ms | 0.7% / 4.2% | 8,441,857 |
+| HDMI-1 on | 3286×1080 | 2 | 1.1% / 6.2% | 16.657 ms | 1.2% / 4.8% | 18,617,665 |
+| HDMI-1 unplugged | 3286×1080 | 2 | 1.2% / 5.7% | 16.662 ms | 1.1% / 4.6% | 18,617,665 |
+| `xrandr --auto` | 1366×768 | 1 | 1.5% / 6.3% | 16.647 ms | 1.2% / 4.5% | 8,441,857 |
+| HDMI-1 reconnected | 1366×768 | 1 | 1.0% / 6.1% | 16.654 ms | 0.9% / 4.3% | 8,441,857 |
+| Layout restored | 3286×1080 | 2 | 1.1% / 6.7% | 16.669 ms | 1.0% / 4.6% | 18,617,665 |
+
+Each sample checks marker redraws near opposite corners of every active monitor and across the edge the two monitors share. Every topology that occurs more than once reproduced the same `resources.csv` in each mode, including the unplugged sample against the baseline. Compust logged no Present timeout. Its RSS went from 3,432 to 3,476 KiB over the [Present run](benchmarks/2026-10-03/intel-xorg/hotplug/present/) and from 3,400 to 3,496 KiB over the [direct run](benchmarks/2026-10-03/intel-xorg/hotplug/direct/); Xorg RSS stayed at 96,616 KiB throughout.
+
+Across 6,590 active-phase Present intervals, the median was 16.662 ms and the nearest-rank p95 16.679 ms. Three samples each had one interval spanning two vblanks; in the rest, every MSC advanced by one. The median was 16.632–16.654 ms with the panel alone and 16.656–16.677 ms with both outputs, consistent with Present following one CRTC rather than each monitor's own refresh. In idle phases Compust used at most 0.1% of a core.
+
+One connector on one external display was tested, with Xorg and i3. The marker checks prove server-side redraws, not what each screen displayed. Refresh rates that differ by more than this, more than two monitors, and fades or blur during a transition remain untested.
 
 ## Recorded Openbox sessions: 2026-10-03
 

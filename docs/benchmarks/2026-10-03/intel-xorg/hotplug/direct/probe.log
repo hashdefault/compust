@@ -1,0 +1,62 @@
+vendor=The X.Org Foundation release=12101011 geometry=3286x1080 depth=24
+READY: enter 'sample LABEL' after each monitor transition, then 'quit'
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.000801 updates=0 completions=0 damage_events=2
+phase=active seconds=10.000161 updates=600 completions=0 damage_events=602
+PASS sample=1 label=baseline monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1280x720+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.001225 updates=0 completions=0 damage_events=4
+phase=active seconds=10.000265 updates=600 completions=0 damage_events=603
+PASS sample=2 label=hdmi-1280x720 monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.003664 updates=0 completions=0 damage_events=3
+phase=active seconds=10.000180 updates=600 completions=0 damage_events=604
+PASS sample=3 label=mode-restored monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+0+768 marker_pixels=PASS
+seam=84,744;84,792 marker_pixels=PASS
+phase=idle seconds=10.005107 updates=0 completions=0 damage_events=2
+phase=active seconds=10.000272 updates=600 completions=0 damage_events=604
+PASS sample=4 label=vertical-layout monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.001533 updates=0 completions=0 damage_events=4
+phase=active seconds=10.000188 updates=600 completions=0 damage_events=604
+PASS sample=5 label=layout-restored monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+phase=idle seconds=10.002613 updates=0 completions=0 damage_events=3
+phase=active seconds=10.000221 updates=600 completions=0 damage_events=604
+PASS sample=6 label=hdmi-off monitors=1
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.001078 updates=0 completions=0 damage_events=4
+phase=active seconds=10.000189 updates=600 completions=0 damage_events=603
+PASS sample=7 label=hdmi-on monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.001163 updates=0 completions=0 damage_events=4
+phase=active seconds=10.000255 updates=600 completions=0 damage_events=604
+PASS sample=8 label=hdmi-unplugged monitors=2
+monitor=1366x768+0+0 marker_pixels=PASS
+phase=idle seconds=10.002284 updates=0 completions=0 damage_events=2
+phase=active seconds=10.000171 updates=600 completions=0 damage_events=604
+PASS sample=9 label=auto-after-unplug monitors=1
+monitor=1366x768+0+0 marker_pixels=PASS
+phase=idle seconds=10.004495 updates=0 completions=0 damage_events=3
+phase=active seconds=10.000207 updates=600 completions=0 damage_events=602
+PASS sample=10 label=hdmi-reconnected monitors=1
+monitor=1366x768+0+0 marker_pixels=PASS
+monitor=1920x1080+1366+0 marker_pixels=PASS
+seam=1334,88;1398,88 marker_pixels=PASS
+phase=idle seconds=10.000917 updates=0 completions=0 damage_events=4
+phase=active seconds=10.000192 updates=600 completions=0 damage_events=602
+PASS sample=11 label=hdmi-restored monitors=2
