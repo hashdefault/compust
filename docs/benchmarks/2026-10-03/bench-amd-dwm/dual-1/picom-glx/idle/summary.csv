@@ -1,0 +1,2 @@
+scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max
+idle,20.001,0,0,,,,0,0.00,5.35,0.00,1.10,79356,79356,,,,,,,0.0,1

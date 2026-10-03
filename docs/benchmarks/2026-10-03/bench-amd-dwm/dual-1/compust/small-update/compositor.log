@@ -1,0 +1,3 @@
+2026-10-03T22:45:06.566504Z  INFO configuration loaded path=<reports>/dual-1/configs/compust.toml
+2026-10-03T22:45:06.568883Z  INFO compositor started present=true windows=3
+2026-10-03T22:45:28.576094Z  INFO compositor stopped

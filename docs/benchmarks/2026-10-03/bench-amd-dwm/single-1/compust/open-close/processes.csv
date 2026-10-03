@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+open-close,compositor,4.099839,2,100,0.4878,3832,3832
+open-close,server,4.099839,35,100,8.5369,96236,96236
+open-close,wm,4.099839,0,100,0.0000,14896,14896
+open-close,probe,4.099839,4,100,0.9756,3496,3504

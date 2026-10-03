@@ -1,0 +1,1 @@
+1822610 /usr/lib/Xorg -nolisten tcp -background none -seat seat0 vt2 -auth /run/sddm/xauth_ktozOk -noreset -displayfd 18

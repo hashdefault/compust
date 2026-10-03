@@ -356,6 +356,46 @@ As doze amostras passaram nas verificações do marcador em cada monitor e na bo
 
 As janelas são as sintéticas da sonda. Nenhuma janela abriu ou fechou enquanto os fades estavam ativos, então nenhum fade atravessou uma recarga; recargas de `opacity` e `max_fps` e fades em andamento são cobertos apenas pelos [testes no Xvfb](../tests/cases/reload.rs). HDMI-1 foi ligado e desligado com `xrandr`, sem desconectar o cabo, e o log do servidor não pôde ser lido para confirmar a aceleração por glamor.
 
+## Cenas de benchmark registradas: 2026-10-03
+
+O [executor de benchmarks](#executar-as-cenas-de-benchmark) rodou duas vezes com os dois monitores e duas com somente DP-2 no [desktop com RX 9060 XT](#sessão-registrada-de-recarga-2026-10-03), com fases de 20 segundos. A árvore era o commit limpo `394b7e63404e8eac5028e7dc933f7458dd7fa696`, e o picom era a v13, revisão `d87a5ba`. Nenhum aplicativo redesenhou durante as execuções. Os [registros](benchmarks/2026-10-03/bench-amd-dwm/) contêm os quatro relatórios e o [script](benchmarks/2026-10-03/bench-amd-dwm/sequence.sh) que os executou.
+
+Cada célula traz a CPU do próprio compositor mais a do servidor X, em porcentagem de um núcleo e como média das duas execuções; as execuções concordam em até 0,25 ponto sempre que a taxa de quadros se manteve. Sem nada mudando na tela, o servidor usou 5,3–5,4% com todos os compositores; essa parte de cada número do servidor é a linha de base desta máquina, não composição. Todas as cenas rodaram a 60 quadros por segundo sem vblank perdido, exceto onde uma taxa aparece.
+
+Dois monitores, 3840×1080:
+
+| Cena | Compust | picom xrender | picom glx |
+| --- | ---: | ---: | ---: |
+| Ociosa | 0,0 + 5,4% | 0,0 + 5,3% | 0,0 + 5,3% |
+| Janela pequena atualizando | 0,3 + 7,8% | 0,7 + 7,4% | 1,4 + 6,6% |
+| Translúcida em tela cheia | 0,3 + 8,0% | 0,8 + 7,8% | 1,5 + 6,6% |
+| Translúcida em tela cheia, desfoque | 0,4 + 8,2% | 0,1 + 97,2%, 1,2 qps | 1,6 + 6,7% |
+| Oito translúcidas | 0,4 + 8,5% | 1,6 + 10,1% | 1,8 + 6,7% |
+| Oito translúcidas, desfoque | 1,0 + 9,4% | 0,3 + 90,9%, 4,6 qps | 3,3 + 6,7% |
+| Mover e redimensionar | 1,1 + 8,8% | 1,1 + 8,3% | 2,8 + 9,0% |
+| Abrir e fechar | 0,4 + 9,1% | 1,1 + 8,3% | 1,9 + 8,9% |
+
+Somente DP-2, 1920×1080:
+
+| Cena | Compust | picom xrender | picom glx |
+| --- | ---: | ---: | ---: |
+| Ociosa | 0,0 + 5,4% | 0,0 + 5,4% | 0,0 + 5,3% |
+| Janela pequena atualizando | 0,2 + 7,4% | 0,7 + 7,4% | 1,4 + 6,5% |
+| Translúcida em tela cheia | 0,2 + 7,3% | 0,8 + 7,8% | 1,4 + 6,6% |
+| Translúcida em tela cheia, desfoque | 0,4 + 7,6% | 0,1 + 96,6%, 2,4 qps | 1,6 + 6,6% |
+| Oito translúcidas | 0,4 + 7,9% | 1,6 + 10,1% | 1,8 + 6,5% |
+| Oito translúcidas, desfoque | 1,0 + 8,8% | 0,3 + 92,7%, 3,9 qps | 3,1 + 6,6% |
+| Mover e redimensionar | 1,1 + 8,4% | 1,1 + 8,3% | 2,7 + 8,9% |
+| Abrir e fechar | 0,4 + 8,6% | 1,0 + 8,2% | 1,9 + 8,2% |
+
+Onde o Compust é mais lento: nas cenas de atualização e translucidez, o servidor X trabalha mais com ele do que com o picom glx, de 0,7 a 2,7 pontos de um núcleo, porque o Compust renderiza com XRender dentro do servidor, enquanto o picom glx renderiza com OpenGL no próprio processo. A diferença é maior com desfoque sobre oito janelas. Somando os dois processos, o Compust fica no máximo 0,4 ponto acima do picom glx, com dois monitores e oito janelas translúcidas. Com uma janela de 64×64 atualizando em dois monitores, o amdgpu informou a GPU 8,4% ocupada com o Compust, 6,8% com o picom xrender e 3,8% com o picom glx: o Compust repinta e copia o quadro inteiro de 3840×1080 a cada mudança. A GPU escolhe o clock conforme a carga, então `gpu_busy_percent` compara o trabalho apenas de forma aproximada; as outras cenas a 60 quadros por segundo marcaram 3,9–10,6%, sem ordem consistente entre os compositores.
+
+Onde o Compust é mais rápido: seu próprio processo usou 0,2–1,1% de um núcleo, menos que o picom glx em todas as cenas que mudam e menos que o picom xrender, exceto ao mover e redimensionar, em que ambos usaram 1,1%, e nas cenas com desfoque, em que o picom xrender desenhou poucos quadros. Somando os dois processos, o Compust fica 1,1–2,1 pontos abaixo do picom glx quando janelas se movem, mudam de tamanho, abrem e fecham. Seu RSS ficou em 3.788–3.936 KiB, contra 6.800–7.136 KiB do picom xrender e 79.232–82.124 KiB do picom glx, cujo número inclui o driver GL. Em cada execução, o Compust mostrou de 46 a 58 das 100 novas janelas um quadro depois do pedido de mapeamento (16,3–16,7 ms) e as demais depois de dois (cerca de 33,2 ms); o picom mostrou todas depois de dois quadros (32,4–34,5 ms). Essa divisão explica por que a mediana de abertura do Compust muda entre execuções; `latency.csv` lista cada ciclo. Todos os compositores retiraram cada janela fechada um quadro depois do pedido, em até 17,5 ms, e nenhum apresentou quadros com a tela ociosa.
+
+O backend xrender do picom desfoca com um filtro de convolução do XRender, que o glamor executa na CPU, como a [sessão de desktop em hardware](#sessão-de-desktop-registrada-em-hardware-2026-10-03) constatou com o antigo desfoque em caixa do Compust. Com dois monitores, o desfoque em tela cheia caiu para 1,2 quadro por segundo enquanto o servidor X usava 97% de um núcleo. Na cena ociosa com dois monitores, o XRes informou 41,6 MB em pixmaps do Compust, 74,8 MB do picom xrender e 33,2 MB do picom glx, que também tinha quatro pixmaps GLX sem tamanho informado e buffers GL que o XRes não enxerga.
+
+Trata-se de uma máquina com GPU dedicada rápida e monitores de 60 Hz, janelas sintéticas e um fundo cobrindo o desktop. Não cobre tela 4K, GPU lenta, Xorg nem o laptop Intel/Xorg. As latências incluem a leitura do overlay pela sonda e não dizem nada sobre os próprios painéis.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

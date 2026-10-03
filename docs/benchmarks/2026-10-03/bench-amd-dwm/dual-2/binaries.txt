@@ -1,0 +1,3 @@
+87ab455db7f64f0c7fe20d0d2e836ea9a45c8676b2c83dca4b10dcfb0471f2b7  target/release/compust
+7913eb1793b60345b336cb9935bae8553ce3aceb026320f7f12c473712a160f7  target/release/examples/desktop_probe
+d5c5d7130d3bfa837766368033599e1a910c8c9878b571c9a8b20296ce381240  /usr/bin/picom

@@ -356,6 +356,46 @@ All twelve samples passed the marker checks on each monitor and across the share
 
 The windows are the probe's synthetic ones. No window opened or closed while fades were enabled, so no fade crossed a reload; `opacity` and `max_fps` reloads and fades in progress are covered only by the [Xvfb tests](../tests/cases/reload.rs). HDMI-1 was switched with `xrandr`, not unplugged, and the server log was not readable to confirm glamor acceleration.
 
+## Recorded benchmark scenes: 2026-10-03
+
+The [benchmark runner](#run-the-benchmark-scenes) ran twice with both monitors and twice with DP-2 alone on the [RX 9060 XT desktop](#recorded-reload-session-2026-10-03), with 20-second phases. The tree was the clean commit `394b7e63404e8eac5028e7dc933f7458dd7fa696` and picom was v13, revision `d87a5ba`. No application redrew during the runs. The [records](benchmarks/2026-10-03/bench-amd-dwm/) hold the four reports and the [script](benchmarks/2026-10-03/bench-amd-dwm/sequence.sh) that ran them.
+
+Each cell is the compositor's own CPU plus the X server's, as a percentage of one core and the mean of the two runs; the runs agree within 0.25 points wherever the frame rate held. With nothing changing on screen the server used 5.3–5.4% under every compositor, so that much of each server figure is this machine's baseline, not compositing. Every scene ran at 60 frames per second without a skipped vblank except where a rate is given.
+
+Two monitors, 3840×1080:
+
+| Scene | Compust | picom xrender | picom glx |
+| --- | ---: | ---: | ---: |
+| Idle | 0.0 + 5.4% | 0.0 + 5.3% | 0.0 + 5.3% |
+| Small window updating | 0.3 + 7.8% | 0.7 + 7.4% | 1.4 + 6.6% |
+| Full-screen translucent | 0.3 + 8.0% | 0.8 + 7.8% | 1.5 + 6.6% |
+| Full-screen translucent, blur | 0.4 + 8.2% | 0.1 + 97.2%, 1.2 fps | 1.6 + 6.7% |
+| Eight translucent | 0.4 + 8.5% | 1.6 + 10.1% | 1.8 + 6.7% |
+| Eight translucent, blur | 1.0 + 9.4% | 0.3 + 90.9%, 4.6 fps | 3.3 + 6.7% |
+| Move and resize | 1.1 + 8.8% | 1.1 + 8.3% | 2.8 + 9.0% |
+| Open and close | 0.4 + 9.1% | 1.1 + 8.3% | 1.9 + 8.9% |
+
+DP-2 alone, 1920×1080:
+
+| Scene | Compust | picom xrender | picom glx |
+| --- | ---: | ---: | ---: |
+| Idle | 0.0 + 5.4% | 0.0 + 5.4% | 0.0 + 5.3% |
+| Small window updating | 0.2 + 7.4% | 0.7 + 7.4% | 1.4 + 6.5% |
+| Full-screen translucent | 0.2 + 7.3% | 0.8 + 7.8% | 1.4 + 6.6% |
+| Full-screen translucent, blur | 0.4 + 7.6% | 0.1 + 96.6%, 2.4 fps | 1.6 + 6.6% |
+| Eight translucent | 0.4 + 7.9% | 1.6 + 10.1% | 1.8 + 6.5% |
+| Eight translucent, blur | 1.0 + 8.8% | 0.3 + 92.7%, 3.9 fps | 3.1 + 6.6% |
+| Move and resize | 1.1 + 8.4% | 1.1 + 8.3% | 2.7 + 8.9% |
+| Open and close | 0.4 + 8.6% | 1.0 + 8.2% | 1.9 + 8.2% |
+
+Where Compust is slower: in the update and translucency scenes the X server works harder under it than under picom glx, by 0.7 to 2.7 points of a core, because Compust renders with XRender inside the server while picom glx renders with OpenGL in its own process. The gap is widest with blur over eight windows. Adding both processes, Compust is at most 0.4 points above picom glx, with two monitors and eight translucent windows. With a 64×64 window updating on two monitors, amdgpu reported the GPU 8.4% busy under Compust, 6.8% under picom xrender, and 3.8% under picom glx: Compust repaints and copies the whole 3840×1080 frame for each change. The GPU picks its clock by load, so `gpu_busy_percent` compares work only roughly; the other scenes at 60 frames per second read 3.9–10.6% without a consistent order between compositors.
+
+Where Compust is faster: its own process used 0.2–1.1% of a core, less than picom glx in every scene that changes and less than picom xrender except in moving and resizing, where both used 1.1%, and in the blur scenes, where picom xrender drew only a few frames. Adding both processes, Compust is 1.1–2.1 points below picom glx when windows move, resize, open, and close. Its RSS stayed at 3,788–3,936 KiB, against 6,800–7,136 KiB for picom xrender and 79,232–82,124 KiB for picom glx, whose figure includes the GL driver. In each run Compust showed 46–58 of the 100 new windows one frame after the map request (16.3–16.7 ms) and the rest after two (about 33.2 ms); picom showed every one after two frames (32.4–34.5 ms). This split is why Compust's median open latency differs between runs; `latency.csv` lists every cycle. Every compositor removed each closed window one frame after the request, within 17.5 ms, and none presented a frame while the screen was idle.
+
+picom's xrender backend blurs with an XRender convolution filter, which glamor runs on the CPU, as the [hardware desktop session](#recorded-hardware-desktop-session-2026-10-03) found for Compust's earlier box blur. With two monitors, full-screen blur fell to 1.2 frames per second while the X server used 97% of a core. In the idle scene with two monitors, XRes reported 41.6 MB of pixmaps owned by Compust, 74.8 MB by picom xrender, and 33.2 MB by picom glx, which also held four GLX pixmaps without a reported size and GL buffers that XRes does not see.
+
+This is one machine with a fast discrete GPU and 60 Hz monitors, synthetic windows, and a backdrop covering the desktop. It does not cover a 4K screen, a slow GPU, Xorg, or the Intel/Xorg laptop. Latencies include the probe's read of the overlay and say nothing about the panels themselves.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

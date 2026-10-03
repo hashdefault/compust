@@ -1,0 +1,21 @@
+resource,value
+WINDOW,1
+PIXMAP,13
+GC,1
+OTHER CLIENT,20
+ShapeClient,18
+ShapeEvent,1
+SyncFence,14
+XFixesRegion,2
+RandRClient,1
+CompositeClientWindow,19
+CompositeClientSubwindows,1
+CompositeClientOverlay,1
+DamageExt,18
+PresentEvent,2
+GLXServerIDRes,12
+GLXContext,1
+GLXDrawable,11
+DRI2Drawable,22
+pixmaps_without_size,11
+owned_pixmap_bytes,16588800

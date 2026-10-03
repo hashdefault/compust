@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+small-update,compositor,20.000351,6,100,0.3000,3920,3920
+small-update,server,20.000351,156,100,7.7999,96240,96240
+small-update,wm,20.000351,0,100,0.0000,14896,14896
+small-update,probe,20.000351,21,100,1.0500,3452,3480

@@ -258,13 +258,13 @@ Repeat physical hotplug and multiple-monitor layouts with other drivers and serv
 
 ## Next: measure and reduce rendering work
 
-This is the current milestone. The beta shows where the cost is: Compust repaints the whole screen for every damage event, asks the server for the full window tree on every stacking-related event, and repeats the blur for every translucent window. On the recorded machines a 60-updates-per-second window costs Compust under 2% of a core and the X server 3–9%, and the pyramid blur adds between a tenth of a point and one point to the server. Nothing yet compares those figures with picom, and no record covers a 4K screen, many windows, or a slow GPU.
+This is the current milestone. The beta shows where the cost is: Compust repaints the whole screen for every damage event, asks the server for the full window tree on every stacking-related event, and repeats the blur for every translucent window. On the recorded machines a 60-updates-per-second window costs Compust under 2% of a core and the X server 3–9%, and the pyramid blur adds between a tenth of a point and one point to the server. The [first benchmark records](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine; no record covers a 4K screen, many windows, or a slow GPU.
 
 The milestone has four steps, in order. Steps 3 and 4 start only if step 1 shows that they matter.
 
 | Step | Status | Required result |
 | --- | --- | --- |
-| 1. Benchmark scenes and picom comparison | Not started | Fixed scenes run under Compust and under an identified picom version and backend on both recorded machines, with raw records. |
+| 1. Benchmark scenes and picom comparison | Recorded on the RX 9060 XT desktop; Intel/Xorg laptop pending | Fixed scenes run under Compust and under an identified picom version and backend on both recorded machines, with raw records. |
 | 2. Event-path round trips | Not started | Window events no longer cost one tree query each; a test counts the requests. |
 | 3. Region-based repaint | Not started | Only damaged regions, expanded for blur, are repainted and presented; pixel tests cover region boundaries. |
 | 4. Occlusion and blur reuse | Not started; depends on step 1 | Fully covered windows are skipped and unchanged blur is reused, where the benchmark justifies it. |
@@ -274,6 +274,10 @@ The milestone has four steps, in order. Steps 3 and 4 start only if step 1 shows
 Extend the [desktop probe](../examples/desktop_probe.rs) with scenes that separate the costs: an idle desktop; a small window updating 60 times per second on a large screen; the existing full-screen translucent window with blur; eight overlapping translucent windows; a window moved and resized 60 times per second; and repeated open and close with the time from map to the first frame that shows the window. Record Compust and X-server CPU, memory, and Present intervals as today. Run the same scenes under picom with its version, backend, and an equivalent configuration recorded.
 
 **Acceptance:** both recorded machines have raw records for every scene under both compositors, the runner reproduces them, and the summary states where Compust is slower as plainly as where it is faster.
+
+**Status:** the probe's `--bench` mode and [`tools/bench.sh`](../tools/bench.sh) run the scenes under Compust and under picom v13's xrender and glx backends with [equivalent configurations](../tools/bench/). On the RX 9060 XT desktop, two runs per monitor layout [agree within 0.25 points of CPU](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03). Every compositor held 60 frames per second except picom xrender with blur. Compust's own process used less CPU than picom glx in every scene, but the X server worked up to 2.7 points of a core harder under it than under picom glx; with both processes added, Compust was at most 0.4 points above picom glx and up to 2.1 below it. Compust showed about half of new windows one frame sooner than picom. The Intel/Xorg laptop has no record yet, so the acceptance is not met.
+
+On that machine, moving and resizing raised Compust's own CPU from 0.3% to 1.1%, the cost step 2 targets. A 64×64 update on two monitors cost the X server 1.2 points more than under picom glx and about twice the GPU load, the cost step 3 addresses. Blur over eight windows added 0.6 points to Compust and 0.9 to the server; that is not the cost step 4 requires on this GPU, so step 4 waits for the laptop's record.
 
 ### 2. Event-path round trips
 

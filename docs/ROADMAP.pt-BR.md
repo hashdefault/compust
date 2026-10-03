@@ -258,13 +258,13 @@ Repita o hotplug físico e as configurações com vários monitores com outros d
 
 ## Próximo passo: medir e reduzir o trabalho de renderização
 
-Este é o marco atual. A beta mostra onde está o custo: o Compust repinta a tela inteira a cada evento de dano, pede ao servidor a árvore completa de janelas a cada evento relacionado a empilhamento e repete o desfoque para cada janela translúcida. Nas máquinas registradas, uma janela com 60 atualizações por segundo custa ao Compust menos de 2% de um núcleo e ao servidor X de 3% a 9%, e o desfoque em pirâmide acrescenta ao servidor entre um décimo de ponto e um ponto. Nada ainda compara esses números com o picom, e nenhum registro cobre uma tela 4K, muitas janelas ou uma GPU lenta.
+Este é o marco atual. A beta mostra onde está o custo: o Compust repinta a tela inteira a cada evento de dano, pede ao servidor a árvore completa de janelas a cada evento relacionado a empilhamento e repete o desfoque para cada janela translúcida. Nas máquinas registradas, uma janela com 60 atualizações por segundo custa ao Compust menos de 2% de um núcleo e ao servidor X de 3% a 9%, e o desfoque em pirâmide acrescenta ao servidor entre um décimo de ponto e um ponto. Os [primeiros registros de benchmark](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina; nenhum registro cobre uma tela 4K, muitas janelas ou uma GPU lenta.
 
 O marco tem quatro etapas, em ordem. As etapas 3 e 4 só começam se a etapa 1 mostrar que elas importam.
 
 | Etapa | Estado | Resultado exigido |
 | --- | --- | --- |
-| 1. Cenas de benchmark e comparação com o picom | Não iniciada | Cenas fixas executadas com o Compust e com uma versão e um backend identificados do picom nas duas máquinas registradas, com registros brutos. |
+| 1. Cenas de benchmark e comparação com o picom | Registrada no desktop com RX 9060 XT; laptop Intel/Xorg pendente | Cenas fixas executadas com o Compust e com uma versão e um backend identificados do picom nas duas máquinas registradas, com registros brutos. |
 | 2. Idas e voltas no caminho de eventos | Não iniciada | Eventos de janela não custam mais uma consulta da árvore cada um; um teste conta as requisições. |
 | 3. Repintura por regiões | Não iniciada | Somente as regiões com dano, ampliadas para o desfoque, são repintadas e apresentadas; testes de pixels cobrem as bordas das regiões. |
 | 4. Oclusão e reaproveitamento do desfoque | Não iniciada; depende da etapa 1 | Janelas totalmente cobertas são puladas e o desfoque inalterado é reaproveitado, quando o benchmark justificar. |
@@ -274,6 +274,10 @@ O marco tem quatro etapas, em ordem. As etapas 3 e 4 só começam se a etapa 1 m
 Amplie o [probe de desktop](../examples/desktop_probe.rs) com cenas que separem os custos: um desktop ocioso; uma janela pequena atualizando 60 vezes por segundo em uma tela grande; a janela translúcida em tela cheia com desfoque que já existe; oito janelas translúcidas sobrepostas; uma janela movida e redimensionada 60 vezes por segundo; e abertura e fechamento repetidos, com o tempo entre o mapeamento e o primeiro quadro que mostra a janela. Registre CPU do Compust e do servidor X, memória e intervalos do Present, como hoje. Execute as mesmas cenas com o picom, registrando sua versão, o backend e uma configuração equivalente.
 
 **Aceitação:** as duas máquinas registradas têm registros brutos de todas as cenas com os dois compositores, o executor os reproduz, e o resumo diz onde o Compust é mais lento com a mesma clareza com que diz onde é mais rápido.
+
+**Estado:** o modo `--bench` do probe e [`tools/bench.sh`](../tools/bench.sh) executam as cenas com o Compust e com os backends xrender e glx do picom v13, com [configurações equivalentes](../tools/bench/). No desktop com RX 9060 XT, duas execuções por disposição de monitores [concordam em até 0,25 ponto de CPU](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03). Todos os compositores mantiveram 60 quadros por segundo, exceto o picom xrender com desfoque. O processo do Compust usou menos CPU que o do picom glx em todas as cenas, mas o servidor X trabalhou até 2,7 pontos de um núcleo a mais com ele do que com o picom glx; somando os dois processos, o Compust ficou no máximo 0,4 ponto acima do picom glx e até 2,1 abaixo. O Compust mostrou cerca de metade das novas janelas um quadro antes do picom. O laptop Intel/Xorg ainda não tem registro, então a aceitação não foi atingida.
+
+Nessa máquina, mover e redimensionar elevou a CPU do próprio Compust de 0,3% para 1,1%, o custo que a etapa 2 ataca. Uma atualização de 64×64 em dois monitores custou ao servidor X 1,2 ponto a mais do que com o picom glx e cerca do dobro da carga da GPU, o custo que a etapa 3 trata. O desfoque sobre oito janelas acrescentou 0,6 ponto ao Compust e 0,9 ao servidor; nesta GPU, esse não é o custo que a etapa 4 exige, então a etapa 4 aguarda o registro do laptop.
 
 ### 2. Idas e voltas no caminho de eventos
 

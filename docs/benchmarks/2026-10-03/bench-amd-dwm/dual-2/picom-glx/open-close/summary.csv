@@ -1,0 +1,2 @@
+scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max
+open-close,5.000,300,300,16.667,16.677,16.678,0,2.00,8.80,0.00,1.20,79488,79488,33.258,33.392,33.472,16.672,16.791,16.851,5.8,8

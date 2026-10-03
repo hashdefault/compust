@@ -1,0 +1,2 @@
+vendor=XLibre release=12501009 geometry=3840x1080 depth=24
+PASS scene=idle seconds=20.001 completions=0 damage_events=0

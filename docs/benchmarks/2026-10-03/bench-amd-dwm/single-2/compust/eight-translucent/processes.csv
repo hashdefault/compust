@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+eight-translucent,compositor,20.000195,8,100,0.4000,3856,3856
+eight-translucent,server,20.000195,158,100,7.8999,97328,97328
+eight-translucent,wm,20.000195,0,100,0.0000,14896,14896
+eight-translucent,probe,20.000195,20,100,1.0000,3452,3480
