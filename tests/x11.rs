@@ -2,6 +2,8 @@
 mod client_lifecycle;
 #[path = "cases/compat.rs"]
 mod compat;
+#[path = "cases/destruction.rs"]
+mod destruction;
 #[path = "cases/fades.rs"]
 mod fades;
 #[path = "cases/properties.rs"]
