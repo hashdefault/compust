@@ -6,7 +6,7 @@ O objetivo é tornar este compositor mínimo em Rust uma opção prática para u
 
 ## Base 0.1: implementada
 
-O repositório contém um compositor executável com composição XRender, transições de opacidade, transparência alfa, desfoque por convolução, recorte por formato, acompanhamento de atualizações, empilhamento, tratamento de redimensionamento de janelas, propriedades de papel de parede e apresentação opcional por cópia com Present. A suíte verifica o comportamento de um servidor real no Xvfb. A documentação e as orientações de contribuição estão em inglês e pt-BR.
+O repositório contém um compositor executável com composição XRender, transições de opacidade, transparência alfa, desfoque, recorte por formato, acompanhamento de atualizações, empilhamento, tratamento de redimensionamento de janelas, propriedades de papel de parede e apresentação opcional por cópia com Present. A suíte verifica o comportamento de um servidor real no Xvfb. A documentação e as orientações de contribuição estão em inglês e pt-BR.
 
 Esse marco cria uma base para experimentação. Ele não comprova compatibilidade completa com ambientes gráficos nem desempenho em hardware real.
 
@@ -121,6 +121,14 @@ Na máquina AMD/XLibre, uma sessão dedicada apenas com o HDMI-1 em 1920×1080 p
 
 Isso conclui os cenários do probe em um ambiente de hardware, com Xmonad e janelas sintéticas. Aplicativos reais, gerenciadores com decoração ou reparenting, encerramento do servidor com o compositor em execução, Xorg em hardware e outras GPUs continuam em aberto. O desfoque precisa de uma implementação que o glamor possa acelerar antes de ser recomendado em drivers baseados em glamor. Formatação, Clippy estrito, a suíte de 61 testes e o build de release passam.
 
+### Desfoque no caminho da GPU
+
+A medição da etapa 3 mostrou que o glamor processa o filtro de convolução na CPU. O desfoque agora monta uma pirâmide: cada nível reduz pela metade a área em torno de uma janela translúcida com amostragem bilinear, e o nível mais grosso é ampliado de volta dentro do formato da janela. O glamor acelera essas transformações. O raio configurado é arredondado para 2, 4, 8 ou 16 pixels. Os buffers dos níveis só existem com o desfoque ativado e substituem um buffer auxiliar do tamanho da tela.
+
+No desktop AMD/XLibre, o modo de efeitos passou de 49 para 599 quadros em dez segundos, com todos os intervalos Present em um vblank. O Xorg usou 4,1% de um núcleo em vez de 93,7%. O Xephyr aninhado passou de 85 para 598–599 quadros, usando cerca de 20% de um núcleo em vez de 86%. O [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) traz os registros.
+
+Uma nova regressão desfoca uma borda preta/branca alinhada com todos os níveis nos raios 4 e 16. Ela exige uma transição monotônica centrada na borda, com pixels distantes inalterados; deslocar uma passada em um pixel faz o teste falhar. Os testes existentes de listras e de formato fora da tela passam sem mudanças, e três testes unitários cobrem o arredondamento do raio e os limites da pirâmide. A suíte completa tem 65 testes aprovados: nove unitários, três de CLI e cinquenta e três de integração X11.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -132,7 +140,7 @@ Isso conclui os cenários do probe em um ambiente de hardware, com Xmonad e jane
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, aninhado no Xvfb, 1280×800×24 | Cenários de desktop com troca de papel de parede, CPU/RSS em ociosidade e atividade, modos Present, XRender direto e efeitos, encerramento | Registros de 2026-10-03: [medição](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03) com fade/desfoque desativados e [medição com efeitos](DESKTOP_TESTING.pt-BR.md#medição-registrada-com-efeitos-2026-10-03). Sem validação de monitor físico ou driver. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, mesma disposição virtual | Mesmos cenários e medições nos três modos | Registro de 2026-10-03; mesma configuração e limitações. Resultados do servidor aninhado não validam uma sessão XLibre em hardware. |
 | XLibre 25.1.9 nativo, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP para VGA em 1920×1080 a 60 Hz | Mudanças de modo, disposição e saídas; desconexão e reconexão física dos dois conectores; Present e XRender direto; CPU, RSS, XRes e ritmo Present | Registro de 2026-10-03 com fade/desfoque desativados e os aplicativos do próprio desktop em execução. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03). O probe de cenários de desktop não foi executado nesta sessão. |
-| Sessão dedicada do XLibre 25.1.9 na mesma máquina AMD, somente HDMI-1 em 1920×1080 a 60 Hz, glamor, TearFree padrão | Cenários de desktop do probe com troca de papel de parede; Present, XRender direto e efeitos (fades, translucidez, desfoque); CPU, RSS e ritmo Present | Registro de 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03). O glamor processa a convolução do desfoque na CPU: cerca de cinco quadros por segundo atrás de uma janela translúcida em tela cheia. |
+| Sessão dedicada do XLibre 25.1.9 na mesma máquina AMD, somente HDMI-1 em 1920×1080 a 60 Hz, glamor, TearFree padrão | Cenários de desktop do probe com troca de papel de parede; Present, XRender direto e efeitos (fades, translucidez, desfoque); CPU, RSS e ritmo Present | Registro de 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03). O desfoque por convolução caiu para cerca de cinco quadros por segundo atrás de uma janela translúcida em tela cheia; o [desfoque em pirâmide](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) mantém 60. |
 
 Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb instalado. As [execuções de CI](https://github.com/hashdefault/compust/actions/workflows/ci.yml) registram resultados para cada commit exato; inclua a revisão exibida abaixo nos relatos locais.
 
@@ -162,7 +170,7 @@ Repita o hotplug físico e as configurações com vários monitores com outros d
 
 ## Depois: medir e reduzir o trabalho de renderização
 
-As primeiras medições em hardware definem a prioridade. O desfoque usa o filtro de convolução do XRender, que drivers baseados em glamor processam na CPU: uma janela translúcida em tela cheia com raio de desfoque 4 limitou um desktop AMD/XLibre a cerca de cinco quadros por segundo enquanto o Xorg usava um núcleo inteiro. Avalie um desfoque construído com operações que o glamor acelera, como redução e ampliação com filtragem bilinear, antes das otimizações por regiões. A aparência difere do filtro de caixa atual; compare os dois e teste o kernel escolhido.
+As primeiras medições em hardware definiram a prioridade: o desfoque por convolução limitou um desktop AMD/XLibre a cerca de cinco quadros por segundo. A pirâmide bilinear que o substituiu mantém 60 nesse desktop, com o Xorg perto de 4% de um núcleo. Meça otimizações futuras em relação a esses registros.
 
 Colete referências em builds de release para CPU ociosa, CPU do aplicativo e do servidor X, memória, regularidade dos quadros e latência entre entrada e exibição. Compare cenas e efeitos equivalentes com uma versão/backend registrados do picom. Inclua alta resolução e monitores com taxas diferentes.
 

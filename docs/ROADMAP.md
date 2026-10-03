@@ -6,7 +6,7 @@ The goal is a minimal Rust compositor that becomes a practical choice for Xorg a
 
 ## 0.1 foundation: implemented
 
-The repository contains an executable compositor with XRender composition, fades, alpha transparency, convolution blur, shape clipping, application redraw tracking, stacking, window resize handling, wallpaper properties, and optional Present copy scheduling. The test suite checks real server behavior on Xvfb. Documentation and contribution paths are available in English and pt-BR.
+The repository contains an executable compositor with XRender composition, fades, alpha transparency, blur, shape clipping, application redraw tracking, stacking, window resize handling, wallpaper properties, and optional Present copy scheduling. The test suite checks real server behavior on Xvfb. Documentation and contribution paths are available in English and pt-BR.
 
 This milestone establishes a base for experiments. It does not establish desktop-wide compatibility or hardware performance.
 
@@ -121,6 +121,14 @@ On the AMD/XLibre machine, a dedicated session with HDMI-1 alone at 1920×1080 p
 
 This completes the probe's scenarios in one hardware environment, with Xmonad and synthetic windows. Actual applications, decorated or reparenting window managers, server shutdown under a running compositor, Xorg on hardware, and other GPUs remain open. Blur needs an implementation that glamor can accelerate before it can be recommended on glamor-based drivers. Formatting, strict Clippy, the 61-test suite, and the release build pass.
 
+### Blur on the GPU path
+
+The step 3 measurement showed that glamor renders the convolution filter on the CPU. Blur now builds a pyramid instead: each level halves the area around a translucent window with bilinear sampling, and the coarsest level is scaled back up into the window's shape. Glamor accelerates these transforms. The configured radius rounds to 2, 4, 8, or 16 pixels. Level buffers exist only when blur is enabled and replace a full-screen scratch buffer.
+
+On the AMD/XLibre desktop, effects mode went from 49 to 599 frames in ten seconds, with every Present interval at one vblank. Xorg used 4.1% of a core instead of 93.7%. Nested Xephyr went from 85 to 598–599 frames while using about 20% of a core instead of 86%. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) has the records.
+
+A new regression blurs a black/white edge aligned with every level at radii 4 and 16. It requires a monotonic transition centered on the edge, with distant pixels unchanged; shifting one pass by a pixel makes it fail. The existing stripe and off-screen shape tests pass unchanged, and three unit tests cover radius rounding and pyramid bounds. The full suite has 65 passing tests: nine unit, three CLI, and fifty-three X11 integration tests.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -132,7 +140,7 @@ This completes the probe's scenarios in one hardware environment, with Xmonad an
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios with wallpaper change, idle/active CPU and RSS, Present, direct XRender, and effects modes, shutdown | Recorded 2026-10-03: [baseline](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) with fade/blur disabled and an [effects baseline](DESKTOP_TESTING.md#recorded-effects-baseline-2026-10-03). No physical display or driver qualification. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in all three modes | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
 | XLibre 25.1.9 native, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP-to-VGA at 1920×1080 60 Hz | Mode, layout, and output changes; physical unplugging and reconnection of both connectors; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with fade/blur disabled while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). The desktop scenario probe was not run in this session. |
-| Dedicated XLibre 25.1.9 session on the same AMD machine, HDMI-1 alone at 1920×1080 60 Hz, glamor, default TearFree | Probe desktop scenarios with wallpaper change; Present, direct XRender, and effects (fades, translucency, blur); CPU, RSS, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03). Glamor renders blur convolution on the CPU: about five frames per second behind a full-screen translucent window. |
+| Dedicated XLibre 25.1.9 session on the same AMD machine, HDMI-1 alone at 1920×1080 60 Hz, glamor, default TearFree | Probe desktop scenarios with wallpaper change; Present, direct XRender, and effects (fades, translucency, blur); CPU, RSS, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03). Convolution blur fell to about five frames per second behind a full-screen translucent window; the [pyramid blur](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) keeps 60. |
 
 Reproduce the lifecycle checks with the repository's pinned toolchain and Xvfb installed. The [CI runs](https://github.com/hashdefault/compust/actions/workflows/ci.yml) record results against each exact commit; include the revision printed below in local reports.
 
@@ -162,7 +170,7 @@ Repeat physical hotplug and multiple-monitor layouts with other drivers and serv
 
 ## Then: measure and reduce rendering work
 
-The first hardware measurements set the priority. Blur uses the XRender convolution filter, which glamor-based drivers render on the CPU: a full-screen translucent window with blur radius 4 held an AMD/XLibre desktop to about five frames per second while Xorg used a full core. Evaluate a blur built from operations that glamor accelerates, such as bilinear downsampling and upsampling, before region optimizations. Its appearance differs from the current box filter, so compare both and test the chosen kernel.
+The first hardware measurements set the priority: the convolution blur held an AMD/XLibre desktop to about five frames per second. The bilinear pyramid that replaced it keeps 60 there, with Xorg near 4% of a core. Measure later optimizations against these records.
 
 Collect release-build baselines for idle CPU, application and X-server CPU, memory, frame pacing, and input-to-display latency. Compare equivalent scenes and effects against a recorded picom version/backend. Include high-resolution and mixed-refresh setups.
 

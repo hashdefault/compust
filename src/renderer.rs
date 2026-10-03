@@ -26,7 +26,6 @@ pub(crate) struct Renderer {
     pub(crate) formats: QueryPictFormatsReply,
     pub(crate) size: Size,
     pub(crate) back: Picture,
-    scratch: Picture,
     output: Picture,
     alpha: Picture,
     wallpaper: Option<Picture>,
@@ -35,8 +34,8 @@ pub(crate) struct Renderer {
     pub(crate) complete: bool,
     pub(crate) serial: u32,
     submission: Option<u16>,
-    horizontal: Vec<i32>,
-    vertical: Vec<i32>,
+    /// Blur pyramid, each level half the size of the previous one; empty without blur.
+    levels: Vec<Picture>,
 }
 
 impl Renderer {
@@ -63,9 +62,7 @@ impl Renderer {
             height: geometry.height,
         };
         let back = Picture::buffer(conn, session.screen.root, (size, layout))?;
-        let scratch = Picture::buffer(conn, session.screen.root, (size, layout))?;
         back.repeat(Repeat::PAD)?;
-        scratch.repeat(Repeat::PAD)?;
         let output = Picture::borrowed(conn, session.overlay, format)?;
         let a8 = formats
             .formats
@@ -99,15 +96,20 @@ impl Renderer {
             )?
             .check()?;
         }
-        let radius = if session.capabilities.convolution {
+        let radius = if session.capabilities.bilinear {
             config.blur_radius
         } else {
             0
         };
         if radius != config.blur_radius {
-            tracing::warn!("server lacks convolution; blur disabled");
+            tracing::warn!("server lacks bilinear filtering; blur disabled");
         }
-        let (horizontal, vertical) = blur::kernel(radius);
+        let levels = blur::pyramid(
+            conn,
+            session.screen.root,
+            (size, layout),
+            blur::depth(radius),
+        )?;
         let mut renderer = Self {
             conn: Rc::clone(conn),
             overlay: session.overlay,
@@ -115,7 +117,6 @@ impl Renderer {
             formats,
             size,
             back,
-            scratch,
             output,
             alpha,
             wallpaper: None,
@@ -124,8 +125,7 @@ impl Renderer {
             complete: true,
             serial: 0,
             submission: None,
-            horizontal,
-            vertical,
+            levels,
         };
         renderer.refresh_wallpaper(session)?;
         Ok(renderer)

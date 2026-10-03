@@ -1,0 +1,5 @@
+ M src/capabilities.rs
+ M src/renderer.rs
+ M src/renderer/blur.rs
+ M src/renderer/paint.rs
+ M tests/x11.rs

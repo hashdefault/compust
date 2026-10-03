@@ -164,7 +164,19 @@ O Present acompanhou o vblank com exatidão: cada MSC da fase ativa avançou uma
 
 Com desfoque, cada quadro levou 12 ou 13 vblanks enquanto o Xorg usava quase um núcleo inteiro, o que é mais lento por quadro que o Xephyr por software em 1280×800. O glamor acelera apenas filtragem nearest e bilinear; [`glamor_composite`](https://github.com/X11Libre/xserver/blob/b4b92c2374ec81ea979d53ad79fd0d0784bbf291/glamor/glamor_render.c#L1766-L1769) envia qualquer filtro de convolução para o caminho por software, que transfere pixmaps entre a memória da GPU e a da CPU. As duas passadas de convolução do Compust, portanto, rodam na CPU a cada atualização de uma janela translúcida. Nesta máquina, uma janela translúcida em tela cheia com raio de desfoque 4 limita a imagem a cerca de cinco quadros por segundo.
 
-Essas execuções usam as janelas sintéticas do probe, um monitor, Xmonad e fases de dez segundos. Elas não cobrem aplicativos reais, gerenciadores com decoração ou reparenting, encerramento do servidor com o compositor em execução, taxas de atualização mistas nem outras GPUs.
+Essas execuções usam as janelas sintéticas do probe, um monitor, Xmonad e fases de dez segundos. Elas não cobrem aplicativos reais, gerenciadores com decoração ou reparenting, encerramento do servidor com o compositor em execução, taxas de atualização mistas nem outras GPUs. A [sessão do desfoque em pirâmide](#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) repete essas execuções depois da remoção da convolução.
+
+## Sessão registrada do desfoque em pirâmide: 2026-10-03
+
+Em seguida, as passadas de convolução foram substituídas por uma pirâmide bilinear, descrita no [roteiro](ROADMAP.pt-BR.md#desfoque-no-caminho-da-gpu). As mesmas execuções foram repetidas com o binário do compositor `6826205798e183b039d558a54794e506732bdc88560d8f6ae6a13eaa05baa35f`: seis [execuções aninhadas](benchmarks/2026-10-03/pyramid/) e uma [sessão dedicada em hardware](benchmarks/2026-10-03/desktop-hardware-pyramid/) nas condições acima. Todas passaram em todos os cenários.
+
+| Modo de efeitos | Quadros em 10 s | CPU do servidor X | Mediana dos intervalos |
+| --- | ---: | ---: | ---: |
+| Xorg Xephyr, 1280×800: convolução → pirâmide | 85 → 598 | 85,8% → 20,4% | 116,681 → 16,699 ms |
+| XLibre Xephyr, 1280×800: convolução → pirâmide | 85 → 599 | 86,1% → 19,4% | 116,640 → 16,655 ms |
+| Hardware AMD/XLibre, 1920×1080: convolução → pirâmide | 49 → 599 | 93,7% → 4,1% | 199,998 → 16,667 ms |
+
+Em hardware, cada MSC da fase ativa avançou uma unidade, e o Compust usou 0,4% de um núcleo. O desfoque elevou o Xorg de 3,1% na execução Present para 4,1%. Os resultados Present e diretos ficaram dentro da variação entre execuções dos registros anteriores. A pirâmide fica mais suave e um pouco mais forte que o filtro de caixa no raio 4.
 
 ## Concluir os critérios de hardware
 

@@ -13,7 +13,7 @@ export const locales = {
     noScript: 'Enable JavaScript to try the illustration controls. All documentation is available without it.',
     features: [
       ['Fade.', 'Smooth opening and closing transitions, including interrupted animations.'],
-      ['Blur.', 'Background blur behind translucent windows, using an XRender box filter.'],
+      ['Blur.', 'Background blur behind translucent windows, scaled down and back up with bilinear XRender sampling.'],
       ['Transparency.', 'Application alpha, window opacity, and your global setting, composed together.'],
     ],
     ideaLabel: '01 / The idea', ideaHeading: 'Keep the desktop yours.',
@@ -52,7 +52,7 @@ export const locales = {
     noScript: 'Ative o JavaScript para experimentar os controles da ilustração. Toda a documentação funciona sem ele.',
     features: [
       ['Fade.', 'Transições suaves ao abrir e fechar janelas, mesmo quando a animação é interrompida.'],
-      ['Desfoque.', 'Desfoque atrás de janelas translúcidas com um filtro de caixa no XRender.'],
+      ['Desfoque.', 'Desfoque atrás de janelas translúcidas, reduzido e ampliado com amostragem bilinear do XRender.'],
       ['Transparência.', 'O canal alfa da aplicação, a opacidade da janela e a configuração global combinados.'],
     ],
     ideaLabel: '01 / A ideia', ideaHeading: 'O desktop continua sendo seu.',

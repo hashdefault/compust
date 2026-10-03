@@ -164,7 +164,19 @@ Present followed vblank exactly: every active-phase MSC advanced by one. In idle
 
 With blur, each frame took 12 or 13 vblanks while Xorg used most of a CPU core, which is slower per frame than software Xephyr at 1280×800. Glamor accelerates only nearest and bilinear filtering; [`glamor_composite`](https://github.com/X11Libre/xserver/blob/b4b92c2374ec81ea979d53ad79fd0d0784bbf291/glamor/glamor_render.c#L1766-L1769) sends any convolution filter to its software fallback, which moves pixmaps between GPU and CPU memory. Compust's two convolution passes therefore run on the CPU for every redraw of a translucent window. On this machine, a full-screen translucent window with blur radius 4 limits output to about five frames per second.
 
-These runs use the probe's synthetic windows, one monitor, Xmonad, and ten-second phases. They do not cover actual applications, decorated or reparenting window managers, server shutdown under a running compositor, mixed refresh rates, or other GPUs.
+These runs use the probe's synthetic windows, one monitor, Xmonad, and ten-second phases. They do not cover actual applications, decorated or reparenting window managers, server shutdown under a running compositor, mixed refresh rates, or other GPUs. The [pyramid blur session](#recorded-pyramid-blur-session-2026-10-03) repeats these runs after removing the convolution.
+
+## Recorded pyramid blur session: 2026-10-03
+
+The convolution passes were then replaced by a bilinear pyramid, described in the [roadmap](ROADMAP.md#blur-on-the-gpu-path). The same runs were repeated with compositor binary `6826205798e183b039d558a54794e506732bdc88560d8f6ae6a13eaa05baa35f`: six [nested runs](benchmarks/2026-10-03/pyramid/) and a [dedicated hardware session](benchmarks/2026-10-03/desktop-hardware-pyramid/) under the conditions above. All passed every scenario.
+
+| Effects mode | Frames in 10 s | X server CPU | Interval median |
+| --- | ---: | ---: | ---: |
+| Xorg Xephyr, 1280×800: convolution → pyramid | 85 → 598 | 85.8% → 20.4% | 116.681 → 16.699 ms |
+| XLibre Xephyr, 1280×800: convolution → pyramid | 85 → 599 | 86.1% → 19.4% | 116.640 → 16.655 ms |
+| AMD/XLibre hardware, 1920×1080: convolution → pyramid | 49 → 599 | 93.7% → 4.1% | 199.998 → 16.667 ms |
+
+On hardware, every active-phase MSC advanced by one, and Compust used 0.4% of a core. Blur raised Xorg from 3.1% in the Present run to 4.1%. Present and direct results stayed within the run-to-run variation of the earlier records. The pyramid looks smoother and slightly stronger than the box filter at radius 4.
 
 ## Complete the hardware gates
 

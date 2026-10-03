@@ -11,7 +11,7 @@ pub(crate) struct Capabilities {
     versions: Vec<(&'static str, Option<(u32, u32)>)>,
     pub(crate) present: bool,
     pub(crate) randr: bool,
-    pub(crate) convolution: bool,
+    pub(crate) bilinear: bool,
 }
 
 impl Capabilities {
@@ -73,19 +73,19 @@ impl Capabilities {
             versions.push((name, version));
         }
         let has = |name| versions.iter().any(|(n, v)| *n == name && v.is_some());
-        let convolution = if has("RENDER") {
+        let bilinear = if has("RENDER") {
             render::query_filters(conn, root)?
                 .reply()?
                 .filters
                 .iter()
-                .any(|f| f.name == b"convolution")
+                .any(|f| f.name == b"bilinear")
         } else {
             false
         };
         Ok(Self {
             present: has("Present"),
             randr: has("RANDR"),
-            convolution,
+            bilinear,
             versions,
         })
     }
@@ -118,7 +118,7 @@ impl Capabilities {
                 None => writeln!(out, "{name}: unavailable")?,
             }
         }
-        writeln!(out, "XRender convolution blur: {}", self.convolution)?;
+        writeln!(out, "XRender bilinear blur: {}", self.bilinear)?;
         writeln!(
             out,
             "DRI3 and Sync are diagnostic probes only; no DMA-BUF import or explicit synchronization backend."

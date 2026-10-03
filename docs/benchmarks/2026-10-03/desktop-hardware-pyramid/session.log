@@ -1,0 +1,9 @@
+ 572352 Xorg
+xprop:  no such property "_NET_SUPPORTING_WM_CHECK"
+Desktop checks passed: ~/compust/artifacts/hardware-desktop-2026-10-03-pyramid/present
+present: passed
+Desktop checks passed: ~/compust/artifacts/hardware-desktop-2026-10-03-pyramid/direct
+direct: passed
+Desktop checks passed: ~/compust/artifacts/hardware-desktop-2026-10-03-pyramid/effects
+effects: passed
+Hardware session finished: ~/compust/artifacts/hardware-desktop-2026-10-03-pyramid

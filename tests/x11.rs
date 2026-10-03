@@ -68,7 +68,7 @@ fn composites_opacity_moves_resizes_and_destruction() -> Result<()> {
 }
 
 #[test]
-fn applies_convolution_to_background_behind_translucent_window() -> Result<()> {
+fn blurs_background_behind_translucent_window() -> Result<()> {
     let desktop = Desktop::new("fade_ms = 0\nblur_radius = 4")?;
     let background = desktop.window(
         Rectangle {
@@ -105,6 +105,60 @@ fn applies_convolution_to_background_behind_translucent_window() -> Result<()> {
         (40..=90).contains(&r) && r == g && g == b
     })?;
     desktop.screenshot("blur")?;
+    Ok(())
+}
+
+#[test]
+fn blur_spreads_edges_symmetrically_without_shifting_them() -> Result<()> {
+    edge_blur(4, 20)?;
+    edge_blur(16, 60)
+}
+
+/// Blur a black/white edge at x = 160, aligned with every pyramid level, and check that
+/// the edge spreads by about the radius, stays centered, and leaves distant pixels alone.
+fn edge_blur(radius: u8, span: i16) -> Result<()> {
+    let mut desktop = Desktop::new(&format!("fade_ms = 0\nblur_radius = {radius}"))?;
+    let dark = Rectangle {
+        x: 0,
+        y: 0,
+        width: 160,
+        height: 240,
+    };
+    let light = Rectangle { x: 160, ..dark };
+    desktop.map(desktop.window(dark, 0)?)?;
+    desktop.map(desktop.window(light, 0x00ff_ffff)?)?;
+    desktop.until_pixel((160, 120), |pixel| pixel == [255, 255, 255])?;
+    // A nearly transparent window shows the blurred background through its 1/255 opacity.
+    let front = desktop.window(
+        Rectangle {
+            x: 160 - span - 4,
+            y: 60,
+            width: (2 * span + 8).unsigned_abs(),
+            height: 120,
+        },
+        0,
+    )?;
+    desktop.opacity(front, 0x0101_0101)?;
+    desktop.map(front)?;
+    desktop.until_pixel((159, 120), |[r, _, _]| (10..245).contains(&r))?;
+    let row = (160 - span..160 + span)
+        .map(|x| desktop.pixel((x, 120)).map(|[r, _, _]| r))
+        .collect::<Result<Vec<_>>>()?;
+    assert!(
+        row.windows(2)
+            .all(|pair| matches!(pair, [left, right] if left <= right)),
+        "radius {radius}: {row:?}"
+    );
+    let (dark_half, light_half) = row.split_at(usize::try_from(span)?);
+    for (dark, light) in dark_half.iter().rev().zip(light_half) {
+        let sum = u16::from(*dark) + u16::from(*light);
+        assert!((250..=256).contains(&sum), "radius {radius}: {row:?}");
+    }
+    assert!(
+        row.first().is_some_and(|&first| first <= 2) && row.last().is_some_and(|&last| last >= 250),
+        "radius {radius}: {row:?}"
+    );
+    assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }
 

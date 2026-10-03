@@ -1,0 +1,3 @@
+fade_ms = 180
+blur_radius = 4
+vsync = true

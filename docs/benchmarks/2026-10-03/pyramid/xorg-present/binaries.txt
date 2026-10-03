@@ -1,0 +1,6 @@
+6826205798e183b039d558a54794e506732bdc88560d8f6ae6a13eaa05baa35f  target/release/compust
+956f92bf3e1f1d4a4772d9cf92c9da2cc87151f756ae8dfdbc2f096e70ba5e4c  target/release/examples/desktop_probe
+8760ca000057c499c1f8f2d9886f1634a4110f826e3af82aa77dad3dc351d097  tools/desktop/xmonad.hs
+87576446183a33b8ce0e7bd58226bf01e861af3841d702a93008c64a72690af9  /tmp/compust-desktop.ugtobR/xmonad-x86_64-linux
+7d16a6e019ae16428663835b14e4e6a53c73eec605178129f0b0da62d41974cc  ~/compust/artifacts/desktop-tools/xorg/usr/bin/Xvfb
+267fe6be54d62b7c8f44b45cd435fffa0529e0e4c03410bf68b840210b281ae5  ~/compust/artifacts/desktop-tools/xorg/usr/bin/Xephyr

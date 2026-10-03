@@ -12,7 +12,7 @@ O compositor combina as janelas dos aplicativos para formar a imagem final da á
 
 ## O que já funciona
 
-A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas com um filtro de caixa separável.
+A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas. O desfoque reduz repetidamente pela metade a área atrás da janela com amostragem bilinear e depois a amplia de volta, operações que servidores com aceleração por GPU mantêm na GPU.
 
 O Compust acompanha empilhamento, movimento, redimensionamento, formato das janelas, atualizações de conteúdo e pixmaps de papel de parede. Os pixmaps nomeados são preservados durante a animação de fechamento. A janela de composição tem região de entrada vazia, permitindo que os cliques cheguem aos aplicativos. Um compositor existente nunca é substituído automaticamente.
 
@@ -20,7 +20,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | --- | --- |
 | Composite 0.4+ | Obrigatória: redirecionamento manual, pixmaps nomeados e janela de composição |
 | Damage 1.0+ | Obrigatória: notificações de atualização; a área de trabalho parada não é redesenhada continuamente |
-| Render 0.11+ | Obrigatória: composição, máscaras de opacidade e convolução quando disponível |
+| Render 0.11+ | Obrigatória: composição, máscaras de opacidade e transformações; a filtragem bilinear habilita o desfoque |
 | XFixes 2.0+ e Shape 1.1+ | Obrigatórias: passagem de entrada e janelas com formatos não retangulares |
 | Present | Opcional: apresentação por cópia, aguardando conclusão e liberação do buffer |
 | RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre |
@@ -74,11 +74,11 @@ vsync = true
 | --- | --- |
 | `opacity` | Opacidade global de 0 a 100%, multiplicada pela opacidade do aplicativo |
 | `fade_ms` | Duração da abertura e do fechamento em milissegundos, de 0 a 65535; zero desativa a animação |
-| `blur_radius` | Raio do filtro de caixa, de 0 a 16; zero desativa o desfoque |
+| `blur_radius` | Raio aproximado do desfoque em pixels, de 0 a 16, arredondado para 2, 4, 8 ou 16; zero desativa o desfoque |
 | `max_fps` | Limite de redesenho, de 1 a 1000; não garante essa taxa de quadros |
 | `vsync` | Usa Present quando disponível; `false` seleciona cópia direta com XRender |
 
-O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer convolução, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento.
+O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
@@ -101,7 +101,7 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 ## Limitações atuais
 
-O protótipo redesenha a tela inteira quando recebe dano. Para cada janela translúcida, o desfoque faz trabalho intermediário sobre a tela inteira com o filtro de convolução do XRender, que drivers baseados em glamor processam na CPU. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03), o desfoque atrás de uma janela translúcida em tela cheia limitou a imagem a cerca de cinco quadros por segundo; use `blur_radius = 0` se janelas translúcidas ficarem lentas. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
+O protótipo redesenha a tela inteira quando recebe dano, e cada janela translúcida repete as passadas de desfoque na própria área. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 

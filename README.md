@@ -12,7 +12,7 @@ A compositor combines application windows into the final desktop image. Compust 
 
 ## What works today
 
-Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them with a separable box filter.
+Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them. The blur repeatedly halves the area behind a window with bilinear sampling and scales it back up, which GPU-accelerated servers keep on the GPU.
 
 Compust tracks window stacking, movement, resizing, bounding shapes, redraws, and root wallpaper pixmaps. It retains named pixmaps during closing animations. The overlay has an empty input region so clicks reach the applications below it. An existing compositor is never replaced automatically.
 
@@ -20,7 +20,7 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 | --- | --- |
 | Composite 0.4+ | Required: manual redirection, named window pixmaps, overlay |
 | Damage 1.0+ | Required: redraw notifications; no continuous repaint on an idle desktop |
-| Render 0.11+ | Required: composition, alpha masks, convolution when available |
+| Render 0.11+ | Required: composition, alpha masks, transforms; bilinear filtering enables blur |
 | XFixes 2.0+ and Shape 1.1+ | Required: input-transparent overlay and shaped windows |
 | Present | Optional: copy presentation, waiting for completion and buffer-idle events |
 | RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop |
@@ -74,11 +74,11 @@ vsync = true
 | --- | --- |
 | `opacity` | Global opacity percentage, 0–100, multiplied by application opacity |
 | `fade_ms` | Opening/closing duration in milliseconds, 0–65535; zero disables fades |
-| `blur_radius` | Box-filter radius, 0–16; zero disables blur |
+| `blur_radius` | Approximate blur radius in pixels, 0–16, rounded to 2, 4, 8, or 16; zero disables blur |
 | `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
 
-Blur applies behind translucent or ARGB windows. If the server has no convolution filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown signals.
+Blur applies behind translucent or ARGB windows. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown signals.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
@@ -101,7 +101,7 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints the full screen when damaged. Blur performs full-screen intermediate work for each translucent window with the XRender convolution filter, which glamor-based drivers render on the CPU. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03), blur behind a full-screen translucent window limited output to about five frames per second; set `blur_radius = 0` if translucent windows feel slow. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints the full screen when damaged, and every translucent window repeats the blur passes for its own area. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 

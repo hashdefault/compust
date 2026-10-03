@@ -61,7 +61,7 @@ impl Renderer {
             if opacity == 0 {
                 continue;
             }
-            if !self.horizontal.is_empty() && (opacity < u16::MAX || surface.has_alpha) {
+            if !self.levels.is_empty() && (opacity < u16::MAX || surface.has_alpha) {
                 self.blur(session, surface)?;
             }
             conn.render_set_picture_clip_rectangles(
