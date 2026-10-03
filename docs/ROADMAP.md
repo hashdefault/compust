@@ -265,7 +265,7 @@ The milestone has four steps, in order. Steps 3 and 4 start only if step 1 shows
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Benchmark scenes and picom comparison | Recorded on the RX 9060 XT desktop; Intel/Xorg laptop pending | Fixed scenes run under Compust and under an identified picom version and backend on both recorded machines, with raw records. |
-| 2. Event-path round trips | Not started | Window events no longer cost one tree query each; a test counts the requests. |
+| 2. Event-path round trips | Done; a regression counts the requests | Window events no longer cost one tree query each; a test counts the requests. |
 | 3. Region-based repaint | Not started | Only damaged regions, expanded for blur, are repainted and presented; pixel tests cover region boundaries. |
 | 4. Occlusion and blur reuse | Not started; depends on step 1 | Fully covered windows are skipped and unchanged blur is reused, where the benchmark justifies it. |
 
@@ -284,6 +284,8 @@ On that machine, moving and resizing raised Compust's own CPU from 0.3% to 1.1%,
 `Scene::restack` queries the root's children on every map, reparent, configure, and circulate event, and `configure` queries geometry for each one. An interactive resize therefore costs several round trips per event. Track stacking from the events' own sibling fields and query the tree only when the order is unknown.
 
 **Acceptance:** a regression counts requests through the existing test proxy and fails if a burst of configure events costs a tree query each; the stacking, destruction, and capture-race regressions still pass; step 1's move-and-resize scene shows the change.
+
+**Status:** done. Compust mirrors the root's stacking order from structure events and queries the tree only at startup or after an event names a window the mirror does not know. A configure that keeps the size updates the position from the event alone. The [regression](../tests/cases/event_path.rs) moves and restacks windows 34 times: that cost 33 tree queries before and none now, with no geometry query. In temporary copies, disabling the stacking updates made it and the earlier stacking regression fail, and disabling the resize check made five resize regressions fail. On the RX 9060 XT desktop, the move-and-resize scene [costs Compust and the X server 0.13–0.15 points less each](DESKTOP_TESTING.md#recorded-event-path-change-2026-10-03). Because that scene resizes every frame, each event still recaptures the window, which remains the larger cost. All 66 X11 tests pass with Xorg's Xvfb 21.1.24, along with 14 unit and 6 CLI tests; XLibre's Xvfb still fails the seven that reconfigure the CRTC.
 
 ### 3. Region-based repaint
 

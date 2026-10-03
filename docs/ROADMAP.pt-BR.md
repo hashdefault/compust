@@ -265,7 +265,7 @@ O marco tem quatro etapas, em ordem. As etapas 3 e 4 só começam se a etapa 1 m
 | Etapa | Estado | Resultado exigido |
 | --- | --- | --- |
 | 1. Cenas de benchmark e comparação com o picom | Registrada no desktop com RX 9060 XT; laptop Intel/Xorg pendente | Cenas fixas executadas com o Compust e com uma versão e um backend identificados do picom nas duas máquinas registradas, com registros brutos. |
-| 2. Idas e voltas no caminho de eventos | Não iniciada | Eventos de janela não custam mais uma consulta da árvore cada um; um teste conta as requisições. |
+| 2. Idas e voltas no caminho de eventos | Concluída; uma regressão conta as requisições | Eventos de janela não custam mais uma consulta da árvore cada um; um teste conta as requisições. |
 | 3. Repintura por regiões | Não iniciada | Somente as regiões com dano, ampliadas para o desfoque, são repintadas e apresentadas; testes de pixels cobrem as bordas das regiões. |
 | 4. Oclusão e reaproveitamento do desfoque | Não iniciada; depende da etapa 1 | Janelas totalmente cobertas são puladas e o desfoque inalterado é reaproveitado, quando o benchmark justificar. |
 
@@ -284,6 +284,8 @@ Nessa máquina, mover e redimensionar elevou a CPU do próprio Compust de 0,3% p
 `Scene::restack` consulta os filhos da raiz a cada evento de mapeamento, reparenting, configuração e circulação, e `configure` consulta a geometria em cada um. Um redimensionamento interativo custa, portanto, várias idas e voltas por evento. Acompanhe o empilhamento pelos campos de irmão dos próprios eventos e consulte a árvore só quando a ordem for desconhecida.
 
 **Aceitação:** uma regressão conta as requisições pelo proxy de testes existente e falha se uma rajada de eventos de configuração custar uma consulta da árvore cada; as regressões de empilhamento, destruição e corridas de captura continuam passando; a cena de mover e redimensionar da etapa 1 mostra a mudança.
+
+**Estado:** concluída. O Compust espelha a ordem de empilhamento da raiz a partir dos eventos de estrutura e consulta a árvore apenas na inicialização ou depois de um evento citar uma janela que o espelho não conhece. Uma configuração que mantém o tamanho atualiza a posição apenas a partir do evento. A [regressão](../tests/cases/event_path.rs) move e reempilha janelas 34 vezes: isso custava 33 consultas da árvore e agora não custa nenhuma, sem consulta de geometria. Em cópias temporárias, desativar a atualização do empilhamento fez falhar ela e a regressão de empilhamento anterior, e desativar a verificação de tamanho fez falhar cinco regressões de redimensionamento. No desktop com RX 9060 XT, a cena de mover e redimensionar [custa 0,13–0,15 ponto a menos ao Compust e ao servidor X](DESKTOP_TESTING.pt-BR.md#mudança-registrada-no-caminho-de-eventos-2026-10-03). Como essa cena redimensiona a cada quadro, cada evento ainda recaptura a janela, que continua sendo o custo maior. Os 66 testes X11 passam com o Xvfb 21.1.24 do Xorg, junto com 14 testes unitários e 6 de CLI; o Xvfb do XLibre continua falhando nos sete que reconfiguram o CRTC.
 
 ### 3. Repintura por regiões
 

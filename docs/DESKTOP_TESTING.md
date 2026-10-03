@@ -396,6 +396,23 @@ picom's xrender backend blurs with an XRender convolution filter, which glamor r
 
 This is one machine with a fast discrete GPU and 60 Hz monitors, synthetic windows, and a backdrop covering the desktop. It does not cover a 4K screen, a slow GPU, Xorg, or the Intel/Xorg laptop. Latencies include the probe's read of the overlay and say nothing about the panels themselves.
 
+## Recorded event-path change: 2026-10-03
+
+After [step 2 of the rendering milestone](ROADMAP.md#2-event-path-round-trips), the benchmark runner repeated the small-window, move-and-resize, and open-and-close scenes for Compust on the same desktop, twice with both monitors and twice with DP-2 alone, at the clean commit `5f088b6cf48041815ac0a830b5209e9fa87c1407`. The [records](benchmarks/2026-10-03/event-path-amd-dwm/) follow the [earlier ones](#recorded-benchmark-scenes-2026-10-03), which are the "before" column. Each cell is Compust's CPU plus the X server's, as a mean of two runs.
+
+| Scene | Monitors | Before | After |
+| --- | --- | ---: | ---: |
+| Move and resize | Two | 1.08 + 8.78% | 0.95 + 8.65% |
+| Move and resize | One | 1.05 + 8.35% | 0.93 + 8.20% |
+| Small window updating | Two | 0.30 + 7.75% | 0.28 + 8.05% |
+| Small window updating | One | 0.25 + 7.40% | 0.28 + 7.38% |
+| Open and close | Two | 0.36 + 9.09% | 0.25 + 9.22% |
+| Open and close | One | 0.37 + 8.64% | 0.24 + 8.64% |
+
+Moving and resizing cost Compust 0.13 points less and the server 0.13–0.15 points less in both layouts. The scene resizes the window every frame, so each event still recaptures it, which takes about ten round trips; the change removes only the tree, geometry, and shape queries. A pure move now costs none, as the [regression](../tests/cases/event_path.rs) checks. The other differences are within the variation between runs.
+
+In the first two-monitor run, the small-window scene missed 17 vblanks in less than half a second. Present's MSC jumped by 2^24 + 5 there and then advanced by 4 over eight vblanks' time, consistent with Present switching between the two monitors' CRTCs, whose counters have different bases. The overlay covers both monitors equally, and the primary output, DP-1, is disconnected. Compust logged no Present timeout, and that run's server figure, 8.25%, raises the two-monitor mean above. No other scene in these records or the earlier ones shows a discontinuity. The probe now [counts them separately](#run-the-benchmark-scenes); this run's `summary.csv`, written before that change, reports the raw MSC step as 16,777,229 skipped vblanks.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

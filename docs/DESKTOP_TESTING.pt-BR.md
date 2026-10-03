@@ -396,6 +396,23 @@ O backend xrender do picom desfoca com um filtro de convolução do XRender, que
 
 Trata-se de uma máquina com GPU dedicada rápida e monitores de 60 Hz, janelas sintéticas e um fundo cobrindo o desktop. Não cobre tela 4K, GPU lenta, Xorg nem o laptop Intel/Xorg. As latências incluem a leitura do overlay pela sonda e não dizem nada sobre os próprios painéis.
 
+## Mudança registrada no caminho de eventos: 2026-10-03
+
+Depois da [etapa 2 do marco de renderização](ROADMAP.pt-BR.md#2-idas-e-voltas-no-caminho-de-eventos), o executor de benchmarks repetiu as cenas de janela pequena, de mover e redimensionar e de abrir e fechar com o Compust no mesmo desktop, duas vezes com os dois monitores e duas com somente DP-2, no commit limpo `5f088b6cf48041815ac0a830b5209e9fa87c1407`. Os [registros](benchmarks/2026-10-03/event-path-amd-dwm/) seguem os [anteriores](#cenas-de-benchmark-registradas-2026-10-03), que formam a coluna "antes". Cada célula traz a CPU do Compust mais a do servidor X, como média de duas execuções.
+
+| Cena | Monitores | Antes | Depois |
+| --- | --- | ---: | ---: |
+| Mover e redimensionar | Dois | 1,08 + 8,78% | 0,95 + 8,65% |
+| Mover e redimensionar | Um | 1,05 + 8,35% | 0,93 + 8,20% |
+| Janela pequena atualizando | Dois | 0,30 + 7,75% | 0,28 + 8,05% |
+| Janela pequena atualizando | Um | 0,25 + 7,40% | 0,28 + 7,38% |
+| Abrir e fechar | Dois | 0,36 + 9,09% | 0,25 + 9,22% |
+| Abrir e fechar | Um | 0,37 + 8,64% | 0,24 + 8,64% |
+
+Mover e redimensionar custou ao Compust 0,13 ponto a menos e ao servidor 0,13–0,15 ponto a menos nas duas disposições. A cena redimensiona a janela a cada quadro, então cada evento ainda a recaptura, o que leva cerca de dez idas e voltas; a mudança remove apenas as consultas de árvore, geometria e formato. Um movimento puro agora não custa nenhuma, como a [regressão](../tests/cases/event_path.rs) verifica. As outras diferenças ficam dentro da variação entre execuções.
+
+Na primeira execução com dois monitores, a cena da janela pequena perdeu 17 vblanks em menos de meio segundo. Ali o MSC do Present saltou 2^24 + 5 e depois avançou 4 em um tempo de oito vblanks, compatível com o Present trocando entre os CRTCs dos dois monitores, cujos contadores têm bases diferentes. O overlay cobre os dois monitores por igual, e a saída primária, DP-1, está desconectada. O Compust não registrou nenhum tempo limite do Present, e o número do servidor nessa execução, 8,25%, eleva a média com dois monitores acima. Nenhuma outra cena destes registros ou dos anteriores mostra uma descontinuidade. A sonda agora [as conta separadamente](#executar-as-cenas-de-benchmark); o `summary.csv` desta execução, escrito antes dessa mudança, informa o salto bruto de MSC como 16.777.229 vblanks perdidos.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

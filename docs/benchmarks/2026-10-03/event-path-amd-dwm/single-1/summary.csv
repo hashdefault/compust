@@ -1,0 +1,4 @@
+compositor,blur,scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max
+compust,0,small-update,20.001,1200,1200,16.667,16.675,16.678,0,0.25,7.35,0.00,1.00,3920,3920,,,,,,,7.9,10
+compust,0,move-resize,20.001,1200,1200,16.667,16.676,16.677,0,0.90,8.20,0.05,0.90,3852,3852,,,,,,,8.1,10
+compust,0,open-close,4.400,264,264,16.667,16.673,16.676,0,0.23,8.64,0.23,0.68,3840,3840,33.151,33.242,33.291,16.667,16.775,16.929,8.4,10
