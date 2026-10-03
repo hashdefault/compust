@@ -220,7 +220,7 @@ As execuções Present e de efeitos tiveram, cada uma, um intervalo de dois vbla
 
 Duas verificações informais não têm registro arquivado. O compositor da sessão habitual, usando Present com fades e desfoque padrão, continuou atualizando o relógio da barra de status depois de um DPMS-off forçado de oito segundos e, de novo, depois da troca para o vt3 e do retorno; ele não registrou nenhum tempo limite do Present.
 
-Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas. Aplicativos reais, outros gerenciadores de janelas, suspensão e retomada e taxas de atualização mistas continuam em aberto.
+Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas. Aplicativos reais, outros gerenciadores de janelas e taxas de atualização mistas continuam em aberto; um [registro posterior](#suspensão-e-retomada-registradas-2026-10-03) cobre a suspensão e a retomada.
 
 ## Sessões registradas com Openbox: 2026-10-03
 
@@ -244,6 +244,20 @@ O [executor de transições de monitores](benchmarks/2026-10-03/intel-xorg/openb
 Um comportamento do Openbox afetou o probe. Quando um cliente mapeava sua janela no momento em que o Compust assumia a tela, o Openbox 3.6.1 deixava o pedido de mapeamento sem tratamento até seu próximo evento; uma mudança posterior de propriedade na raiz o liberava. O probe agora envia essas mudanças de propriedade durante sua primeira espera sob um gerenciador de janelas empilhadas. A causa dentro do Openbox não foi investigada.
 
 Essas sessões usam as janelas sintéticas do probe. Mover e redimensionar janelas de forma interativa, os menus do próprio Openbox e aplicativos reais não têm cenário registrado.
+
+## Suspensão e retomada registradas: 2026-10-03
+
+O [executor de transições de monitores](#amostrar-transições-de-monitores) também faz amostras em torno de uma suspensão: faça uma amostra, execute `systemctl suspend`, acorde a máquina e amostre de novo. No [laptop Intel/Xorg](#sessões-registradas-em-intelxorg-2026-10-03), em um desktop Openbox 3.6.1 habitual, cada modo de apresentação fez uma amostra antes de suspender para a RAM (`deep` em `/sys/power/mem_sleep`), uma cerca de seis segundos depois de acordar e mais uma depois que a segunda terminou. A árvore era o commit limpo `6f8d505ab55bd3db59605ca33a7b4fce95df6bdc`, com o binário do compositor `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`. O relógio de parede avançou 197 segundos além do relógio monotônico na suspensão do modo Present e 54 segundos na do modo direto; o log do kernel não pôde ser lido para confirmar o estado de suspensão atingido.
+
+| Amostra | Present: CPU do Compust / Xorg | Conclusões do Present, intervalos acima de um vblank | Direto: CPU do Compust / Xorg | Bytes de pixmaps próprios |
+| --- | ---: | ---: | ---: | ---: |
+| Antes de suspender | 1,2% / 8,7% | 600, 1 | 0,5% / 3,4% | 8.459.037 |
+| Depois de retomar | 0,8% / 6,2% | 600, 0 | 0,8% / 4,4% | 8.459.037 |
+| Depois de retomar, estabilizado | 0,9% / 8,5% | 598, 3 | 0,7% / 4,3% | 8.459.037 |
+
+As seis amostras dos relatórios [Present](benchmarks/2026-10-03/intel-xorg/suspend/present/) e [direto](benchmarks/2026-10-03/intel-xorg/suspend/direct/) passaram nas verificações de repintura do marcador, e o Compust encerrou com sucesso após SIGTERM nas duas execuções. Os intervalos do Present tiveram mediana de 16,65 ms em todas as amostras. O Compust não registrou nenhum tempo limite do Present; portanto, os eventos de conclusão voltaram sozinhos aqui. Seu RSS foi de 3.248 a 3.336 KiB ao longo da execução Present e ficou em 3.344 KiB na execução direta.
+
+Isso é uma suspensão por modo em uma máquina, com fades e desfoque desativados. Não cobre hibernação, suspensão com uma animação pendente nem outros drivers.
 
 ## Concluir os critérios de hardware
 

@@ -1,0 +1,1 @@
+  86484 /usr/bin/openbox --startup /usr/lib/x86_64-linux-gnu/openbox-autostart OPENBOX

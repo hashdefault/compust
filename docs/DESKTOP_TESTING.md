@@ -220,7 +220,7 @@ The Present and effects runs each had one interval spanning two vblanks; in the 
 
 Two informal checks have no archived record. The usual session's compositor, running Present with default fades and blur, kept updating the status bar clock after an eight-second forced DPMS-off, and again after the switch to vt3 and back; it logged no Present timeout.
 
-These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested. Actual applications, other window managers, suspend and resume, and mixed refresh rates remain open.
+These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested. Actual applications, other window managers, and mixed refresh rates remain open; a [later record](#recorded-suspend-and-resume-2026-10-03) covers suspend and resume.
 
 ## Recorded Openbox sessions: 2026-10-03
 
@@ -244,6 +244,20 @@ The [monitor-transition runner](benchmarks/2026-10-03/intel-xorg/openbox/monitor
 One Openbox behavior affected the probe. When a client mapped its window at the moment Compust claimed the screen, Openbox 3.6.1 left the map request unhandled until its next event; a later root property change released it. The probe now sends such property changes during its first wait under a stacking window manager. The cause inside Openbox was not investigated.
 
 These sessions use the probe's synthetic windows. Interactive moving and resizing, Openbox's own menus, and actual applications have no recorded scenario.
+
+## Recorded suspend and resume: 2026-10-03
+
+The [monitor-transition runner](#sample-monitor-transitions) also samples around a suspend: take one sample, run `systemctl suspend`, wake the machine, and sample again. On the [Intel/Xorg laptop](#recorded-intelxorg-sessions-2026-10-03), in an ordinary Openbox 3.6.1 desktop, each presentation mode took one sample before suspending to RAM (`deep` in `/sys/power/mem_sleep`), one about six seconds after waking, and one more after the second had finished. The tree was the clean commit `6f8d505ab55bd3db59605ca33a7b4fce95df6bdc` with compositor binary `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`. The wall clock ran 197 seconds ahead of the monotonic clock across the Present suspension and 54 seconds across the direct one; the kernel log was not readable to confirm the sleep state reached.
+
+| Sample | Present: Compust / Xorg CPU | Present completions, intervals over one vblank | Direct: Compust / Xorg CPU | Owned pixmap bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Before suspend | 1.2% / 8.7% | 600, 1 | 0.5% / 3.4% | 8,459,037 |
+| After resume | 0.8% / 6.2% | 600, 0 | 0.8% / 4.4% | 8,459,037 |
+| After resume, settled | 0.9% / 8.5% | 598, 3 | 0.7% / 4.3% | 8,459,037 |
+
+All six samples in the [Present](benchmarks/2026-10-03/intel-xorg/suspend/present/) and [direct](benchmarks/2026-10-03/intel-xorg/suspend/direct/) reports passed their marker redraw checks, and Compust exited successfully after SIGTERM in both runs. Present intervals had a 16.65 ms median in every sample. Compust logged no Present timeout, so completion events resumed on their own here. Its RSS went from 3,248 to 3,336 KiB over the Present run and stayed at 3,344 KiB in the direct run.
+
+This is one suspension per mode on one machine, with fades and blur disabled. It does not cover hibernation, suspending with a pending animation, or other drivers.
 
 ## Complete the hardware gates
 

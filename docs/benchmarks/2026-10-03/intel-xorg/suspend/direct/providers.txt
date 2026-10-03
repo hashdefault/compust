@@ -1,0 +1,2 @@
+Providers: number : 1
+Provider 0: id: 0x43 cap: 0x9, Source Output, Sink Offload crtcs: 3 outputs: 2 associated providers: 0 name:modesetting
