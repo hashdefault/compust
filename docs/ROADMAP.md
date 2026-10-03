@@ -25,7 +25,7 @@ The first beta will use the existing XRender backend and declare support only fo
 
 Exercise rapid map/unmap/destroy sequences, interrupted fades, decorated windows, override-redirect menus, entering and leaving fullscreen, malformed properties, and windows disappearing during protocol requests. Start with deterministic Xvfb pixel regressions; record actual window-manager behavior in step 3.
 
-**Acceptance:** each reproduced defect has a regression that fails without the fix; supported scenarios preserve the correct pixels and keep the compositor alive; the full suite, formatting, Clippy, and release build pass. Remaining scenarios stay explicitly open until exercised. Client/frame tracking, property validation, and an initial batch of rapid lifecycle scenarios are covered below. Interrupted fades on a real server, extreme/off-screen shapes, and broader destruction races remain open in this step.
+**Acceptance:** each reproduced defect has a regression that fails without the fix; supported scenarios preserve the correct pixels and keep the compositor alive; the full suite, formatting, Clippy, and release build pass. Remaining scenarios stay explicitly open until exercised. Coverage below includes clients and frames, properties, rapid sequences, interrupted fades, extreme/off-screen shapes, and destruction before capture, shape, and geometry queries. Destruction between successive requests within a capture still needs deterministic reproduction.
 
 ### 2. Monitors and resources
 
@@ -61,11 +61,19 @@ Five pixel regressions in [client_lifecycle.rs](../tests/cases/client_lifecycle.
 
 Four additional scenarios in [stability.rs](../tests/cases/stability.rs) pass: 32 queued map/unmap cycles followed by a moved remap, destruction with queued opacity/configure/shape events, removal of an override-redirect popup, and expansion/restoration of fullscreen-sized geometry. They check rendered pixels and that the compositor remains alive. Fullscreen coverage here changes window geometry directly on a fixed Xvfb screen; real window-manager fullscreen behavior belongs to step 3, and monitor reconfiguration to step 2.
 
-The full suite now contains 32 tests: five unit, three CLI, and twenty-four X11 integration tests. Step 1 remains in progress; this batch does not complete all its acceptance scenarios.
+### Step 1 continuation: fades, shapes, and destruction
+
+Three defects were reproduced and fixed. Remapping during close now captures the new content and resumes opening from the current opacity. A destroyed window stays below its former upper neighbor while fading, even after another stacking event. Shapes remain in local coordinates; the XRender clip origin applies the window position without prematurely saturating negative coordinates and leaving black pixels.
+
+The remap and stacking regressions in [fades.rs](../tests/cases/fades.rs) and the extreme-coordinate regression in [shapes.rs](../tests/cases/shapes.rs) failed before the fixes and passed afterward. Additional coverage includes destruction during opening, empty and disjoint shapes, 20-pixel borders, off-screen blur clipping, and a 4096×2048 window moved fully off-screen and back. A unit test checks continuity, monotonicity, and the exact endpoint when reopening a fade.
+
+Three scenarios in [destruction.rs](../tests/cases/destruction.rs) check 32 queued create/map/destroy sequences before capture, plus destruction with a shape or geometry event ahead of the destroy notification. A server grab enforces the ordering; these tests exercise existing recovery without broadening ignored X11 errors. They do not force destruction into each gap between the internal capture requests.
+
+The full suite contains 44 tests: six unit, three CLI, and thirty-five X11 integration tests. All passed, along with formatting, Clippy with warnings treated as errors, and the release build. Step 1 remains in progress for destruction coverage between successive requests.
 
 | Environment | Verified coverage | Evidence / limits |
 | --- | --- | --- |
-| Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Client/frame association, malformed properties, and rapid lifecycle scenarios; all 32 tests pass | Recorded 2026-10-02, `fade_ms = 0`, `blur_radius = 0`, default vsync for these cases. Tests create frame hierarchies directly; no real window manager or GPU qualification. |
+| Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, and destruction with queued events; all 44 tests pass | Recorded 2026-10-02. New cases use `fade_ms = 0` or `1000`, `blur_radius = 0` or `4`; the border scenario uses `vsync = false`, the others use the default. Hierarchies are created directly, without real window-manager or GPU qualification. |
 | Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires the same environment evidence; Xvfb results do not establish support. |
 
@@ -76,6 +84,9 @@ git rev-parse HEAD
 cargo test --locked --test x11 client_lifecycle
 cargo test --locked --test x11 properties
 cargo test --locked --test x11 stability
+cargo test --locked --test x11 fades
+cargo test --locked --test x11 shapes
+cargo test --locked --test x11 destruction
 ```
 
 Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
@@ -84,7 +95,7 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 Test Xorg and XLibre with actual window managers and Intel, AMD, and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
-Add real RandR resize and hotplug coverage, recovery tests for presentation failures, and resource accounting across repeated resizes. Check large or off-screen shapes and malformed application properties. Broaden destruction-race coverage beyond client discovery and opacity reads without hiding unrelated X errors.
+Add real RandR resize and hotplug coverage, recovery tests for presentation failures, and resource accounting across repeated resizes. Extend destruction races into the gaps between pixmap naming, picture creation, and event subscription requests without hiding unrelated X errors. Preserve the large/off-screen shape and malformed-property coverage recorded above.
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 

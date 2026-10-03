@@ -25,7 +25,7 @@ A primeira beta usará o backend XRender atual e declarará suporte somente aos 
 
 Exercitar sequências rápidas de map/unmap/destroy, fades interrompidos, janelas decoradas, menus override-redirect, entrada e saída de tela cheia, propriedades malformadas e destruição durante requisições do protocolo. Começar por regressões determinísticas de pixels no Xvfb; registrar o comportamento de gerenciadores reais na etapa 3.
 
-**Aceitação:** cada defeito reproduzido possui uma regressão que falha sem a correção; os cenários cobertos preservam os pixels corretos e mantêm o compositor em execução; suíte completa, formatação, Clippy e build de release passam. Os cenários restantes continuam explicitamente abertos até serem exercitados. O acompanhamento entre cliente e moldura, a validação de propriedades e um primeiro conjunto de sequências rápidas estão cobertos abaixo. Fades interrompidos em servidor real, formatos extremos ou fora da tela e uma cobertura maior de corridas com destruição continuam abertos nesta etapa.
+**Aceitação:** cada defeito reproduzido possui uma regressão que falha sem a correção; os cenários cobertos preservam os pixels corretos e mantêm o compositor em execução; suíte completa, formatação, Clippy e build de release passam. Os cenários restantes continuam explicitamente abertos até serem exercitados. A cobertura abaixo inclui clientes e molduras, propriedades, sequências rápidas, fades interrompidos, formatos extremos ou fora da tela e destruição antes das consultas de captura, formato e geometria. Destruição entre requisições sucessivas de uma mesma captura ainda precisa de reprodução determinística.
 
 ### 2. Monitores e recursos
 
@@ -61,11 +61,19 @@ Cinco testes de regressão de pixels em [client_lifecycle.rs](../tests/cases/cli
 
 Quatro cenários adicionais em [stability.rs](../tests/cases/stability.rs) passam: 32 ciclos de map/unmap enfileirados seguidos de remapeamento em outra posição, destruição com eventos de opacidade/configuração/formato pendentes, remoção de um popup override-redirect e expansão/restauração de geometria do tamanho da tela. Eles verificam os pixels renderizados e que o compositor continua em execução. A cobertura de tela cheia aqui altera diretamente a geometria da janela em uma tela fixa do Xvfb; o comportamento de gerenciadores reais pertence à etapa 3, e a reconfiguração de monitores à etapa 2.
 
-A suíte completa agora contém 32 testes: cinco unitários, três de CLI e vinte e quatro de integração X11. A etapa 1 continua em andamento; este conjunto não encerra todos os seus cenários de aceitação.
+### Continuação da etapa 1: fades, formatos e destruição
+
+Três defeitos foram reproduzidos e corrigidos. Remapear durante o fechamento agora captura o conteúdo novo e retoma a abertura a partir da opacidade corrente. Uma janela destruída mantém sua posição abaixo da antiga vizinha superior durante o fade, mesmo após outro evento de empilhamento. O formato permanece em coordenadas locais; a origem de recorte do XRender aplica a posição da janela sem saturar antecipadamente coordenadas negativas e deixar pixels pretos.
+
+As regressões de retomada e empilhamento em [fades.rs](../tests/cases/fades.rs) e de coordenadas extremas em [shapes.rs](../tests/cases/shapes.rs) falharam antes das correções e passaram depois. Também estão cobertos: destruição durante a abertura, formatos vazios e separados, bordas de 20 pixels, recorte do desfoque fora da tela e uma janela de 4096×2048 movida completamente para fora da tela e de volta. Um teste unitário verifica continuidade, monotonicidade e ponto final exato ao reabrir o fade.
+
+Três cenários em [destruction.rs](../tests/cases/destruction.rs) verificam 32 criações/map/destruições enfileiradas antes da captura, além de destruição com o evento de formato ou de geometria à frente da notificação de destruição. O bloqueio do servidor impõe a ordem; esses testes exercitam os tratamentos existentes sem ampliar os erros X11 ignorados. Eles não forçam a destruição em cada intervalo entre as requisições internas da captura.
+
+A suíte completa contém 44 testes: seis unitários, três de CLI e trinta e cinco de integração X11. Todos passaram, assim como formatação, Clippy com avisos tratados como erros e build de release. A etapa 1 continua em andamento para a cobertura de destruição entre requisições sucessivas.
 
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
-| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Associação entre cliente e moldura, propriedades malformadas e sequências rápidas; todos os 32 testes passam | Registro de 2026-10-02, `fade_ms = 0`, `blur_radius = 0` e vsync padrão nestes casos. Os testes criam as hierarquias diretamente; não validam um gerenciador de janelas real nem uma GPU. |
+| Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos e destruição com eventos pendentes; todos os 44 testes passam | Registro de 2026-10-02. Novos casos usam `fade_ms = 0` ou `1000`, `blur_radius = 0` ou `4`; o cenário de bordas usa `vsync = false`, os demais usam o padrão. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
 | Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
 
@@ -76,6 +84,9 @@ git rev-parse HEAD
 cargo test --locked --test x11 client_lifecycle
 cargo test --locked --test x11 properties
 cargo test --locked --test x11 stability
+cargo test --locked --test x11 fades
+cargo test --locked --test x11 shapes
+cargo test --locked --test x11 destruction
 ```
 
 Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
@@ -84,7 +95,7 @@ Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
 
 Teste Xorg e XLibre com gerenciadores de janelas reais e drivers Intel, AMD e NVIDIA. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
-Acrescente cobertura de redimensionamento RandR e hotplug reais, recuperação de falhas de apresentação e contagem de recursos durante redimensionamentos repetidos. Verifique formatos grandes ou fora da tela e propriedades malformadas. Amplie a cobertura de corridas com destruição para além da descoberta do cliente e das leituras de opacidade, sem esconder outros erros do X.
+Acrescente cobertura de redimensionamento RandR e hotplug reais, recuperação de falhas de apresentação e contagem de recursos durante redimensionamentos repetidos. Amplie as corridas com destruição para os intervalos entre requisições de nomeação do pixmap, criação da imagem e assinatura de eventos, sem esconder outros erros do X. A cobertura de formatos grandes ou fora da tela e propriedades malformadas já registrada acima deve ser preservada.
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 

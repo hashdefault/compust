@@ -24,7 +24,7 @@ Application draws into a redirected window
 
 `surface.rs` captures each viewable top-level window using a named pixmap. Damage is attached to the pixmap, which remains valid while the closing animation completes even if the original window disappears. `picture.rs` owns XRender pictures and owned pixmaps; closing the final connection also releases server resources and redirection after startup failures.
 
-`scene.rs` stores surfaces in server stacking order. `events.rs` updates their geometry, lifetime, shapes, and opacity. `surface/client.rs` discovers the application using `WM_STATE` through at most eight descendant levels. It subscribes to property and child-window events on each visited window before inspecting its state. Late creation or removal of `WM_STATE`, child creation, reparenting, and destruction refresh the affected frame's client association and opacity. The frame's opacity property takes precedence when present.
+`scene.rs` stores surfaces in server stacking order. Destroyed windows' surfaces remain below their former upper neighbor until the fade finishes. Remapping a window replaces its content only after successful capture, preserving the current opacity for reopening. `events.rs` updates their geometry, lifetime, shapes, and opacity. `surface/client.rs` discovers the application using `WM_STATE` through at most eight descendant levels. It subscribes to property and child-window events on each visited window before inspecting its state. Late creation or removal of `WM_STATE`, child creation, reparenting, and destruction refresh the affected frame's client association and opacity. The frame's opacity property takes precedence when present.
 
 A descendant that disappears during discovery is skipped only for `BadWindow`. If the selected client disappears before its opacity can be read, the surviving frame uses its own opacity or the opaque default; subsequent lifecycle events refresh the association. Losing a client must not close the frame's surface. This is deliberately limited support for window-manager conventions, not complete EWMH/ICCCM implementation.
 
@@ -32,9 +32,9 @@ Property reads validate the wire representation before using application data. `
 
 ## Rendering and scheduling
 
-The renderer paints wallpaper into a reusable root-depth buffer, composites windows from bottom to top, and uses an A8 mask for effective opacity. Per-pixel alpha remains part of the source picture. Shape rectangles clip both window painting and blur. The blur module uses two one-dimensional box convolutions, with an exact fixed-point coefficient sum of 65536.
+The renderer paints wallpaper into a reusable root-depth buffer, composites windows from bottom to top, and uses an A8 mask for effective opacity. Per-pixel alpha remains part of the source picture. Shape rectangles clip both window painting and blur. They use pixmap-local coordinates, including the border; the XRender clip origin applies the window position. This avoids prematurely saturating 16-bit coordinate sums for extreme off-screen shapes. The blur module uses two one-dimensional box convolutions, with an exact fixed-point coefficient sum of 65536.
 
-`animation.rs` uses monotonic `Instant` values and integer smoothstep interpolation. Closing retargets from the sampled opacity so interrupted animations remain continuous. The event loop schedules a final frame at the endpoint, including when the duration is zero.
+`animation.rs` uses monotonic `Instant` values and integer smoothstep interpolation. Closing and reopening retarget from the sampled opacity so interrupted animations remain continuous. The event loop schedules a final frame at the endpoint, including when the duration is zero.
 
 `compositor.rs` drains bounded event batches so an event storm cannot postpone painting forever. It repaints only after damage, relevant state changes, or an active animation, with `max_fps` as a ceiling. Idle operation polls the X socket with a one-second maximum wait to observe shutdown flags. Damage currently triggers a full-screen repaint; it is not yet a region optimization.
 
