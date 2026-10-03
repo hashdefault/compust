@@ -18,7 +18,7 @@ The first beta will use the existing XRender backend and declare support only fo
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Automated checks complete; physical hotplug pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
-| 3. Real desktops | Pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
+| 3. Real desktops | Nested Xmonad baseline recorded; hardware pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Pending | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
@@ -40,6 +40,8 @@ The Xvfb scenarios below pass. Physical connector hotplug and multiple-monitor a
 Run documented scenarios with real window managers on Xorg and XLibre. Record the server, window manager, GPU/driver, configuration, and exact commit. Measure idle and active CPU, memory, and frame pacing; fix failures in the environments proposed for beta support.
 
 **Acceptance:** publish a compatibility matrix with evidence for each advertised environment, a reproducible measurement baseline, and remaining limitations. Untested driver/server combinations remain unqualified.
+
+The [desktop qualification guide](DESKTOP_TESTING.md) documents the isolated runner, measurements, and hardware procedure. The recorded Xephyr/Xmonad runs start this step; they do not close its driver and physical-display requirements.
 
 ### 4. Beta distribution
 
@@ -93,12 +95,22 @@ Three tests in [presentation.rs](../tests/cases/presentation.rs) cover rejected 
 
 The full suite now has 59 passing tests: six unit, three CLI, and fifty X11 integration tests. Formatting, strict Clippy, the release build, and documentation checks pass. Step 2 remains open for physical hotplug, multiple-monitor layouts, and hardware measurements. The automated configuration is one virtual output at 320×240, temporarily 240×180, with `fade_ms = 0`, `blur_radius = 0`, and each vsync mode.
 
+### Step 3 started: Xmonad on nested Xorg and XLibre
+
+The first [desktop records](benchmarks/2026-10-03/) exercised Xmonad 0.18.1 with Xorg Xephyr 21.1.24 and XLibre Xephyr 25.1.9 at commit `1409a919dd0c91ccaad3fbb323df4b33628554fd`. They covered managed tiling, popup removal, EWMH fullscreen/restore, workspace return, rapid lifecycle, survivor redraw, and SIGTERM shutdown with Present enabled.
+
+The [desktop runner](../tools/desktop-check.sh) now accepts `present` or `direct`. Its probe observes overlay Damage for readiness and direct redraws, requires Present samples only for that path, and rejects mismatched presentation settings. Startup and scene checks use notifications with deadlines instead of timed polling. Reports record source changes and hashes alongside the base commit.
+
+All four server/path combinations passed at base `cb0796c8e42a95d3c80ab11c557b75809f791d43` plus the archived probe/runner changes. The [bilingual qualification guide and raw evidence](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) record ten-second idle/active phases, separate compositor/server CPU, unchanged RSS endpoints, Present intervals, and two negative checks. The full 59-test suite, formatting, strict Clippy, and release build pass. This completes the isolated baseline increment, not step 3's hardware gate. Existing Xmonad diagnostics and untested environments are recorded in the guide.
+
 | Environment | Verified coverage | Evidence / limits |
 | --- | --- | --- |
 | Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, queued destruction events, and eleven capture-request boundaries; all 47 tests pass | Recorded 2026-10-02. Capture races use `fade_ms = 0`, `blur_radius = 0`, and default vsync. Earlier fade/shape cases also use `fade_ms = 1000`, `blur_radius = 4`, or `vsync = false` as described above. Hierarchies are created directly, without real window-manager or GPU qualification. |
 | Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors remain unverified. |
 | Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires the same environment evidence; Xvfb results do not establish support. |
+| Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios, idle/active CPU and RSS, Present and direct XRender, shutdown | Recorded 2026-10-03; fade/blur disabled. [Results and limitations](DESKTOP_TESTING.md#recorded-baseline-2026-10-03). No physical display or driver qualification. |
+| XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in both paths | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
 
 Reproduce the lifecycle checks with the repository's pinned toolchain and Xvfb installed. The [CI runs](https://github.com/hashdefault/compust/actions/workflows/ci.yml) record results against each exact commit; include the revision printed below in local reports.
 

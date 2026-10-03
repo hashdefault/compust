@@ -31,6 +31,8 @@ Informe o commit (`git rev-parse HEAD`), distribuição, servidor e versão, ger
 
 Em relatos de desempenho, informe resolução, taxas de atualização dos monitores, número de janelas, carga de trabalho, raio do desfoque, configuração e se a medição de CPU inclui o servidor X. O XRender pode transferir trabalho para esse processo. Compare builds de release na mesma máquina e com a mesma carga; ao comparar com picom, registre sua versão e backend.
 
+O [guia de validação de desktops](docs/DESKTOP_TESTING.pt-BR.md) executa cenários isolados com Xmonad usando Present e XRender direto, registra medições dos processos e descreve as verificações de hardware restantes para a beta.
+
 ## Preparar um pull request
 
 Mantenha cada pull request concentrado em um comportamento que possa ser explicado e testado. Descreva o que dispara a situação, o resultado, a verificação realizada e as limitações conhecidas. Acrescente um teste de regressão quando ele conseguir distinguir a falha. Rode formatação, Clippy e os testes pertinentes antes do envio; a CI também compila o binário de release.

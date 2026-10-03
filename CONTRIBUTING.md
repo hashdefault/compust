@@ -31,6 +31,8 @@ Include the commit (`git rev-parse HEAD`), distribution, server and version, win
 
 For performance reports, include resolution, monitor refresh rates, window count, workload, blur radius, compositor configuration, and whether the CPU measurement includes the X server. XRender can move work into that process. Compare release builds on the same machine and workload, and record the picom version and backend when making comparisons.
 
+The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs isolated Xmonad scenarios with both Present and direct XRender, records process measurements, and describes the remaining hardware checks for the beta.
+
 ## Prepare a pull request
 
 Keep each pull request focused on a behavior that can be explained and tested. Describe the trigger, the resulting behavior, how you verified it, and any known limits. Add a regression test for a reproducible defect when the test can distinguish it. Run formatting, Clippy, and the relevant tests before submitting; CI also builds the release binary.

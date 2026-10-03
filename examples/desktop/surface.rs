@@ -10,6 +10,7 @@ use x11rb::{
     protocol::{
         Event,
         composite::ConnectionExt as _,
+        damage::{ConnectionExt as _, ReportLevel},
         present::{ConnectionExt as _, EventMask as PresentMask},
         xproto::{
             AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConnectionExt as _,
@@ -30,12 +31,17 @@ pub(super) struct Surface {
     pub(super) present: u32,
     pub(super) width: u16,
     pub(super) height: u16,
+    damage: u32,
 }
 
 impl Surface {
     pub(super) fn connect(display: &str) -> Result<Self> {
-        let (conn, screen) = x11rb::connect(Some(display))?;
-        let screen = conn.setup().roots.get(screen).context("missing screen")?;
+        let (conn, screen_number) = x11rb::connect(Some(display))?;
+        let screen = conn
+            .setup()
+            .roots
+            .get(screen_number)
+            .context("missing screen")?;
         ensure!(
             screen.root_depth == 24,
             "probe requires a 24-bit RGB screen"
@@ -61,21 +67,26 @@ impl Surface {
         );
         let (root, width, height) = (screen.root, screen.width_in_pixels, screen.height_in_pixels);
         conn.composite_query_version(0, 4)?.reply()?;
+        conn.damage_query_version(1, 1)?.reply()?;
         conn.present_query_version(1, 2)?.reply()?;
-        let selection = conn.intern_atom(false, b"_NET_WM_CM_S0")?.reply()?.atom;
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while conn.get_selection_owner(selection)?.reply()?.owner == NONE {
-            ensure!(
-                Instant::now() < deadline,
-                "compositor did not own its selection"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        conn.change_window_attributes(
+            root,
+            &ChangeWindowAttributesAux::new()
+                .event_mask(EventMask::STRUCTURE_NOTIFY | EventMask::PROPERTY_CHANGE),
+        )?
+        .check()?;
+        let selection = conn
+            .intern_atom(false, format!("_NET_WM_CM_S{screen_number}").as_bytes())?
+            .reply()?
+            .atom;
         let overlay = conn
             .composite_get_overlay_window(root)?
             .reply()?
             .overlay_win;
         let present = conn.generate_id()?;
+        let damage = conn.generate_id()?;
+        conn.damage_create(damage, overlay, ReportLevel::NON_EMPTY)?
+            .check()?;
         let surface = Self {
             conn,
             root,
@@ -83,14 +94,17 @@ impl Surface {
             present,
             width,
             height,
+            damage,
         };
-        ensure!(
-            surface
-                .property(root, "_NET_SUPPORTING_WM_CHECK")?
-                .is_some(),
-            "an EWMH window manager is required"
-        );
         surface.subscribe()?;
+        surface.until("compositor selection", || {
+            Ok(surface.conn.get_selection_owner(selection)?.reply()?.owner != NONE)
+        })?;
+        surface.until("EWMH window manager", || {
+            Ok(surface
+                .property(root, "_NET_SUPPORTING_WM_CHECK")?
+                .is_some())
+        })?;
         Ok(surface)
     }
 
@@ -117,6 +131,7 @@ impl Surface {
                 COPY_FROM_PARENT,
                 &CreateWindowAux::new()
                     .background_pixel(color)
+                    .event_mask(EventMask::STRUCTURE_NOTIFY | EventMask::PROPERTY_CHANGE)
                     .override_redirect(u32::from(popup)),
             )?
             .check()?;
@@ -175,16 +190,31 @@ impl Surface {
         mut ready: impl FnMut() -> Result<bool>,
     ) -> Result<()> {
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !ready()? {
-            while let Some(event) = self.conn.poll_for_event()? {
-                if let Event::Error(error) = event {
-                    anyhow::bail!("probe X11 error during {description}: {error:?}");
-                }
-            }
+        loop {
             ensure!(Instant::now() < deadline, "timed out: {description}");
-            self.wait(deadline.min(Instant::now() + Duration::from_millis(20)))?;
+            self.conn.damage_subtract(self.damage, NONE, NONE)?;
+            self.conn.flush()?;
+            if ready()? {
+                return Ok(());
+            }
+            while self.poll_event()?.is_none() {
+                ensure!(Instant::now() < deadline, "timed out: {description}");
+                self.wait(deadline)?;
+            }
         }
-        Ok(())
+    }
+
+    pub(super) fn poll_event(&self) -> Result<Option<Event>> {
+        let event = self.conn.poll_for_event()?;
+        match &event {
+            Some(Event::Error(error)) => anyhow::bail!("probe X11 error: {error:?}"),
+            Some(Event::DamageNotify(event)) if event.damage == self.damage => {
+                self.conn.damage_subtract(self.damage, NONE, NONE)?;
+                self.conn.flush()?;
+            }
+            _ => {}
+        }
+        Ok(event)
     }
 
     pub(super) fn wait(&self, deadline: Instant) -> Result<()> {

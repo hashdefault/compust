@@ -1,0 +1,240 @@
+diff --git a/examples/desktop/surface.rs b/examples/desktop/surface.rs
+index aed9e1e..96e9b31 100644
+--- a/examples/desktop/surface.rs
++++ b/examples/desktop/surface.rs
+@@ -12,0 +13 @@ use x11rb::{
++        damage::{ConnectionExt as _, ReportLevel},
+@@ -32,0 +34 @@ pub(super) struct Surface {
++    damage: u32,
+@@ -37,2 +39,6 @@ impl Surface {
+-        let (conn, screen) = x11rb::connect(Some(display))?;
+-        let screen = conn.setup().roots.get(screen).context("missing screen")?;
++        let (conn, screen_number) = x11rb::connect(Some(display))?;
++        let screen = conn
++            .setup()
++            .roots
++            .get(screen_number)
++            .context("missing screen")?;
+@@ -63,0 +70 @@ impl Surface {
++        conn.damage_query_version(1, 1)?.reply()?;
+@@ -65,9 +72,10 @@ impl Surface {
+-        let selection = conn.intern_atom(false, b"_NET_WM_CM_S0")?.reply()?.atom;
+-        let deadline = Instant::now() + Duration::from_secs(5);
+-        while conn.get_selection_owner(selection)?.reply()?.owner == NONE {
+-            ensure!(
+-                Instant::now() < deadline,
+-                "compositor did not own its selection"
+-            );
+-            std::thread::sleep(Duration::from_millis(10));
+-        }
++        conn.change_window_attributes(
++            root,
++            &ChangeWindowAttributesAux::new()
++                .event_mask(EventMask::STRUCTURE_NOTIFY | EventMask::PROPERTY_CHANGE),
++        )?
++        .check()?;
++        let selection = conn
++            .intern_atom(false, format!("_NET_WM_CM_S{screen_number}").as_bytes())?
++            .reply()?
++            .atom;
+@@ -78,0 +87,3 @@ impl Surface {
++        let damage = conn.generate_id()?;
++        conn.damage_create(damage, overlay, ReportLevel::NON_EMPTY)?
++            .check()?;
+@@ -85,0 +97 @@ impl Surface {
++            damage,
+@@ -87,6 +98,0 @@ impl Surface {
+-        ensure!(
+-            surface
+-                .property(root, "_NET_SUPPORTING_WM_CHECK")?
+-                .is_some(),
+-            "an EWMH window manager is required"
+-        );
+@@ -93,0 +100,8 @@ impl Surface {
++        surface.until("compositor selection", || {
++            Ok(surface.conn.get_selection_owner(selection)?.reply()?.owner != NONE)
++        })?;
++        surface.until("EWMH window manager", || {
++            Ok(surface
++                .property(root, "_NET_SUPPORTING_WM_CHECK")?
++                .is_some())
++        })?;
+@@ -119,0 +134 @@ impl Surface {
++                    .event_mask(EventMask::STRUCTURE_NOTIFY | EventMask::PROPERTY_CHANGE)
+@@ -178,6 +193 @@ impl Surface {
+-        while !ready()? {
+-            while let Some(event) = self.conn.poll_for_event()? {
+-                if let Event::Error(error) = event {
+-                    anyhow::bail!("probe X11 error during {description}: {error:?}");
+-                }
+-            }
++        loop {
+@@ -185 +195,9 @@ impl Surface {
+-            self.wait(deadline.min(Instant::now() + Duration::from_millis(20)))?;
++            self.conn.damage_subtract(self.damage, NONE, NONE)?;
++            self.conn.flush()?;
++            if ready()? {
++                return Ok(());
++            }
++            while self.poll_event()?.is_none() {
++                ensure!(Instant::now() < deadline, "timed out: {description}");
++                self.wait(deadline)?;
++            }
+@@ -187 +205,13 @@ impl Surface {
+-        Ok(())
++    }
++
++    pub(super) fn poll_event(&self) -> Result<Option<Event>> {
++        let event = self.conn.poll_for_event()?;
++        match &event {
++            Some(Event::Error(error)) => anyhow::bail!("probe X11 error: {error:?}"),
++            Some(Event::DamageNotify(event)) if event.damage == self.damage => {
++                self.conn.damage_subtract(self.damage, NONE, NONE)?;
++                self.conn.flush()?;
++            }
++            _ => {}
++        }
++        Ok(event)
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index c561b81..7ef7fcd 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -9 +9 @@ use anyhow::{Context, Result, ensure};
+-use clap::Parser;
++use clap::{Parser, ValueEnum};
+@@ -35,0 +36,9 @@ struct Args {
++    /// Expected compositor presentation path; direct copying has no Present timings.
++    #[arg(long, value_enum, default_value_t = Presentation::Present)]
++    presentation: Presentation,
++}
++
++#[derive(Clone, Copy, ValueEnum)]
++enum Presentation {
++    Present,
++    Direct,
+@@ -61,5 +70 @@ fn main() -> Result<()> {
+-        while let Some(event) = surface.conn.poll_for_event()? {
+-            if let Event::Error(error) = event {
+-                anyhow::bail!("probe X11 error between phases: {error:?}");
+-            }
+-        }
++        while surface.poll_event()?.is_some() {}
+@@ -68,0 +74 @@ fn main() -> Result<()> {
++        let mut damage_events = 0_u32;
+@@ -75,0 +82,5 @@ fn main() -> Result<()> {
++                if let Event::DamageNotify(event) = &event
++                    && event.drawable == surface.overlay
++                {
++                    damage_events += 1;
++                }
+@@ -97,2 +108,15 @@ fn main() -> Result<()> {
+-        if active {
+-            ensure!(count > 1, "no usable compositor Present completion samples");
++        match args.presentation {
++            Presentation::Present => {
++                if active {
++                    ensure!(count > 1, "no usable compositor Present completion samples");
++                }
++            }
++            Presentation::Direct => {
++                ensure!(count == 0, "direct copying unexpectedly used Present");
++                if active {
++                    ensure!(
++                        damage_events > 1,
++                        "no compositor redraws during direct copying"
++                    );
++                }
++            }
+@@ -101 +125 @@ fn main() -> Result<()> {
+-            "phase={phase} seconds={:.6} updates={updates} completions={count}",
++            "phase={phase} seconds={:.6} updates={updates} completions={count} damage_events={damage_events}",
+@@ -128,4 +152 @@ fn run_phase(
+-        while let Some(event) = surface.conn.poll_for_event()? {
+-            if let Event::Error(error) = &event {
+-                anyhow::bail!("probe X11 error: {error:?}");
+-            }
++        while let Some(event) = surface.poll_event()? {
+diff --git a/tools/desktop-check.sh b/tools/desktop-check.sh
+old mode 100644
+new mode 100755
+index d398736..1e32fe5
+--- a/tools/desktop-check.sh
++++ b/tools/desktop-check.sh
+@@ -4,2 +4,17 @@ set -euo pipefail
+-report=${1:?Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY}
+-mkdir "$report"
++if [[ ${1:-} == --help ]]; then
++    printf 'Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY [present|direct]\n'
++    printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
++    exit 0
++fi
++if (( $# < 1 || $# > 2 )); then
++    printf 'Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY [present|direct]\n' >&2
++    exit 2
++fi
++presentation=${2:-present}
++case "$presentation" in
++    present) config=tools/desktop/compust.toml ;;
++    direct) config=tools/desktop/compust-direct.toml ;;
++    *) printf 'Unknown presentation mode: %s\n' "$presentation" >&2; exit 2 ;;
++esac
++report=$1
++mkdir -- "$report"
+@@ -22,13 +36,0 @@ trap 'exit 143' TERM
+-wait_display() {
+-    local path=$1 pid=$2
+-    for ((attempt = 0; attempt < 100; attempt++)); do
+-        if [[ -s "$path" ]]; then
+-            return
+-        fi
+-        kill -0 "$pid"
+-        sleep 0.05
+-    done
+-    printf 'X server did not publish its display number\n' >&2
+-    return 1
+-}
+-
+@@ -42,0 +45,2 @@ export XMONAD_DATA_DIR="$work/data"
++mkfifo "$work/host-display" "$work/display"
++exec {host_ready}<>"$work/host-display"
+@@ -44 +48 @@ export XMONAD_DATA_DIR="$work/data"
+-    3>"$work/host-display" >"$report/xvfb.log" 2>&1 &
++    3>&"$host_ready" >"$report/xvfb.log" 2>&1 &
+@@ -47,2 +51,3 @@ pids+=("$host_pid")
+-wait_display "$work/host-display" "$host_pid"
+-export DISPLAY=":$(<"$work/host-display")"
++IFS= read -r -t 10 -u "$host_ready" host_display
++exec {host_ready}>&-
++export DISPLAY=":$host_display"
+@@ -49,0 +55 @@ export DISPLAY=":$(<"$work/host-display")"
++exec {server_ready}<>"$work/display"
+@@ -51 +57 @@ export DISPLAY=":$(<"$work/host-display")"
+-    3>"$work/display" >"$report/xephyr.log" 2>&1 &
++    3>&"$server_ready" >"$report/xephyr.log" 2>&1 &
+@@ -54,2 +60,3 @@ pids=("$server_pid" "${pids[@]}")
+-wait_display "$work/display" "$server_pid"
+-export DISPLAY=":$(<"$work/display")"
++IFS= read -r -t 10 -u "$server_ready" server_display
++exec {server_ready}>&-
++export DISPLAY=":$server_display"
+@@ -60,8 +66,0 @@ pids=("$wm_pid" "${pids[@]}")
+-for ((attempt = 0; attempt < 100; attempt++)); do
+-    if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then
+-        break
+-    fi
+-    kill -0 "$wm_pid"
+-    sleep 0.05
+-done
+-xprop -root _NET_SUPPORTING_WM_CHECK >"$report/wm.txt"
+@@ -71,0 +71,3 @@ git status --short >"$report/worktree.txt"
++git diff HEAD -- src examples tools Cargo.toml Cargo.lock rust-toolchain.toml >"$report/source.patch"
++git ls-files -z src examples tools Cargo.toml Cargo.lock rust-toolchain.toml \
++    | xargs -0 sha256sum >"$report/source-sha256.txt"
+@@ -77 +79 @@ xmonad --version >"$report/wm-version.txt"
+-cp tools/desktop/compust.toml "$report/compust.toml"
++cp "$config" "$report/compust.toml"
+@@ -90 +92 @@ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
+-    --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" \
++    --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" --presentation "$presentation" \
+@@ -91,0 +94 @@ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
++xprop -root _NET_SUPPORTING_WM_CHECK >"$report/wm.txt"

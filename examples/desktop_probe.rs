@@ -6,7 +6,7 @@ mod scenarios;
 mod surface;
 
 use anyhow::{Context, Result, ensure};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use metrics::{Process, Snapshot};
 use std::{
     fs::File,
@@ -33,6 +33,15 @@ struct Args {
     process: Vec<Process>,
     #[arg(long)]
     output: PathBuf,
+    /// Expected compositor presentation path; direct copying has no Present timings.
+    #[arg(long, value_enum, default_value_t = Presentation::Present)]
+    presentation: Presentation,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum Presentation {
+    Present,
+    Direct,
 }
 
 fn main() -> Result<()> {
@@ -58,14 +67,11 @@ fn main() -> Result<()> {
     processes.push(Process::probe());
     run_phase(&surface, window, Duration::from_secs(2), |_| Ok(()))?;
     for (phase, active) in [("idle", false), ("active", true)] {
-        while let Some(event) = surface.conn.poll_for_event()? {
-            if let Event::Error(error) = event {
-                anyhow::bail!("probe X11 error between phases: {error:?}");
-            }
-        }
+        while surface.poll_event()?.is_some() {}
         let before = Snapshot::read(&processes)?;
         let started = Instant::now();
         let mut count = 0_u32;
+        let mut damage_events = 0_u32;
         let mut last_ust = None;
         let duration = Duration::from_secs(u64::from(args.seconds));
         let updates = run_phase(
@@ -73,6 +79,11 @@ fn main() -> Result<()> {
             if active { window } else { 0 },
             duration,
             |event| {
+                if let Event::DamageNotify(event) = &event
+                    && event.drawable == surface.overlay
+                {
+                    damage_events += 1;
+                }
                 if let Event::PresentCompleteNotify(event) = event
                     && event.event == surface.present
                     && event.kind == CompleteKind::PIXMAP
@@ -94,11 +105,24 @@ fn main() -> Result<()> {
         let elapsed = started.elapsed();
         let after = Snapshot::read(&processes)?;
         before.write_delta(&after, phase, elapsed, &mut cpu)?;
-        if active {
-            ensure!(count > 1, "no usable compositor Present completion samples");
+        match args.presentation {
+            Presentation::Present => {
+                if active {
+                    ensure!(count > 1, "no usable compositor Present completion samples");
+                }
+            }
+            Presentation::Direct => {
+                ensure!(count == 0, "direct copying unexpectedly used Present");
+                if active {
+                    ensure!(
+                        damage_events > 1,
+                        "no compositor redraws during direct copying"
+                    );
+                }
+            }
         }
         println!(
-            "phase={phase} seconds={:.6} updates={updates} completions={count}",
+            "phase={phase} seconds={:.6} updates={updates} completions={count} damage_events={damage_events}",
             elapsed.as_secs_f64()
         );
     }
@@ -125,10 +149,7 @@ fn run_phase(
     let end = start + duration;
     let mut frame = 0_u32;
     loop {
-        while let Some(event) = surface.conn.poll_for_event()? {
-            if let Event::Error(error) = &event {
-                anyhow::bail!("probe X11 error: {error:?}");
-            }
+        while let Some(event) = surface.poll_event()? {
             record(event)?;
         }
         let now = Instant::now();

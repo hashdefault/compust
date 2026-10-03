@@ -1,0 +1,3 @@
+vendor=The X.Org Foundation release=12101024 geometry=1280x800 depth=24
+fullscreen client=1278x798 border=1
+Error: direct copying unexpectedly used Present

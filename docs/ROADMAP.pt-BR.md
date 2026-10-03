@@ -18,7 +18,7 @@ A primeira beta usará o backend XRender atual e declarará suporte somente aos 
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificações automatizadas concluídas; hotplug físico pendente | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
-| 3. Desktops reais | Pendente | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
+| 3. Desktops reais | Medição aninhada com Xmonad registrada; hardware pendente | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
 | 4. Distribuição da beta | Pendente | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
@@ -40,6 +40,8 @@ Os cenários com Xvfb descritos abaixo passam. Hotplug físico e configurações
 Executar cenários documentados com gerenciadores de janelas reais em Xorg e XLibre. Registrar servidor, gerenciador, GPU/driver, configuração e commit exato. Medir CPU ociosa e em atividade, memória e regularidade dos quadros; corrigir falhas nos ambientes propostos para suporte na beta.
 
 **Aceitação:** publicar uma matriz de compatibilidade com evidências para cada ambiente anunciado, uma referência reproduzível de medições e as limitações restantes. Combinações de servidor e driver ainda não testadas permanecem sem validação.
+
+O [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md) documenta o script isolado, as medições e o procedimento em hardware. As execuções registradas de Xephyr/Xmonad iniciam esta etapa; elas não concluem os requisitos de drivers e monitores físicos.
 
 ### 4. Distribuição da beta
 
@@ -93,12 +95,22 @@ Três testes em [presentation.rs](../tests/cases/presentation.rs) cobrem envios 
 
 A suíte completa agora tem 59 testes aprovados: seis unitários, três de CLI e cinquenta de integração X11. Formatação, Clippy estrito, build de release e verificações da documentação passam. A etapa 2 continua aberta para hotplug físico, configurações com vários monitores e medições em hardware. A configuração automatizada usa uma saída virtual de 320×240, temporariamente 240×180, com `fade_ms = 0`, `blur_radius = 0` e cada modo de vsync.
 
+### Etapa 3 iniciada: Xmonad em Xorg e XLibre aninhados
+
+Os primeiros [registros de desktop](benchmarks/2026-10-03/) exercitaram Xmonad 0.18.1 com Xorg Xephyr 21.1.24 e XLibre Xephyr 25.1.9 no commit `1409a919dd0c91ccaad3fbb323df4b33628554fd`. Cobriram organização de janelas, remoção de popup, tela cheia/restauração via EWMH, retorno de workspace, ciclo de vida rápido, atualização de sobrevivente e encerramento via SIGTERM com Present ativado.
+
+O [script de desktop](../tools/desktop-check.sh) agora aceita `present` ou `direct`. O probe observa Damage do overlay para prontidão e atualizações diretas, exige amostras Present somente nesse caminho e rejeita configurações de apresentação incompatíveis. Inicialização e cenas usam notificações com prazo máximo em vez de consultas com atrasos. Os relatórios registram alterações e hashes dos fontes junto ao commit base.
+
+As quatro combinações de servidor/caminho passaram na base `cb0796c8e42a95d3c80ab11c557b75809f791d43` mais as alterações arquivadas do probe/script. O [guia bilíngue de validação e as evidências brutas](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03) registram fases ociosa/ativa de dez segundos, CPU separada do compositor/servidor, RSS inalterado nos extremos, intervalos Present e dois testes negativos. Suíte completa de 59 testes, formatação, Clippy estrito e build de release passam. Isso conclui o incremento da medição isolada, não o requisito de hardware da etapa 3. Diagnósticos existentes do Xmonad e ambientes ainda não testados estão registrados no guia.
+
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
 | Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos, destruição com eventos pendentes e onze pontos da captura; todos os 47 testes passam | Registro de 2026-10-02. Corridas de captura usam `fade_ms = 0`, `blur_radius = 0` e vsync padrão. Os casos anteriores de fades/formatos também usam `fade_ms = 1000`, `blur_radius = 4` ou `vsync = false`, conforme descrito acima. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
 | Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores ainda não foram verificados. |
 | Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige os mesmos registros de ambiente; os resultados no Xvfb não comprovam suporte. |
+| Xorg Xephyr 21.1.24 + Xmonad 0.18.1, aninhado no Xvfb, 1280×800×24 | Cenários de desktop, CPU/RSS em ociosidade e atividade, Present e XRender direto, encerramento | Registro de 2026-10-03; fade/desfoque desativados. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03). Sem validação de monitor físico ou driver. |
+| XLibre Xephyr 25.1.9 + Xmonad 0.18.1, mesma disposição virtual | Mesmos cenários e medições nos dois caminhos | Registro de 2026-10-03; mesma configuração e limitações. Resultados do servidor aninhado não validam uma sessão XLibre em hardware. |
 
 Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb instalado. As [execuções de CI](https://github.com/hashdefault/compust/actions/workflows/ci.yml) registram resultados para cada commit exato; inclua a revisão exibida abaixo nos relatos locais.
 
