@@ -2,7 +2,7 @@
 
 [English (US)](DESKTOP_TESTING.md) | [Português (Brasil)](DESKTOP_TESTING.pt-BR.md)
 
-This guide covers the reproducible desktop work in beta step 3. Xmonad running inside Xephyr exercises a real window manager and X server. Xephyr hosted by Xvfb uses software rendering; these results do not qualify a GPU driver, physical monitor, or tear-free scanout. A recorded AMD/XLibre session below covers physical monitor transitions for step 2; other hardware and step 3 desktop scenarios on hardware remain open.
+This guide covers the reproducible desktop work in beta step 3. Xmonad running inside Xephyr exercises a real window manager and X server. Xephyr hosted by Xvfb uses software rendering; these results do not qualify a GPU driver, physical monitor, or tear-free scanout. Recorded AMD/XLibre sessions below cover physical monitor transitions for step 2 and the probe's desktop scenarios on hardware for step 3; other hardware, window managers, and actual applications remain open.
 
 ## Run the isolated baseline
 
@@ -14,19 +14,31 @@ cargo build --release --locked --bin compust --example desktop_probe
 mkdir -p artifacts
 tools/desktop-check.sh artifacts/desktop-present present
 tools/desktop-check.sh artifacts/desktop-direct direct
+tools/desktop-check.sh artifacts/desktop-effects effects
 ```
 
-Each report directory must be new. Omitting the mode selects `present`; `--help` describes the command. Set `XVFB` and `XEPHYR` to alternative executable paths to test another server build, including XLibre's Xephyr. They do not select your existing desktop display. `SECONDS_PER_PHASE` accepts 1–30 seconds and defaults to 10. Run measurements sequentially, with other builds and benchmarks stopped.
+Each report directory must be new. Omitting the mode selects `present`; `--help` describes the command. Set `XVFB` and `XEPHYR` to alternative executable paths to test another server build, including XLibre's Xephyr. They do not select your existing desktop display. `SECONDS_PER_PHASE` accepts 1–30 seconds and defaults to 10. Run measurements sequentially, with other builds and benchmarks stopped. Set `DESKTOP_DISPLAY` and `SERVER_PID` to use an existing dedicated X server instead of starting Xvfb and Xephyr; the runner never stops that server. The [hardware procedure](#run-the-desktop-checks-on-hardware) uses this mode.
 
-Both configurations use `opacity = 100`, `fade_ms = 0`, `blur_radius = 0`, and `max_fps = 120`. The [Present configuration](../tools/desktop/compust.toml) uses `vsync = true`; the [direct configuration](../tools/desktop/compust-direct.toml) uses `vsync = false`. These results therefore exclude fade, translucency, and blur costs.
+The `present` and `direct` configurations use `opacity = 100`, `fade_ms = 0`, `blur_radius = 0`, and `max_fps = 120`. The [Present configuration](../tools/desktop/compust.toml) uses `vsync = true`; the [direct configuration](../tools/desktop/compust-direct.toml) uses `vsync = false`. Those two modes therefore exclude fade, translucency, and blur costs. The [effects configuration](../tools/desktop/compust-effects.toml) uses Present with the default 180 ms fades and blur radius 4. In `effects` mode, the probe also makes the surviving window 50% translucent before measuring, so each redraw blends that window and blurs the full screen behind it.
 
-The probe checks managed tiling, override-redirect popup removal, EWMH fullscreen and restoration, switching to an empty workspace and back, 32 rapid create/map/destroy sequences, and a surviving window's redraw. Each scene checks actual overlay pixels. The runner also requires a successful compositor exit after SIGTERM. Display startup waits for `-displayfd`, while selection, window-manager, and scene readiness use X11 notifications with deadlines.
+The probe checks managed tiling, override-redirect popup removal, EWMH fullscreen and restoration, switching to an empty workspace, setting and removing a root wallpaper there, switching back, 32 rapid create/map/destroy sequences, and a surviving window's redraw. Each scene checks actual overlay pixels. The runner also requires a successful compositor exit after SIGTERM. Display startup waits for `-displayfd`, while selection, window-manager, and scene readiness use X11 notifications with deadlines.
 
-After two seconds of warmup, the probe measures an idle phase and a phase with a large opaque window alternating red and blue at a requested 60 updates per second. It records Compust, Xephyr, the Xvfb host, Xmonad, and probe CPU separately, with RSS at each phase's endpoints. CPU percentages use one core as 100%; a zero value means no CPU ticks were observed during that interval. Endpoint RSS values are not a long-running leak test.
+After two seconds of warmup, the probe measures an idle phase and a phase with a large window, opaque except in `effects` mode, alternating red and blue at a requested 60 updates per second. It records Compust, the X server, the Xvfb host when one is used, Xmonad, and probe CPU separately, with RSS at each phase's endpoints. CPU percentages use one core as 100%; a zero value means no CPU ticks were observed during that interval. Endpoint RSS values are not a long-running leak test.
 
-In `present` mode, the active phase must receive multiple compositor Present completions. `frames.csv` contains server UST timestamps, MSC values, serials, and completion modes. Compute intervals only between successive records in the same phase. These are software completion timings, not input-to-display latency or physical refresh measurements.
+In `present` and `effects` modes, the active phase must receive multiple compositor Present completions. `frames.csv` contains server UST timestamps, MSC values, serials, and completion modes. Compute intervals only between successive records in the same phase. On nested servers these are software completion timings; on hardware they follow the CRTC's vblank. Neither is input-to-display latency.
 
 In `direct` mode, the probe requires overlay Damage notifications during activity and rejects any compositor Present completions. `frames.csv` has only its header: there is no Present pacing measurement for direct copying. Damage counts establish redraw activity, not displayed frame rate. This probe still requires the server's Present extension so it can detect an incorrectly selected path; production Compust can run without that extension.
+
+## Run the desktop checks on hardware
+
+[`tools/hardware-session.sh`](../tools/hardware-session.sh) runs the three modes on a GPU and physical monitor. It is the client of a new X server started from a text console, so it neither replaces nor disturbs a working session. For example, press Ctrl+Alt+F3, log in, and run:
+
+```sh
+cd path/to/compust
+env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hardware-desktop -- :20
+```
+
+Choose a free display number and an output name from `xrandr`; without `SESSION_OUTPUT`, the first connected output is used. The script leaves only that output enabled at its preferred mode, disables screen blanking, and keeps one client connected so the server does not reset between runs. It records the outputs, providers, and GPU, then runs `present`, `direct`, and `effects` against the new server, continuing after a failed mode. Finally it copies the server log when readable and exits, which ends the session. Do not use the keyboard or mouse until it prints `Hardware session finished`; then log out and return to your usual session. Review `xorg.log` before sharing it: it includes monitor serial numbers and the kernel command line.
 
 ## Keep evidence attributable
 
@@ -123,11 +135,42 @@ Every repeated topology reproduced the same `resources.csv` in each mode. With o
 
 These results qualify monitor transitions for this environment only. They do not cover other GPU drivers, Xorg on hardware, mixed refresh rates, more than two monitors, fades, blur, or long-running sessions. Turning DP-1 off with `xrandr` also moved HDMI-1 to the origin and shrank the root. CRTC changes without a root resize are covered by the Xvfb regression instead. DP-1's hotplug is the adapter's DisplayPort connection. The marker checks prove server-side redraws, not what each panel displayed.
 
+## Recorded effects baseline: 2026-10-03
+
+Six sequential runs repeated the isolated baseline in all three modes with Xorg Xephyr 21.1.24 and XLibre Xephyr 25.1.9. The base was `0ef4d14f0e5e81fff8cf3689f008961e3c1ed15e` plus the [recorded changes](benchmarks/2026-10-03/effects/xorg-present/source.patch), with the compositor binary `1220413a892149d2c12bbf56dded047c20bf7956e5063dc246c61a5989ddb2bf`. Every run passed every scenario, including the wallpaper change.
+
+| Nested server / mode | Active Compust CPU | Active Xephyr CPU | Frames in 10 s | Interval median / p95 |
+| --- | ---: | ---: | ---: | ---: |
+| [Xorg / Present](benchmarks/2026-10-03/effects/xorg-present/processes.csv) | 0.4% | 10.4% | 599 | 16.679 / 17.676 ms |
+| [Xorg / direct](benchmarks/2026-10-03/effects/xorg-direct/processes.csv) | 0.3% | 10.4% | 600 Damage | — |
+| [Xorg / effects](benchmarks/2026-10-03/effects/xorg-effects/processes.csv) | 0.0% | 85.8% | 85 | 116.681 / 118.518 ms |
+| [XLibre / Present](benchmarks/2026-10-03/effects/xlibre-present/processes.csv) | 0.6% | 14.3% | 598 | 16.673 / 17.711 ms |
+| [XLibre / direct](benchmarks/2026-10-03/effects/xlibre-direct/processes.csv) | 0.3% | 9.9% | 600 Damage | — |
+| [XLibre / effects](benchmarks/2026-10-03/effects/xlibre-effects/processes.csv) | 0.0% | 86.1% | 85 | 116.640 / 118.027 ms |
+
+Present and direct results match the earlier baseline within run-to-run variation. For direct runs, frames are overlay Damage notifications. With the translucent survivor and blur radius 4, Xephyr spent most of a core on 1280×800 frames and delivered about 8.5 per second, while Compust recorded no CPU ticks.
+
+## Recorded hardware desktop session: 2026-10-03
+
+The [AMD/XLibre machine above](#recorded-hardware-session-2026-10-03) ran a dedicated XLibre 25.1.9 server on vt3, started by `startx` from a text console while the usual session stayed on vt2. The [server log](benchmarks/2026-10-03/desktop-hardware/xorg.log) reports glamor on radeonsi with OpenGL 4.6, and TearFree enabled by the modesetting driver's default. HDMI-1 was the only active output, at 1920×1080 and 60 Hz; DP-1 was off. The tested tree and binaries match the nested effects baseline. All three modes passed every scenario; the [session log](benchmarks/2026-10-03/desktop-hardware/session.log) lists the results.
+
+| Mode | Active Compust CPU | Active Xorg CPU | Frames in 10 s | Interval median / p95 / max |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/desktop-hardware/present/processes.csv) | 0.3% | 3.1% | 600 | 16.667 / 16.667 / 16.667 ms |
+| [Direct](benchmarks/2026-10-03/desktop-hardware/direct/processes.csv) | 0.3% | 3.5% | 600 Damage | — |
+| [Effects](benchmarks/2026-10-03/desktop-hardware/effects/processes.csv) | 0.0% | 93.7% | 49 | 199.998 / 216.665 / 216.665 ms |
+
+Present followed vblank exactly: every active-phase MSC advanced by one. In idle phases, Compust and Xorg recorded no CPU ticks in Present and direct modes; in effects mode, Xorg used 1.9% of a core finishing the last warmup frame. Compust RSS stayed at 3,824–3,888 KiB and Xorg RSS at 92,820–93,152 KiB, unchanged within each phase.
+
+With blur, each frame took 12 or 13 vblanks while Xorg used most of a CPU core, which is slower per frame than software Xephyr at 1280×800. Glamor accelerates only nearest and bilinear filtering; [`glamor_composite`](https://github.com/X11Libre/xserver/blob/b4b92c2374ec81ea979d53ad79fd0d0784bbf291/glamor/glamor_render.c#L1766-L1769) sends any convolution filter to its software fallback, which moves pixmaps between GPU and CPU memory. Compust's two convolution passes therefore run on the CPU for every redraw of a translucent window. On this machine, a full-screen translucent window with blur radius 4 limits output to about five frames per second.
+
+These runs use the probe's synthetic windows, one monitor, Xmonad, and ten-second phases. They do not cover actual applications, decorated or reparenting window managers, server shutdown under a running compositor, mixed refresh rates, or other GPUs.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.
 
-Repeat the lifecycle, menus, fullscreen, and workspace scenarios with actual applications. Add decorated/reparenting windows, wallpaper changes, session shutdown, fades, and translucent windows with blur enabled. Record which scenarios passed, their reproductions, and logs for every failure. Xmonad's nested checks do not qualify another window manager.
+Run the [hardware session](#run-the-desktop-checks-on-hardware) for the probe's scenarios, wallpaper change, fades, and translucent blur. Then repeat the lifecycle, menus, fullscreen, and workspace scenarios with actual applications, and add decorated or reparenting window managers and session shutdown. Record which scenarios passed, their reproductions, and logs for every failure. Xmonad's checks do not qualify another window manager.
 
 For step 2, run the [monitor-transition procedure](#sample-monitor-transitions) in both presentation modes on each environment proposed for support. It records connector names, modes, refresh rates, and the monitor layout around each physical disconnection and reconnection, and checks redraws across shared monitor edges. Virtual CRTC disable/enable is covered in automation and does not substitute for these connector tests. The session above covers one AMD/XLibre environment.
 

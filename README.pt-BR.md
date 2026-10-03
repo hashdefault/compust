@@ -101,7 +101,7 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 ## Limitações atuais
 
-O protótipo redesenha a tela inteira quando recebe dano. Para cada janela translúcida, o desfoque faz trabalho intermediário sobre a tela inteira e pode ser caro. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
+O protótipo redesenha a tela inteira quando recebe dano. Para cada janela translúcida, o desfoque faz trabalho intermediário sobre a tela inteira com o filtro de convolução do XRender, que drivers baseados em glamor processam na CPU. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03), o desfoque atrás de uma janela translúcida em tela cheia limitou a imagem a cerca de cinco quadros por segundo; use `blur_radius = 0` se janelas translúcidas ficarem lentas. Redesenho por regiões, descarte de áreas ocultas, backends de GPU e benchmarks comparativos ainda estão em aberto. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, recarga de configuração, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 

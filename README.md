@@ -101,7 +101,7 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints the full screen when damaged. Blur performs full-screen intermediate work for each translucent window; it can be expensive. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints the full screen when damaged. Blur performs full-screen intermediate work for each translucent window with the XRender convolution filter, which glamor-based drivers render on the CPU. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03), blur behind a full-screen translucent window limited output to about five frames per second; set `blur_radius = 0` if translucent windows feel slow. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 

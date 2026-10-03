@@ -32,7 +32,7 @@ Property reads validate the wire representation before using application data. `
 
 ## Rendering and scheduling
 
-The renderer paints wallpaper into a reusable root-depth buffer, composites windows from bottom to top, and uses an A8 mask for effective opacity. Per-pixel alpha remains part of the source picture. Shape rectangles clip both window painting and blur. They use pixmap-local coordinates, including the border; the XRender clip origin applies the window position. This avoids prematurely saturating 16-bit coordinate sums for extreme off-screen shapes. The blur module uses two one-dimensional box convolutions, with an exact fixed-point coefficient sum of 65536.
+The renderer paints wallpaper into a reusable root-depth buffer, composites windows from bottom to top, and uses an A8 mask for effective opacity. Per-pixel alpha remains part of the source picture. Shape rectangles clip both window painting and blur. They use pixmap-local coordinates, including the border; the XRender clip origin applies the window position. This avoids prematurely saturating 16-bit coordinate sums for extreme off-screen shapes. The blur module uses two one-dimensional box convolutions, with an exact fixed-point coefficient sum of 65536. Glamor-based drivers do not accelerate convolution filters, so both passes run on the CPU there; the [desktop qualification guide](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) records the cost.
 
 `animation.rs` uses monotonic `Instant` values and integer smoothstep interpolation. Closing and reopening retarget from the sampled opacity so interrupted animations remain continuous. The event loop schedules a final frame at the endpoint, including when the duration is zero.
 

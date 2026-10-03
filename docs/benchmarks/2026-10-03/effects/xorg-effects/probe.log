@@ -1,0 +1,5 @@
+vendor=The X.Org Foundation release=12101024 geometry=1280x800 depth=24
+fullscreen client=1278x798 border=1
+phase=idle seconds=10.009841 updates=0 completions=2 damage_events=2
+phase=active seconds=10.000059 updates=600 completions=85 damage_events=85
+PASS: managed windows, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at 50% opacity

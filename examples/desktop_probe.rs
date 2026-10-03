@@ -38,6 +38,9 @@ struct Args {
     /// Expected compositor presentation path; direct copying has no Present timings.
     #[arg(long, value_enum, default_value_t = Presentation::Present)]
     presentation: Presentation,
+    /// Survivor opacity percentage while measuring; below 100, each redraw blends and blurs.
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100), default_value_t = 100)]
+    opacity: u8,
     /// Keep one marker window instead of running the desktop scenarios. Read
     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
     #[arg(long)]
@@ -66,15 +69,19 @@ fn main() -> Result<()> {
         return hotplug::run(&surface, &args, &processes);
     }
     let window = scenarios::exercise(&surface, &args.output)?;
+    if args.opacity < 100 {
+        scenarios::translucent(&surface, window, args.opacity)?;
+    }
     surface.subscribe()?;
     measure(&surface, window, &args, &processes, &args.output)?;
     surface.paint(window, 0x00ff_0000)?;
     surface.until("final survivor pixels", || {
-        surface.window_has_color(window, 0x00ff_0000)
+        scenarios::shows_red(&surface, window, args.opacity)
     })?;
     surface.screenshot(&args.output.join("final.ppm"))?;
     println!(
-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
+        "PASS: managed windows, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
+        args.opacity
     );
     Ok(())
 }

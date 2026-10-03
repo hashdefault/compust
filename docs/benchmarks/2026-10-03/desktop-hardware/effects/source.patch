@@ -1,0 +1,337 @@
+diff --git a/examples/desktop/pixels.rs b/examples/desktop/pixels.rs
+index 577bc36..c644837 100644
+--- a/examples/desktop/pixels.rs
++++ b/examples/desktop/pixels.rs
+@@ -30,0 +31,5 @@ impl Surface {
++        Ok(self.window_pixel(window)? == color)
++    }
++
++    /// The composited pixel at the center of `window`.
++    pub(in super::super) fn window_pixel(&self, window: u32) -> Result<u32> {
+@@ -41 +46 @@ impl Surface {
+-        Ok(self.pixel((position.dst_x, position.dst_y))? == color)
++        self.pixel((position.dst_x, position.dst_y))
+diff --git a/examples/desktop/scenarios.rs b/examples/desktop/scenarios.rs
+index 9fc3e8a..09802af 100644
+--- a/examples/desktop/scenarios.rs
++++ b/examples/desktop/scenarios.rs
+@@ -4 +4,8 @@ use std::path::Path;
+-use x11rb::protocol::xproto::ConnectionExt as _;
++use x11rb::{
++    connection::Connection,
++    protocol::xproto::{AtomEnum, ConnectionExt as _, CreateGCAux, PropMode, Rectangle},
++    wrapper::ConnectionExt as _,
++};
++
++/// Color Compust paints where no window or wallpaper covers the root.
++pub(super) const BACKGROUND: u32 = 0x0018_1820;
+@@ -80 +87 @@ pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
+-                && surface.pixel((80, 80))? == 0x0018_1820,
++                && surface.pixel((80, 80))? == BACKGROUND,
+@@ -83,0 +91 @@ pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
++    wallpaper(surface)?;
+@@ -104,0 +113,93 @@ pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
++
++/// Show, then remove, a tiled root wallpaper on the empty workspace.
++fn wallpaper(surface: &Surface) -> Result<()> {
++    let color = 0x0033_6699;
++    let pixmap = surface.conn.generate_id()?;
++    surface
++        .conn
++        .create_pixmap(24, pixmap, surface.root, 4, 4)?
++        .check()?;
++    let gc = surface.conn.generate_id()?;
++    surface
++        .conn
++        .create_gc(gc, pixmap, &CreateGCAux::new().foreground(color))?
++        .check()?;
++    let area = Rectangle {
++        x: 0,
++        y: 0,
++        width: 4,
++        height: 4,
++    };
++    surface
++        .conn
++        .poly_fill_rectangle(pixmap, gc, &[area])?
++        .check()?;
++    surface.conn.free_gc(gc)?.check()?;
++    let property = surface.atom("_XROOTPMAP_ID")?;
++    surface
++        .conn
++        .change_property32(
++            PropMode::REPLACE,
++            surface.root,
++            property,
++            AtomEnum::PIXMAP,
++            &[pixmap],
++        )?
++        .check()?;
++    surface.until("wallpaper pixels", || Ok(surface.pixel((80, 80))? == color))?;
++    surface
++        .conn
++        .delete_property(surface.root, property)?
++        .check()?;
++    surface.until("wallpaper removal", || {
++        Ok(surface.pixel((80, 80))? == BACKGROUND)
++    })?;
++    surface.conn.free_pixmap(pixmap)?.check()?;
++    Ok(())
++}
++
++/// Make the survivor translucent; with blur configured, every redraw blurs what lies behind it.
++pub(super) fn translucent(surface: &Surface, window: u32, opacity: u8) -> Result<()> {
++    let value = u32::try_from(u64::from(u32::MAX) * u64::from(opacity) / 100)?;
++    surface
++        .conn
++        .change_property32(
++            PropMode::REPLACE,
++            window,
++            surface.atom("_NET_WM_WINDOW_OPACITY")?,
++            AtomEnum::CARDINAL,
++            &[value],
++        )?
++        .check()?;
++    surface.until("translucent survivor pixels", || {
++        shows_red(surface, window, opacity)
++    })
++}
++
++/// Whether `window` shows red at `opacity` percent over the background. Translucent pixels
++/// allow for rounding in the compositor's 8-bit alpha mask.
++pub(super) fn shows_red(surface: &Surface, window: u32, opacity: u8) -> Result<bool> {
++    let pixel = surface.window_pixel(window)?;
++    let expected = blend(0x00ff_0000, opacity);
++    Ok(if opacity == 100 {
++        pixel == expected
++    } else {
++        near(pixel, expected)
++    })
++}
++
++/// An opaque `color` composited at `opacity` percent over the background.
++fn blend(color: u32, opacity: u8) -> u32 {
++    let alpha = u32::from(opacity);
++    [16, 8, 0].into_iter().fold(0, |pixel, shift| {
++        let source = (color >> shift) & 255;
++        let below = (BACKGROUND >> shift) & 255;
++        pixel | ((source * alpha + below * (100 - alpha) + 50) / 100) << shift
++    })
++}
++
++fn near(pixel: u32, expected: u32) -> bool {
++    [16, 8, 0]
++        .into_iter()
++        .all(|shift| ((pixel >> shift) & 255).abs_diff((expected >> shift) & 255) <= 3)
++}
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index e7f1514..757a7b2 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -40,0 +41,3 @@ struct Args {
++    /// Survivor opacity percentage while measuring; below 100, each redraw blends and blurs.
++    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100), default_value_t = 100)]
++    opacity: u8,
+@@ -68,0 +72,3 @@ fn main() -> Result<()> {
++    if args.opacity < 100 {
++        scenarios::translucent(&surface, window, args.opacity)?;
++    }
+@@ -73 +79 @@ fn main() -> Result<()> {
+-        surface.window_has_color(window, 0x00ff_0000)
++        scenarios::shows_red(&surface, window, args.opacity)
+@@ -77 +83,2 @@ fn main() -> Result<()> {
+-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, rapid lifecycle, survivor redraw"
++        "PASS: managed windows, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
++        args.opacity
+diff --git a/tools/desktop-check.sh b/tools/desktop-check.sh
+index 1e32fe5..e1fe8e4 100755
+--- a/tools/desktop-check.sh
++++ b/tools/desktop-check.sh
+@@ -3,0 +4 @@ set -euo pipefail
++usage='Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY [present|direct|effects]'
+@@ -5 +6 @@ if [[ ${1:-} == --help ]]; then
+-    printf 'Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY [present|direct]\n'
++    printf '%s\n' "$usage"
+@@ -6,0 +8 @@ if [[ ${1:-} == --help ]]; then
++    printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
+@@ -10 +12 @@ if (( $# < 1 || $# > 2 )); then
+-    printf 'Usage: tools/desktop-check.sh NEW_REPORT_DIRECTORY [present|direct]\n' >&2
++    printf '%s\n' "$usage" >&2
+@@ -13,5 +15,7 @@ fi
+-presentation=${2:-present}
+-case "$presentation" in
+-    present) config=tools/desktop/compust.toml ;;
+-    direct) config=tools/desktop/compust-direct.toml ;;
+-    *) printf 'Unknown presentation mode: %s\n' "$presentation" >&2; exit 2 ;;
++mode=${2:-present}
++opacity=100
++case "$mode" in
++    present) config=tools/desktop/compust.toml presentation=present ;;
++    direct) config=tools/desktop/compust-direct.toml presentation=direct ;;
++    effects) config=tools/desktop/compust-effects.toml presentation=present opacity=50 ;;
++    *) printf 'Unknown mode: %s\n' "$mode" >&2; exit 2 ;;
+@@ -18,0 +23,4 @@ esac
++if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
++    printf 'SERVER_PID must identify the X server of DESKTOP_DISPLAY.\n' >&2
++    exit 2
++fi
+@@ -22,0 +31 @@ work=$(mktemp -d /tmp/compust-desktop.XXXXXX)
++# Processes this runner started, most recent first; an existing server is never listed.
+@@ -45,9 +54,18 @@ export XMONAD_DATA_DIR="$work/data"
+-mkfifo "$work/host-display" "$work/display"
+-exec {host_ready}<>"$work/host-display"
+-"${XVFB:-Xvfb}" -displayfd 3 -screen 0 1280x800x24 -nolisten tcp -noreset \
+-    3>&"$host_ready" >"$report/xvfb.log" 2>&1 &
+-host_pid=$!
+-pids+=("$host_pid")
+-IFS= read -r -t 10 -u "$host_ready" host_display
+-exec {host_ready}>&-
+-export DISPLAY=":$host_display"
++if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
++    export DISPLAY=$DESKTOP_DISPLAY
++    server_pid=$SERVER_PID
++    measured=(--process "server:$server_pid")
++    servers=()
++    ps -o pid=,args= -p "$server_pid" >"$report/server-process.txt"
++    # A previous run's window manager can leave a stale EWMH check window behind.
++    xprop -root -remove _NET_SUPPORTING_WM_CHECK
++else
++    mkfifo "$work/host-display" "$work/display"
++    exec {host_ready}<>"$work/host-display"
++    "${XVFB:-Xvfb}" -displayfd 3 -screen 0 1280x800x24 -nolisten tcp -noreset \
++        3>&"$host_ready" >"$report/xvfb.log" 2>&1 &
++    host_pid=$!
++    pids+=("$host_pid")
++    IFS= read -r -t 10 -u "$host_ready" host_display
++    exec {host_ready}>&-
++    export DISPLAY=":$host_display"
+@@ -55,8 +73,11 @@ export DISPLAY=":$host_display"
+-exec {server_ready}<>"$work/display"
+-"${XEPHYR:-Xephyr}" -displayfd 3 -screen 1280x800 -nolisten tcp \
+-    3>&"$server_ready" >"$report/xephyr.log" 2>&1 &
+-server_pid=$!
+-pids=("$server_pid" "${pids[@]}")
+-IFS= read -r -t 10 -u "$server_ready" server_display
+-exec {server_ready}>&-
+-export DISPLAY=":$server_display"
++    exec {server_ready}<>"$work/display"
++    "${XEPHYR:-Xephyr}" -displayfd 3 -screen 1280x800 -nolisten tcp \
++        3>&"$server_ready" >"$report/xephyr.log" 2>&1 &
++    server_pid=$!
++    pids=("$server_pid" "${pids[@]}")
++    IFS= read -r -t 10 -u "$server_ready" server_display
++    exec {server_ready}>&-
++    export DISPLAY=":$server_display"
++    measured=(--process "server:$server_pid" --process "host:$host_pid")
++    servers=("$(command -v "${XVFB:-Xvfb}")" "$(command -v "${XEPHYR:-Xephyr}")")
++fi
+@@ -68,0 +90 @@ xrandr --current >"$report/outputs.txt" 2>&1
++sources=(src examples tools Cargo.toml Cargo.lock rust-toolchain.toml)
+@@ -71,2 +93,7 @@ git status --short >"$report/worktree.txt"
+-git diff HEAD -- src examples tools Cargo.toml Cargo.lock rust-toolchain.toml >"$report/source.patch"
+-git ls-files -z src examples tools Cargo.toml Cargo.lock rust-toolchain.toml \
++{
++    git diff HEAD -- "${sources[@]}"
++    while IFS= read -r -d '' file; do
++        git diff --no-index -- /dev/null "$file" || [[ $? == 1 ]]
++    done < <(git ls-files -z --others --exclude-standard -- "${sources[@]}")
++} >"$report/source.patch"
++git ls-files -z --cached --others --exclude-standard -- "${sources[@]}" \
+@@ -81,3 +108 @@ sha256sum target/release/compust target/release/examples/desktop_probe \
+-    tools/desktop/xmonad.hs "$wm_binary" \
+-    "$(command -v "${XVFB:-Xvfb}")" "$(command -v "${XEPHYR:-Xephyr}")" \
+-    >"$report/binaries.txt"
++    tools/desktop/xmonad.hs "$wm_binary" "${servers[@]}" >"$report/binaries.txt"
+@@ -90,2 +115 @@ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
+-    --process "compust:$compositor_pid" --process "server:$server_pid" \
+-    --process "host:$host_pid" --process "wm:$wm_pid" \
++    --process "compust:$compositor_pid" "${measured[@]}" --process "wm:$wm_pid" \
+@@ -93 +117 @@ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
+-    >"$report/probe.log" 2>&1
++    --opacity "$opacity" >"$report/probe.log" 2>&1
+@@ -97 +121 @@ wait "$compositor_pid"
+-pids=("$wm_pid" "$server_pid" "$host_pid")
++pids=("${pids[@]:1}")
+diff --git a/tools/desktop/compust-effects.toml b/tools/desktop/compust-effects.toml
+new file mode 100644
+index 0000000..790ba00
+--- /dev/null
++++ b/tools/desktop/compust-effects.toml
+@@ -0,0 +1,3 @@
++fade_ms = 180
++blur_radius = 4
++vsync = true
+diff --git a/tools/hardware-session.sh b/tools/hardware-session.sh
+new file mode 100755
+index 0000000..c29622e
+--- /dev/null
++++ b/tools/hardware-session.sh
+@@ -0,0 +1,68 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++usage="Usage: startx \"\$PWD/tools/hardware-session.sh\" NEW_REPORT_ROOT -- :1"
++if [[ ${1:-} == --help ]]; then
++    printf '%s\n' "$usage"
++    printf 'Run the present, direct, and effects desktop checks as the client of a dedicated\n'
++    printf 'X session. SESSION_OUTPUT selects the one output left enabled. Build release binaries first.\n'
++    exit 0
++fi
++if (( $# != 1 )); then
++    printf '%s\n' "$usage" >&2
++    exit 2
++fi
++if [[ -z ${DISPLAY:-} ]]; then
++    printf 'Run this script as the client of startx or xinit.\n' >&2
++    exit 2
++fi
++root=$(realpath -m -- "$1")
++cd -- "$(dirname -- "$(realpath -- "$0")")/.."
++mkdir -- "$root"
++exec > >(tee "$root/session.log") 2>&1
++# Console logins may lack the rustup PATH used to build the project.
++if [[ -d $HOME/.cargo/bin ]]; then
++    PATH="$HOME/.cargo/bin:$PATH"
++fi
++# xinit starts the server and this client; another child of our parent is the server.
++server_pid=${SERVER_PID:-$(pgrep -P "$PPID" | grep -vx "$$" | head -n 1)}
++ps -o pid=,comm= -p "$server_pid"
++# The server resets when its last client disconnects; keep one connected between runs.
++xprop -root -spy WM_NAME >/dev/null &
++keepalive=$!
++trap 'kill "$keepalive" 2>/dev/null || true' EXIT
++
++xrandr --current >"$root/outputs-initial.txt"
++output=${SESSION_OUTPUT:-$(xrandr --current | awk '$2 == "connected" { print $1; exit }')}
++layout=(--output "$output" --auto --primary --pos 0x0)
++while read -r other; do
++    layout+=(--output "$other" --off)
++done < <(xrandr --current | awk -v keep="$output" '$2 == "connected" && $1 != keep { print $1 }')
++xrandr "${layout[@]}"
++xrandr --current >"$root/outputs.txt"
++xrandr --listproviders >"$root/providers.txt"
++if command -v lspci >/dev/null; then
++    lspci -nnk -d ::0300 >"$root/gpu.txt"
++fi
++# Keep the screen awake; xset only reports a missing DPMS extension.
++xset s off s noblank -dpms
++
++status=0
++for mode in present direct effects; do
++    if DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/desktop-check.sh "$root/$mode" "$mode"; then
++        printf '%s: passed\n' "$mode"
++    else
++        printf '%s: failed\n' "$mode"
++        status=1
++    fi
++done
++number=${DISPLAY#*:}
++number=${number%%.*}
++for log in "$HOME/.local/share/xorg/Xorg.$number.log" "/var/log/Xorg.$number.log"; do
++    if [[ -r $log ]]; then
++        cp -- "$log" "$root/xorg.log"
++        break
++    fi
++done
++printf 'Hardware session finished: %s\n' "$root"
++exit "$status"

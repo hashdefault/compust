@@ -1,0 +1,7 @@
+ M examples/desktop/pixels.rs
+ M examples/desktop/scenarios.rs
+ M examples/desktop_probe.rs
+ M tools/desktop-check.sh
+?? docs/benchmarks/2026-10-03/desktop-hardware/
+?? tools/desktop/compust-effects.toml
+?? tools/hardware-session.sh

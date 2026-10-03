@@ -18,7 +18,7 @@ The first beta will use the existing XRender backend and declare support only fo
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
-| 3. Real desktops | Nested Xmonad baseline and one AMD/XLibre session recorded; hardware scenarios pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
+| 3. Real desktops | Xmonad scenarios recorded on nested servers and one AMD/XLibre desktop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Pending | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
@@ -41,7 +41,7 @@ Run documented scenarios with real window managers on Xorg and XLibre. Record th
 
 **Acceptance:** publish a compatibility matrix with evidence for each advertised environment, a reproducible measurement baseline, and remaining limitations. Untested driver/server combinations remain unqualified.
 
-The [desktop qualification guide](DESKTOP_TESTING.md) documents the isolated runner, measurements, and hardware procedure. The recorded Xephyr/Xmonad runs start this step; they do not close its driver and physical-display requirements. The AMD/XLibre monitor session adds hardware CPU, memory, and Present pacing for one environment. The desktop scenarios still need a dedicated hardware session: window lifecycle, menus, fullscreen, and workspaces with real applications, plus fades and blur.
+The [desktop qualification guide](DESKTOP_TESTING.md) documents the isolated runner, measurements, and hardware procedure. The recorded Xephyr/Xmonad runs start this step; they do not close its driver and physical-display requirements. A dedicated AMD/XLibre session now runs the probe's scenarios, wallpaper change, fades, and translucent blur on hardware. Actual applications, decorated or reparenting window managers, Xorg on hardware, and other drivers remain open.
 
 ### 4. Beta distribution
 
@@ -113,6 +113,14 @@ With the fix, both presentation modes passed fifteen samples: the baseline, a 12
 
 The full suite now has 61 passing tests: six unit, three CLI, and fifty-two X11 integration tests. Formatting, strict Clippy, and the release build pass. This qualifies monitor transitions only in the recorded environment, with fades and blur disabled. Intel and NVIDIA drivers, Xorg on hardware, mixed refresh rates, more than two monitors, and the step 3 desktop scenarios on hardware remain open.
 
+### Step 3 on hardware: Xmonad scenarios and effects on AMD/XLibre
+
+The probe gained a wallpaper scenario, which sets and removes `_XROOTPMAP_ID` on the empty workspace, and an `--opacity` option for its measured window. The runner's new `effects` mode uses the default 180 ms fades and blur radius 4 with a 50% translucent window, and the runner can now target an existing dedicated server. [`hardware-session.sh`](../tools/hardware-session.sh) runs all three modes as the client of a new X server started from a text console.
+
+On the AMD/XLibre machine, a dedicated session with HDMI-1 alone at 1920×1080 passed every scenario in all three modes. Present completions followed vblank exactly: 600 frames at 16.667 ms, with Compust at 0.3% and Xorg at 3.1% of one core. The effects mode exposed the main performance problem. Blur behind a full-screen translucent window took 200–217 ms per frame while Xorg used 93.7%. Glamor accelerates only nearest and bilinear filtering, so the convolution filter used by Compust's blur falls back to the CPU on every redraw. Nested Xephyr at 1280×800 showed the same limit, 85 frames in ten seconds. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) has the measurements and limits.
+
+This completes the probe's scenarios in one hardware environment, with Xmonad and synthetic windows. Actual applications, decorated or reparenting window managers, server shutdown under a running compositor, Xorg on hardware, and other GPUs remain open. Blur needs an implementation that glamor can accelerate before it can be recommended on glamor-based drivers. Formatting, strict Clippy, the 61-test suite, and the release build pass.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -121,9 +129,10 @@ The full suite now has 61 passing tests: six unit, three CLI, and fifty-two X11 
 | Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors are outside this virtual setup. |
 | Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with Intel/NVIDIA drivers or other AMD configurations | Pending | Requires the same environment evidence; one AMD session does not establish other drivers. |
-| Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios, idle/active CPU and RSS, Present and direct XRender, shutdown | Recorded 2026-10-03; fade/blur disabled. [Results and limitations](DESKTOP_TESTING.md#recorded-baseline-2026-10-03). No physical display or driver qualification. |
-| XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in both paths | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
-| XLibre 25.1.9 native, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP-to-VGA at 1920×1080 60 Hz | Mode, layout, and output changes; physical unplugging and reconnection of both connectors; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with fade/blur disabled while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). The desktop scenario probe was not run on hardware. |
+| Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios with wallpaper change, idle/active CPU and RSS, Present, direct XRender, and effects modes, shutdown | Recorded 2026-10-03: [baseline](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) with fade/blur disabled and an [effects baseline](DESKTOP_TESTING.md#recorded-effects-baseline-2026-10-03). No physical display or driver qualification. |
+| XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in all three modes | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
+| XLibre 25.1.9 native, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP-to-VGA at 1920×1080 60 Hz | Mode, layout, and output changes; physical unplugging and reconnection of both connectors; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with fade/blur disabled while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). The desktop scenario probe was not run in this session. |
+| Dedicated XLibre 25.1.9 session on the same AMD machine, HDMI-1 alone at 1920×1080 60 Hz, glamor, default TearFree | Probe desktop scenarios with wallpaper change; Present, direct XRender, and effects (fades, translucency, blur); CPU, RSS, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03). Glamor renders blur convolution on the CPU: about five frames per second behind a full-screen translucent window. |
 
 Reproduce the lifecycle checks with the repository's pinned toolchain and Xvfb installed. The [CI runs](https://github.com/hashdefault/compust/actions/workflows/ci.yml) record results against each exact commit; include the revision printed below in local reports.
 
@@ -145,13 +154,15 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 ### Remaining acceptance work
 
-Test Xorg and XLibre with actual window managers and Intel, AMD, and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
+The probe's scenarios pass on one AMD/XLibre session. Extend hardware testing to Xorg, other window managers, actual applications, and Intel and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
 Repeat physical hotplug and multiple-monitor layouts with other drivers and servers, mixed refresh rates, and more than two monitors, and measure longer-running memory and presentation behavior. The AMD/XLibre monitor session, virtual RandR transitions, recovery from rejected or unfinished Present submissions, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 
 ## Then: measure and reduce rendering work
+
+The first hardware measurements set the priority. Blur uses the XRender convolution filter, which glamor-based drivers render on the CPU: a full-screen translucent window with blur radius 4 held an AMD/XLibre desktop to about five frames per second while Xorg used a full core. Evaluate a blur built from operations that glamor accelerates, such as bilinear downsampling and upsampling, before region optimizations. Its appearance differs from the current box filter, so compare both and test the chosen kernel.
 
 Collect release-build baselines for idle CPU, application and X-server CPU, memory, frame pacing, and input-to-display latency. Compare equivalent scenes and effects against a recorded picom version/backend. Include high-resolution and mixed-refresh setups.
 

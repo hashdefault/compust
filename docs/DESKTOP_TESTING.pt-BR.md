@@ -2,7 +2,7 @@
 
 [English (US)](DESKTOP_TESTING.md) | [Português (Brasil)](DESKTOP_TESTING.pt-BR.md)
 
-Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. Uma sessão AMD/XLibre registrada abaixo cobre as transições físicas de monitores da etapa 2; outros hardwares e os cenários de desktop da etapa 3 em hardware continuam em aberto.
+Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. Sessões AMD/XLibre registradas abaixo cobrem as transições físicas de monitores da etapa 2 e os cenários de desktop do probe em hardware da etapa 3; outros hardwares, gerenciadores de janelas e aplicativos reais continuam em aberto.
 
 ## Executar a medição isolada
 
@@ -14,19 +14,31 @@ cargo build --release --locked --bin compust --example desktop_probe
 mkdir -p artifacts
 tools/desktop-check.sh artifacts/desktop-present present
 tools/desktop-check.sh artifacts/desktop-direct direct
+tools/desktop-check.sh artifacts/desktop-effects effects
 ```
 
-Cada diretório de relatório precisa ser novo. Omitir o modo seleciona `present`; `--help` descreve o comando. Defina `XVFB` e `XEPHYR` com caminhos de executáveis alternativos para testar outro build de servidor, incluindo o Xephyr do XLibre. Eles não selecionam o display do seu desktop atual. `SECONDS_PER_PHASE` aceita 1–30 segundos e usa 10 por padrão. Execute as medições em sequência, sem outros builds ou benchmarks em andamento.
+Cada diretório de relatório precisa ser novo. Omitir o modo seleciona `present`; `--help` descreve o comando. Defina `XVFB` e `XEPHYR` com caminhos de executáveis alternativos para testar outro build de servidor, incluindo o Xephyr do XLibre. Eles não selecionam o display do seu desktop atual. `SECONDS_PER_PHASE` aceita 1–30 segundos e usa 10 por padrão. Execute as medições em sequência, sem outros builds ou benchmarks em andamento. Defina `DESKTOP_DISPLAY` e `SERVER_PID` para usar um servidor X dedicado já existente em vez de iniciar Xvfb e Xephyr; o script nunca encerra esse servidor. O [procedimento em hardware](#executar-as-verificações-de-desktop-em-hardware) usa esse modo.
 
-As duas configurações usam `opacity = 100`, `fade_ms = 0`, `blur_radius = 0` e `max_fps = 120`. A [configuração Present](../tools/desktop/compust.toml) usa `vsync = true`; a [configuração direta](../tools/desktop/compust-direct.toml) usa `vsync = false`. Esses resultados, portanto, não incluem os custos de fade, translucidez e desfoque.
+As configurações `present` e `direct` usam `opacity = 100`, `fade_ms = 0`, `blur_radius = 0` e `max_fps = 120`. A [configuração Present](../tools/desktop/compust.toml) usa `vsync = true`; a [configuração direta](../tools/desktop/compust-direct.toml) usa `vsync = false`. Esses dois modos, portanto, não incluem os custos de fade, translucidez e desfoque. A [configuração de efeitos](../tools/desktop/compust-effects.toml) usa Present com os fades padrão de 180 ms e raio de desfoque 4. No modo `effects`, o probe também deixa a janela sobrevivente 50% translúcida antes de medir, então cada atualização mistura essa janela e desfoca a tela inteira atrás dela.
 
-O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio e retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
+O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio, definição e remoção de um papel de parede na raiz nesse workspace, retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
 
-Após dois segundos de aquecimento, o probe mede uma fase ociosa e outra com uma janela opaca grande alternando vermelho e azul a uma frequência solicitada de 60 atualizações por segundo. Ele registra separadamente CPU de Compust, Xephyr, Xvfb hospedeiro, Xmonad e probe, com RSS no início e no fim de cada fase. Os percentuais consideram um núcleo como 100%; zero significa que nenhum tick de CPU foi observado naquele intervalo. Valores de RSS nos extremos não constituem um teste prolongado de vazamentos.
+Após dois segundos de aquecimento, o probe mede uma fase ociosa e outra com uma janela grande, opaca exceto no modo `effects`, alternando vermelho e azul a uma frequência solicitada de 60 atualizações por segundo. Ele registra separadamente CPU de Compust, servidor X, Xvfb hospedeiro quando houver, Xmonad e probe, com RSS no início e no fim de cada fase. Os percentuais consideram um núcleo como 100%; zero significa que nenhum tick de CPU foi observado naquele intervalo. Valores de RSS nos extremos não constituem um teste prolongado de vazamentos.
 
-No modo `present`, a fase ativa precisa receber várias conclusões Present do compositor. `frames.csv` contém timestamps UST do servidor, valores MSC, seriais e modos de conclusão. Calcule intervalos somente entre registros sucessivos da mesma fase. São tempos de conclusão por software, não latência entre entrada e exibição nem medições de atualização física do monitor.
+Nos modos `present` e `effects`, a fase ativa precisa receber várias conclusões Present do compositor. `frames.csv` contém timestamps UST do servidor, valores MSC, seriais e modos de conclusão. Calcule intervalos somente entre registros sucessivos da mesma fase. Em servidores aninhados, são tempos de conclusão por software; em hardware, acompanham o vblank do CRTC. Nenhum deles é latência entre entrada e exibição.
 
 No modo `direct`, o probe exige notificações Damage do overlay durante a atividade e rejeita qualquer conclusão Present do compositor. `frames.csv` contém apenas o cabeçalho: não há medição de regularidade via Present para cópia direta. Contagens Damage comprovam atividade de renderização, não a taxa de quadros exibidos. Este probe ainda exige a extensão Present do servidor para detectar um caminho selecionado incorretamente; o Compust de produção pode executar sem essa extensão.
+
+## Executar as verificações de desktop em hardware
+
+[`tools/hardware-session.sh`](../tools/hardware-session.sh) executa os três modos com GPU e monitor físico. Ele é o cliente de um novo servidor X iniciado em um console de texto, então não substitui nem perturba uma sessão de trabalho. Por exemplo, pressione Ctrl+Alt+F3, faça login e execute:
+
+```sh
+cd caminho/para/compust
+env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hardware-desktop -- :20
+```
+
+Escolha um número de display livre e o nome de uma saída exibida pelo `xrandr`; sem `SESSION_OUTPUT`, é usada a primeira saída conectada. O script deixa somente essa saída ativa no modo preferido, desativa o apagamento da tela e mantém um cliente conectado para que o servidor não seja reiniciado entre as execuções. Ele registra saídas, provedores e GPU e depois executa `present`, `direct` e `effects` no novo servidor, continuando após um modo com falha. Por fim, copia o log do servidor quando ele pode ser lido e encerra, terminando a sessão. Não use teclado nem mouse até aparecer `Hardware session finished`; depois faça logout e volte à sua sessão habitual. Revise `xorg.log` antes de compartilhá-lo: ele inclui números de série dos monitores e a linha de comando do kernel.
 
 ## Preservar a identificação das evidências
 
@@ -123,11 +135,42 @@ Cada topologia repetida reproduziu o mesmo `resources.csv` em cada modo. Com um 
 
 Esses resultados validam transições de monitores somente neste ambiente. Eles não cobrem outros drivers de GPU, Xorg em hardware, taxas de atualização mistas, mais de dois monitores, fades, desfoque ou sessões longas. Desligar o DP-1 pelo `xrandr` também moveu o HDMI-1 para a origem e reduziu a raiz. Mudanças de CRTC sem redimensionar a raiz são cobertas pela regressão no Xvfb. O hotplug do DP-1 é a conexão DisplayPort do adaptador. As verificações do marcador comprovam atualizações no servidor, não o que cada painel exibiu.
 
+## Medição registrada com efeitos: 2026-10-03
+
+Seis execuções sequenciais repetiram a medição isolada nos três modos com Xorg Xephyr 21.1.24 e XLibre Xephyr 25.1.9. A base foi `0ef4d14f0e5e81fff8cf3689f008961e3c1ed15e` mais as [alterações registradas](benchmarks/2026-10-03/effects/xorg-present/source.patch), com o binário do compositor `1220413a892149d2c12bbf56dded047c20bf7956e5063dc246c61a5989ddb2bf`. Todas as execuções passaram em todos os cenários, incluindo a troca de papel de parede.
+
+| Servidor aninhado / modo | CPU ativa Compust | CPU ativa Xephyr | Quadros em 10 s | Intervalo mediana / p95 |
+| --- | ---: | ---: | ---: | ---: |
+| [Xorg / Present](benchmarks/2026-10-03/effects/xorg-present/processes.csv) | 0,4% | 10,4% | 599 | 16,679 / 17,676 ms |
+| [Xorg / direto](benchmarks/2026-10-03/effects/xorg-direct/processes.csv) | 0,3% | 10,4% | 600 Damage | — |
+| [Xorg / efeitos](benchmarks/2026-10-03/effects/xorg-effects/processes.csv) | 0,0% | 85,8% | 85 | 116,681 / 118,518 ms |
+| [XLibre / Present](benchmarks/2026-10-03/effects/xlibre-present/processes.csv) | 0,6% | 14,3% | 598 | 16,673 / 17,711 ms |
+| [XLibre / direto](benchmarks/2026-10-03/effects/xlibre-direct/processes.csv) | 0,3% | 9,9% | 600 Damage | — |
+| [XLibre / efeitos](benchmarks/2026-10-03/effects/xlibre-effects/processes.csv) | 0,0% | 86,1% | 85 | 116,640 / 118,027 ms |
+
+Os resultados Present e diretos coincidem com a medição anterior dentro da variação entre execuções. Nas execuções diretas, os quadros são notificações Damage do overlay. Com a janela sobrevivente translúcida e raio de desfoque 4, o Xephyr gastou quase um núcleo inteiro em quadros de 1280×800 e entregou cerca de 8,5 por segundo, enquanto o Compust não registrou ticks de CPU.
+
+## Sessão de desktop registrada em hardware: 2026-10-03
+
+A [máquina AMD/XLibre acima](#sessão-registrada-em-hardware-2026-10-03) executou um servidor XLibre 25.1.9 dedicado no vt3, iniciado pelo `startx` em um console de texto enquanto a sessão habitual continuava no vt2. O [log do servidor](benchmarks/2026-10-03/desktop-hardware/xorg.log) informa glamor sobre radeonsi com OpenGL 4.6 e TearFree ativado pelo padrão do driver modesetting. HDMI-1 era a única saída ativa, em 1920×1080 a 60 Hz; o DP-1 ficou desligado. A árvore e os binários testados coincidem com os da medição aninhada com efeitos. Os três modos passaram em todos os cenários; o [log da sessão](benchmarks/2026-10-03/desktop-hardware/session.log) lista os resultados.
+
+| Modo | CPU ativa Compust | CPU ativa Xorg | Quadros em 10 s | Intervalo mediana / p95 / máximo |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/desktop-hardware/present/processes.csv) | 0,3% | 3,1% | 600 | 16,667 / 16,667 / 16,667 ms |
+| [Direto](benchmarks/2026-10-03/desktop-hardware/direct/processes.csv) | 0,3% | 3,5% | 600 Damage | — |
+| [Efeitos](benchmarks/2026-10-03/desktop-hardware/effects/processes.csv) | 0,0% | 93,7% | 49 | 199,998 / 216,665 / 216,665 ms |
+
+O Present acompanhou o vblank com exatidão: cada MSC da fase ativa avançou uma unidade. Nas fases ociosas, Compust e Xorg não registraram ticks de CPU nos modos Present e direto; no modo de efeitos, o Xorg usou 1,9% de um núcleo para concluir o último quadro do aquecimento. O RSS do Compust ficou entre 3.824 e 3.888 KiB e o do Xorg entre 92.820 e 93.152 KiB, sem mudanças dentro de cada fase.
+
+Com desfoque, cada quadro levou 12 ou 13 vblanks enquanto o Xorg usava quase um núcleo inteiro, o que é mais lento por quadro que o Xephyr por software em 1280×800. O glamor acelera apenas filtragem nearest e bilinear; [`glamor_composite`](https://github.com/X11Libre/xserver/blob/b4b92c2374ec81ea979d53ad79fd0d0784bbf291/glamor/glamor_render.c#L1766-L1769) envia qualquer filtro de convolução para o caminho por software, que transfere pixmaps entre a memória da GPU e a da CPU. As duas passadas de convolução do Compust, portanto, rodam na CPU a cada atualização de uma janela translúcida. Nesta máquina, uma janela translúcida em tela cheia com raio de desfoque 4 limita a imagem a cerca de cinco quadros por segundo.
+
+Essas execuções usam as janelas sintéticas do probe, um monitor, Xmonad e fases de dez segundos. Elas não cobrem aplicativos reais, gerenciadores com decoração ou reparenting, encerramento do servidor com o compositor em execução, taxas de atualização mistas nem outras GPUs.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.
 
-Repita os cenários de ciclo de vida, menus, tela cheia e workspaces com aplicativos reais. Acrescente janelas decoradas/com reparenting, mudanças de papel de parede, encerramento da sessão, fades e janelas translúcidas com desfoque ativado. Registre os cenários aprovados, suas reproduções e os logs de cada falha. Os testes aninhados com Xmonad não validam outro gerenciador.
+Execute a [sessão em hardware](#executar-as-verificações-de-desktop-em-hardware) para os cenários do probe, a troca de papel de parede, os fades e o desfoque com translucidez. Depois repita os cenários de ciclo de vida, menus, tela cheia e workspaces com aplicativos reais e acrescente gerenciadores com decoração ou reparenting e o encerramento da sessão. Registre os cenários aprovados, suas reproduções e os logs de cada falha. As verificações com Xmonad não validam outro gerenciador.
 
 Para a etapa 2, execute o [procedimento de transições de monitores](#amostrar-transições-de-monitores) nos dois modos de apresentação em cada ambiente proposto para suporte. Ele registra nomes dos conectores, modos, taxas de atualização e disposição dos monitores em torno de cada desconexão e reconexão física, além de verificar atualizações sobre bordas compartilhadas entre monitores. Desativação/ativação de CRTC virtual está coberta na automação e não substitui esses testes de conectores. A sessão acima cobre um ambiente AMD/XLibre.
 

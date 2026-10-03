@@ -28,6 +28,11 @@ impl Surface {
     }
 
     pub(in super::super) fn window_has_color(&self, window: u32, color: u32) -> Result<bool> {
+        Ok(self.window_pixel(window)? == color)
+    }
+
+    /// The composited pixel at the center of `window`.
+    pub(in super::super) fn window_pixel(&self, window: u32) -> Result<u32> {
         let geometry = self.conn.get_geometry(window)?.reply()?;
         let position = self
             .conn
@@ -38,7 +43,7 @@ impl Surface {
                 i16::try_from(geometry.height / 2)?,
             )?
             .reply()?;
-        Ok(self.pixel((position.dst_x, position.dst_y))? == color)
+        self.pixel((position.dst_x, position.dst_y))
     }
 
     fn rgb(&self, bytes: [u8; 4]) -> u32 {
