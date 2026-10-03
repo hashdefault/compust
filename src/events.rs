@@ -29,14 +29,14 @@ impl Compositor {
                 self.scene.restack(&self.session)?;
                 self.dirty = true;
             }
+            // Repainting for a window that shows nothing would hold the next real frame back
+            // by a vblank, because the single buffer waits for each submission to finish.
             Event::UnmapNotify(event) => {
-                self.scene.close(event.window, self.config.fade_duration());
-                self.dirty = true;
+                self.dirty |= self.scene.close(event.window, self.config.fade_duration());
             }
             Event::DestroyNotify(event) => {
-                self.scene.close(event.window, self.config.fade_duration());
+                self.dirty |= self.scene.close(event.window, self.config.fade_duration());
                 self.clients_changed(&[event.event, event.window])?;
-                self.dirty = true;
             }
             Event::ReparentNotify(event) => {
                 if event.parent == root {
@@ -53,15 +53,14 @@ impl Compositor {
                     // Keep a replacement already requested by a RandR change in this batch.
                     self.resizing |= event.width != self.renderer.size.width
                         || event.height != self.renderer.size.height;
+                    self.dirty = true;
                 } else {
-                    self.configure(&event)?;
-                    self.scene.restack(&self.session)?;
+                    let changed = self.configure(&event)?;
+                    self.dirty |= self.scene.restack(&self.session)? || changed;
                 }
-                self.dirty = true;
             }
             Event::CirculateNotify(_) => {
-                self.scene.restack(&self.session)?;
-                self.dirty = true;
+                self.dirty |= self.scene.restack(&self.session)?;
             }
             Event::DamageNotify(event)
                 if self.scene.windows.iter().any(|s| s.damage == event.damage) =>
@@ -220,7 +219,8 @@ impl Compositor {
         Ok(())
     }
 
-    fn configure(&mut self, event: &ConfigureNotifyEvent) -> Result<()> {
+    /// Follow a mapped window's move or resize; reports whether its surface changed.
+    fn configure(&mut self, event: &ConfigureNotifyEvent) -> Result<bool> {
         let window = event.window;
         let Some(surface) = self
             .scene
@@ -228,7 +228,7 @@ impl Compositor {
             .iter_mut()
             .find(|s| s.window == window && s.mapped)
         else {
-            return Ok(());
+            return Ok(false);
         };
         let captured = &surface.geometry;
         // Each resize gives the window a new pixmap and is reported, so a size in any event
@@ -239,9 +239,10 @@ impl Compositor {
             && event.border_width == captured.border_width
         {
             // A move keeps the pixmap and its shape; later events carry later positions.
+            let moved = (surface.geometry.x, surface.geometry.y) != (event.x, event.y);
             surface.geometry.x = event.x;
             surface.geometry.y = event.y;
-            return Ok(());
+            return Ok(moved);
         }
         let capture = Surface::capture(
             window,
@@ -263,6 +264,6 @@ impl Compositor {
             }
             Err(error) => return Err(error),
         }
-        Ok(())
+        Ok(true)
     }
 }

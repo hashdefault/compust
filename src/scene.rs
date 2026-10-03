@@ -124,7 +124,8 @@ impl Scene {
         Ok(())
     }
 
-    pub(crate) fn restack(&mut self, session: &Session) -> Result<()> {
+    /// Sort surfaces into stacking order; reports whether the order changed.
+    pub(crate) fn restack(&mut self, session: &Session) -> Result<bool> {
         if self.stack.stale {
             self.stack.query(session)?;
         }
@@ -140,18 +141,31 @@ impl Scene {
                 children.insert(above.unwrap_or(children.len()), surface.window);
             }
         }
-        self.windows.sort_by_key(|surface| {
+        let position = |surface: &Surface| {
             children
                 .iter()
                 .position(|id| *id == surface.window)
                 .unwrap_or(children.len())
-        });
-        Ok(())
+        };
+        if self.windows.is_sorted_by_key(position) {
+            return Ok(false);
+        }
+        self.windows.sort_by_key(position);
+        Ok(true)
     }
 
-    pub(crate) fn close(&mut self, window: Window, fade: Duration) {
-        if let Some(surface) = self.windows.iter_mut().find(|s| s.window == window) {
-            surface.close(Instant::now(), fade);
+    /// Start closing the mapped surface of `window`; reports whether there was one.
+    pub(crate) fn close(&mut self, window: Window, fade: Duration) -> bool {
+        match self
+            .windows
+            .iter_mut()
+            .find(|s| s.window == window && s.mapped)
+        {
+            Some(surface) => {
+                surface.close(Instant::now(), fade);
+                true
+            }
+            None => false,
         }
     }
 
