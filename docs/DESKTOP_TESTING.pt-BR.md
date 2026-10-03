@@ -88,10 +88,11 @@ Depois de `READY`, faça uma transição por vez, espere o desktop se estabiliza
 
 - grava em `topology.txt` o tamanho da raiz, a conexão, o CRTC, a geometria, o modo e a taxa de atualização de cada saída, a saída principal e os monitores RandR ativos;
 - move um marcador override-redirect de 128×96 para perto de cantos opostos de cada monitor ativo e sobre cada borda compartilhada por dois monitores, alternando verde e vermelho até o overlay exibir cada cor;
+- repinta uma janela gerenciada no lugar, sem movê-la nem redimensioná-la, e exige cada cor no overlay; um compositor que ainda mostra o pixmap da janela de antes de um redimensionamento falha aqui;
 - mede dois segundos de aquecimento e fases ociosa e ativa de dez segundos, como na medição isolada, gravando `processes.csv` e `frames.csv`;
 - grava em `resources.csv` as contagens de recursos XRes do compositor e o total de bytes dos pixmaps dele.
 
-O probe não cria janelas gerenciadas nem troca workspaces, então aplicativos comuns podem continuar abertos; as atualizações deles entram na medição ociosa. As verificações de pixels leem o framebuffer do servidor X pelo overlay, não a luz emitida pelos painéis. O relatório omite os dados EDID de `xrandr --verbose` porque eles contêm números de série dos monitores. Os registros locais de processos ainda contêm linhas de comando, então revise o relatório antes de compartilhá-lo.
+O probe mapeia uma janela gerenciada, que um gerenciador de janelas tiling acrescenta ao layout atual, e não troca workspaces. Mantenha essa janela visível e descoberta. Aplicativos comuns podem continuar abertos; as atualizações deles entram na medição ociosa. As verificações de pixels leem o framebuffer do servidor X pelo overlay, não a luz emitida pelos painéis. O relatório omite os dados EDID de `xrandr --verbose` porque eles contêm números de série dos monitores. Os registros locais de processos ainda contêm linhas de comando, então revise o relatório antes de compartilhá-lo.
 
 Uma sequência útil começa com uma referência inicial e depois muda o modo, a disposição e desativa uma saída, restaurando após cada mudança. Para cada conector, registre amostras com ele desconectado enquanto o CRTC ainda está atribuído, após a reação do desktop (`xrandr --auto` abaixo), reconectado e restaurado. Execute a sequência uma vez por modo de apresentação.
 
@@ -246,7 +247,7 @@ Cada amostra verifica repinturas do marcador perto de cantos opostos de cada mon
 
 Nos 6.590 intervalos do Present das fases ativas, a mediana foi de 16,662 ms e o p95 pelo posto mais próximo de 16,679 ms. Três amostras tiveram, cada uma, um intervalo de dois vblanks; nas demais, cada MSC avançou uma unidade. A mediana foi de 16,632–16,654 ms só com o painel e de 16,656–16,677 ms com as duas saídas, o que é consistente com o Present seguindo um único CRTC, e não a atualização própria de cada monitor. Nas fases ociosas, o Compust usou no máximo 0,1% de um núcleo.
 
-Esta sessão não detectou um defeito que o mesmo teste com o cabo mostrou no uso comum: janelas em tiling mantinham conteúdo antigo depois que o i3 as redimensionava e restaurava. O executor verifica apenas seu próprio marcador override-redirect, que um gerenciador de janelas não redimensiona. O [roteiro](ROADMAP.pt-BR.md#teste-local-da-beta-janela-parada-após-um-redimensionamento-restaurado) descreve o defeito e sua correção, que veio depois destes registros.
+Esta sessão não detectou um defeito que o mesmo teste com o cabo mostrou no uso comum: janelas em tiling mantinham conteúdo antigo depois que o i3 as redimensionava e restaurava. Na época, o executor verificava apenas seu próprio marcador override-redirect, que um gerenciador de janelas não redimensiona; agora ele também repinta uma janela gerenciada e, com essa verificação, o binário da 0.2.0-beta.2 falha na amostra depois que o HDMI-1 é desligado. O [roteiro](ROADMAP.pt-BR.md#teste-local-da-beta-janela-parada-após-um-redimensionamento-restaurado) descreve o defeito e sua correção, que veio depois destes registros.
 
 Foi testado um conector com uma tela externa, com Xorg e i3. As verificações do marcador comprovam repinturas no servidor, não o que cada tela exibiu. Taxas de atualização com diferença maior que essa, mais de dois monitores e fades ou desfoque durante uma transição continuam sem teste.
 

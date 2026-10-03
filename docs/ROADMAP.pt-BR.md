@@ -65,7 +65,7 @@ No laptop Intel/Xorg com i3, conectar ou desconectar um cabo HDMI congelava toda
 
 O Compust agora também compara o tamanho informado em cada `ConfigureNotify` e recaptura quando ele difere. Uma [regressão](../tests/cases/stability.rs) redimensiona e restaura uma janela sob um grab do servidor e depois a repinta; ela falhou antes da correção e passa depois. Com a correção, o mesmo teste com o cabo manteve a janela em tiling atualizando durante a desconexão e a reconexão. Todos os 70 testes, formatação, Clippy estrito e build de release passam.
 
-O defeito não é específico de hotplug nem do i3: qualquer gerenciador de janelas que redimensione uma janela e a restaure antes de o Compust tratar o primeiro evento pode acioná-lo. Ele está presente na 0.2.0-beta.1 e na 0.2.0-beta.2. O executor de transições de monitores não o detectou, porque verifica apenas seu próprio marcador override-redirect.
+O defeito não é específico de hotplug nem do i3: qualquer gerenciador de janelas que redimensione uma janela e a restaure antes de o Compust tratar o primeiro evento pode acioná-lo. Ele está presente na 0.2.0-beta.1 e na 0.2.0-beta.2. O executor de transições de monitores não o detectou, porque verificava apenas seu próprio marcador override-redirect. Agora ele também repinta uma janela gerenciada no lugar em cada amostra; com essa verificação, o binário da 0.2.0-beta.2 falha depois que uma saída é desligada sob o i3, e o compositor corrigido passa.
 
 ### Teste local da beta: tempo limite do Present
 

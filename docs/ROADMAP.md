@@ -65,7 +65,7 @@ On the Intel/Xorg laptop with i3, connecting or disconnecting an HDMI cable froz
 
 Compust now also compares the size carried by each `ConfigureNotify` and recaptures when it differs. A [regression](../tests/cases/stability.rs) resizes and restores a window under a server grab, then repaints it; it failed before the fix and passes afterward. With the fix, the same cable test left the tiled window updating through the unplug and the reconnection. All 70 tests, formatting, strict Clippy, and the release build pass.
 
-The defect is not specific to hotplug or i3: any window manager that resizes a window and restores it before Compust handles the first event can trigger it. It is present in 0.2.0-beta.1 and 0.2.0-beta.2. The monitor-transition runner did not detect it, because it checks only its own override-redirect marker.
+The defect is not specific to hotplug or i3: any window manager that resizes a window and restores it before Compust handles the first event can trigger it. It is present in 0.2.0-beta.1 and 0.2.0-beta.2. The monitor-transition runner did not detect it, because it checked only its own override-redirect marker. It now also repaints a managed window in place during every sample; with that check, the 0.2.0-beta.2 binary fails after an output is turned off under i3 and the fixed compositor passes.
 
 ### Local beta testing: Present timeout
 

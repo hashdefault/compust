@@ -88,10 +88,11 @@ After `READY`, make one transition at a time, wait for the desktop to settle, an
 
 - writes the root size, each output's connection, CRTC, geometry, mode, and refresh rate, the primary output, and the active RandR monitors to `topology.txt`;
 - moves one 128×96 override-redirect marker near opposite corners of every active monitor and across every edge two monitors share, alternating green and red until the overlay shows each color;
+- repaints one managed window in place, without moving or resizing it, and requires each color on the overlay; a compositor still showing the window's pixmap from before a resize fails here;
 - measures a two-second warmup plus ten-second idle and active phases as in the isolated baseline, writing `processes.csv` and `frames.csv`;
 - writes the compositor's XRes resource counts and full owned-pixmap bytes to `resources.csv`.
 
-The probe creates no managed windows and does not switch workspaces, so ordinary applications can stay open; their redraws become part of the idle measurement. Pixel checks read the X server framebuffer through the overlay, not light from the panels. The report omits EDID data from `xrandr --verbose` because it contains monitor serial numbers. Local process records still contain command lines, so review the report before sharing it.
+The probe maps one managed window, which a tiling window manager adds to the current layout, and does not switch workspaces. Keep that window visible and uncovered. Ordinary applications can stay open; their redraws become part of the idle measurement. Pixel checks read the X server framebuffer through the overlay, not light from the panels. The report omits EDID data from `xrandr --verbose` because it contains monitor serial numbers. Local process records still contain command lines, so review the report before sharing it.
 
 A useful sequence starts with a baseline, then a mode change, another layout, and an output disabled, each followed by restoration. For each connector, sample it unplugged while its CRTC is still assigned, after the desktop's reaction (`xrandr --auto` below), reconnected, and restored. Run the sequence once per presentation mode.
 
@@ -246,7 +247,7 @@ Each sample checks marker redraws near opposite corners of every active monitor 
 
 Across 6,590 active-phase Present intervals, the median was 16.662 ms and the nearest-rank p95 16.679 ms. Three samples each had one interval spanning two vblanks; in the rest, every MSC advanced by one. The median was 16.632–16.654 ms with the panel alone and 16.656–16.677 ms with both outputs, consistent with Present following one CRTC rather than each monitor's own refresh. In idle phases Compust used at most 0.1% of a core.
 
-This session did not detect a defect that the same cable test showed in ordinary use: tiled windows kept stale contents after i3 resized and restored them. The runner checks only its own override-redirect marker, which a window manager does not resize. The [roadmap](ROADMAP.md#local-beta-testing-stale-window-after-a-restored-resize) describes the defect and its fix, which came after these records.
+This session did not detect a defect that the same cable test showed in ordinary use: tiled windows kept stale contents after i3 resized and restored them. At the time, the runner checked only its own override-redirect marker, which a window manager does not resize; it now also repaints a managed window, and with that check the 0.2.0-beta.2 binary fails the sample after HDMI-1 is turned off. The [roadmap](ROADMAP.md#local-beta-testing-stale-window-after-a-restored-resize) describes the defect and its fix, which came after these records.
 
 One connector on one external display was tested, with Xorg and i3. The marker checks prove server-side redraws, not what each screen displayed. Refresh rates that differ by more than this, more than two monitors, and fades or blur during a transition remain untested.
 
