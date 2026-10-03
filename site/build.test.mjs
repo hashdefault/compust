@@ -14,6 +14,12 @@ test('documentation links resolve from their original source locations', () => {
   assert.equal(rewriteLink('https://example.org/x11', 'README.md'), 'https://example.org/x11');
 });
 
+test('fragments written for GitHub match the unaccented site headings', () => {
+  assert.equal(rewriteLink('docs/ROADMAP.pt-BR.md#próximo-passo', 'README.pt-BR.md'), '/compust/pt-br/docs/roadmap/#proximo-passo');
+  assert.equal(rewriteLink('#recarga-de-configura%C3%A7%C3%A3o', 'docs/ROADMAP.pt-BR.md'), '#recarga-de-configuracao');
+  assert.equal(rewriteLink('DESKTOP_TESTING.pt-BR.md#sessão', 'docs/ROADMAP.pt-BR.md'), 'https://github.com/hashdefault/compust/blob/main/docs/DESKTOP_TESTING.pt-BR.md#sess%C3%A3o');
+});
+
 test('Markdown is inert HTML with unique, linkable headings', () => {
   const { html, headings } = renderDocument('README.md', '# Guide\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert(1))\n\n## Configuração\n\n## Configuração\n', locales.pt);
   assert.ok(!html.includes('<script>'));

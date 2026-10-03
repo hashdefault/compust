@@ -26,7 +26,8 @@ reload. `PORT=4174 npm run preview` selects another port. Stop with Ctrl+C.
 `content.mjs` contains the bilingual home-page text. `templates.mjs` defines the
 shared navigation, home page, documentation layout, and 404 page. `build.mjs`
 converts Markdown, resolves source-relative documentation links, fingerprints
-assets, and emits the sitemap. `assets/` contains the shared style, optional
+assets, and emits the sitemap. Write link fragments as GitHub generates them,
+accents included; the build drops accents to match the site's heading IDs. `assets/` contains the shared style, optional
 illustration controls, and favicon. The only build dependency is `markdown-it`;
 no dependencies or third-party requests are needed in the browser.
 

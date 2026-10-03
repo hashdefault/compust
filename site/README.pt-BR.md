@@ -27,7 +27,9 @@ Encerre com Ctrl+C.
 `content.mjs` contém os textos da página inicial nos dois idiomas. `templates.mjs`
 define a navegação compartilhada, a página inicial, os guias e a página 404.
 `build.mjs` converte o Markdown, resolve os links relativos dos documentos,
-identifica os recursos por seu conteúdo e gera o sitemap. `assets/` contém o
+identifica os recursos por seu conteúdo e gera o sitemap. Escreva os fragmentos
+dos links como o GitHub os gera, com acentos; a compilação remove os acentos para
+coincidir com os IDs dos títulos do site. `assets/` contém o
 estilo, os controles opcionais da ilustração e o favicon. A única dependência de
 compilação é `markdown-it`; o navegador não precisa de dependências nem de
 requisições a terceiros.

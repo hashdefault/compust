@@ -9,12 +9,18 @@ import { page, landing, documentPage, missingPage, base, origin, repository, hom
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sourceRoutes = new Map(Object.values(locales).flatMap((locale) => locale.guides.map((guide) => [guide.source, guideUrl(locale, guide.slug)])));
 
+// GitHub keeps accented letters in heading anchors, which the sources link to; the site's
+// heading IDs drop them, so links to published pages drop them too.
+const unaccent = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const fragment = (hash) => (hash ? `#${encodeURIComponent(unaccent(decodeURIComponent(hash.slice(1))))}` : '');
+
 export function rewriteLink(href, source) {
-  if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(href)) return href;
+  if (href.startsWith('#')) return fragment(href);
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href)) return href;
   const url = new URL(href, `https://source.invalid/${source}`);
   const target = decodeURIComponent(url.pathname.slice(1));
   const route = sourceRoutes.get(target);
-  if (route) return `${route}${url.search}${url.hash}`;
+  if (route) return `${route}${url.search}${fragment(url.hash)}`;
   if (href.startsWith('/')) return href;
   return `${repository}/blob/main/${target.split('/').map(encodeURIComponent).join('/')}${url.hash}`;
 }
@@ -28,7 +34,7 @@ export function renderDocument(source, markdown, locale) {
     const token = tokens[index];
     if (token.type === 'heading_open') {
       const text = tokens[index + 1].content;
-      const stem = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '-') || 'section';
+      const stem = unaccent(text.toLowerCase()).replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '-') || 'section';
       const count = seen.get(stem) || 0;
       seen.set(stem, count + 1);
       const id = count ? `${stem}-${count}` : stem;
