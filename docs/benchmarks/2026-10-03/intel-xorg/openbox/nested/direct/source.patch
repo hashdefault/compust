@@ -1,0 +1,535 @@
+diff --git a/examples/desktop/scenarios.rs b/examples/desktop/scenarios.rs
+index 09802af..5dc5a81 100644
+--- a/examples/desktop/scenarios.rs
++++ b/examples/desktop/scenarios.rs
+@@ -1,5 +1,6 @@
+ use super::Surface;
+ use anyhow::{Context, Result, ensure};
++use clap::ValueEnum;
+ use std::path::Path;
+ use x11rb::{
+     connection::Connection,
+@@ -10,43 +11,200 @@ use x11rb::{
+ /// Color Compust paints where no window or wallpaper covers the root.
+ pub(super) const BACKGROUND: u32 = 0x0018_1820;
+ 
+-pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
+-    let red = surface.window(0x00ff_0000, false)?;
+-    let blue = surface.window(0x0000_00ff, false)?;
++const RED: u32 = 0x00ff_0000;
++const BLUE: u32 = 0x0000_00ff;
++const GREEN: u32 = 0x0000_ff00;
++
++/// How the window manager under test arranges ordinary windows.
++#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
++pub(super) enum Layout {
++    /// Clients are resized to fill the screen and never overlap, as in Xmonad.
++    Tiling,
++    /// Clients keep their size inside decorated frames and may overlap, as in Openbox.
++    Stacking,
++}
++
++pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Result<u32> {
++    let red = surface.window(RED, false)?;
++    let blue = surface.window(BLUE, false)?;
+     surface.until("window manager maps both clients", || {
++        if layout == Layout::Stacking {
++            // Openbox 3.6.1 can leave map requests unread when they arrive while it reacts
++            // to the compositor starting; it handles them with the next event it receives.
++            surface.nudge()?;
++        }
+         Ok(surface.property(red, "WM_STATE")? == Some(1)
+-            && surface.property(blue, "WM_STATE")? == Some(1)
+-            && surface.window_has_color(red, 0x00ff_0000)?
+-            && surface.window_has_color(blue, 0x0000_00ff)?)
++            && surface.property(blue, "WM_STATE")? == Some(1))
++    })?;
++    if layout == Layout::Stacking {
++        surface.settle()?;
++        decorated(surface, red, blue)?;
++    }
++    surface.until("managed client pixels", || {
++        Ok(surface.window_has_color(red, RED)? && surface.window_has_color(blue, BLUE)?)
+     })?;
+     surface.screenshot(&output.join("managed.ppm"))?;
+     let original = surface.conn.get_geometry(red)?.reply()?;
+     ensure!(
+-        original.width != 320 || original.height != 240,
++        layout == Layout::Stacking || original.width != 320 || original.height != 240,
+         "window manager did not arrange the client"
+     );
+ 
+     let below = surface.pixel((80, 80))?;
+-    let popup = surface.window(0x0000_ff00, true)?;
+-    surface.until("popup pixels", || {
+-        Ok(surface.pixel((80, 80))? == 0x0000_ff00)
+-    })?;
++    let popup = surface.window(GREEN, true)?;
++    surface.until("popup pixels", || Ok(surface.pixel((80, 80))? == GREEN))?;
+     surface.screenshot(&output.join("popup.ppm"))?;
+     surface.conn.destroy_window(popup)?.check()?;
+     surface.until("popup removal", || Ok(surface.pixel((80, 80))? == below))?;
+ 
++    if layout == Layout::Stacking {
++        restack(surface, red, blue)?;
++        iconify(surface, blue)?;
++        activate(surface, red)?;
++    }
++    fullscreen(surface, red, layout, output)?;
++    surface.until("window manager fullscreen restore", || {
++        let size = surface.conn.get_geometry(red)?.reply()?;
++        Ok(size.width == original.width
++            && size.height == original.height
++            && surface.window_has_color(blue, BLUE)?
++            && surface.window_has_color(red, RED)?)
++    })?;
++
++    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [1, 0, 0, 0, 0])?;
++    surface.until("empty workspace", || {
++        Ok(
++            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(1)
++                && surface.pixel((80, 80))? == BACKGROUND,
++        )
++    })?;
++    surface.screenshot(&output.join("empty-workspace.ppm"))?;
++    wallpaper(surface)?;
++    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [0, 0, 0, 0, 0])?;
++    surface.until("workspace restoration", || {
++        Ok(
++            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(0)
++                && surface.window_has_color(red, RED)?
++                && surface.window_has_color(blue, BLUE)?,
++        )
++    })?;
++
++    for _ in 0..32 {
++        let transient = surface.window(GREEN, false)?;
++        surface.conn.destroy_window(transient)?.check()?;
++    }
++    let vacated = surface.center(blue)?;
++    surface.conn.destroy_window(blue)?.check()?;
++    surface.until("survivor after rapid lifecycle", || {
++        let size = surface.conn.get_geometry(red)?.reply()?;
++        let alone = match layout {
++            Layout::Tiling => size.width > original.width,
++            Layout::Stacking => surface.pixel(vacated)? == BACKGROUND,
++        };
++        Ok(alone && surface.window_has_color(red, RED)?)
++    })?;
++    surface.screenshot(&output.join("survivor.ppm"))?;
++    Ok(red)
++}
++
++/// Place both clients apart and require a reparenting frame with a painted title bar.
++fn decorated(surface: &Surface, red: u32, blue: u32) -> Result<()> {
++    surface.place(red, (60, 80))?;
++    surface.place(blue, (460, 80))?;
++    surface.until("stacking clients placed apart", || {
++        Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
++    })?;
++    for (window, color) in [(red, RED), (blue, BLUE)] {
++        let size = surface.conn.get_geometry(window)?.reply()?;
++        ensure!(
++            size.width == 320 && size.height == 240,
++            "stacking window manager resized the client"
++        );
++        let frame = surface.frame(window)?;
++        ensure!(
++            frame != window,
++            "window manager did not reparent the client"
++        );
++        let top = surface.conn.get_geometry(frame)?.reply()?.y;
++        let origin = surface.origin(window)?;
++        let title = origin.1 - top;
++        ensure!(title > 2, "frame has no title bar above the client");
++        surface.until("frame decoration pixels", || {
++            let pixel = surface.pixel((origin.0 + 160, top + title / 2))?;
++            Ok(pixel != BACKGROUND && pixel != color)
++        })?;
++        println!("frame={frame:#x} client={window:#x} title_height={title}");
++    }
++    Ok(())
++}
++
++/// Overlap the clients and require each activation to bring its window to the front.
++fn restack(surface: &Surface, red: u32, blue: u32) -> Result<()> {
++    let home = surface.origin(blue)?;
++    surface.place(blue, (220, 180))?;
++    surface.until("overlapping clients", || {
++        let (lower, upper) = (surface.origin(red)?, surface.origin(blue)?);
++        Ok(upper != home
++            && (lower.0..lower.0 + 300).contains(&upper.0)
++            && (lower.1..lower.1 + 220).contains(&upper.1))
++    })?;
++    let upper = surface.origin(blue)?;
++    let shared = (upper.0 + 10, upper.1 + 10);
++    for (window, color, description) in [
++        (blue, BLUE, "blue raised over red"),
++        (red, RED, "red raised over blue"),
++        (blue, BLUE, "blue raised again"),
++    ] {
++        activate(surface, window)?;
++        surface.until(description, || Ok(surface.pixel(shared)? == color))?;
++    }
++    surface.place(blue, (460, 80))?;
++    surface.until("clients apart again", || {
++        Ok(surface.pixel(shared)? == RED && surface.window_has_color(blue, BLUE)?)
++    })
++}
++
++/// Iconify a client through the window manager, then map it again.
++fn iconify(surface: &Surface, window: u32) -> Result<()> {
++    let center = surface.center(window)?;
++    surface.message(window, "WM_CHANGE_STATE", [3, 0, 0, 0, 0])?;
++    surface.until("iconified window leaves the screen", || {
++        Ok(
++            surface.property(window, "WM_STATE")? == Some(3)
++                && surface.pixel(center)? == BACKGROUND,
++        )
++    })?;
++    surface.conn.map_window(window)?.check()?;
++    surface.until("iconified window returns", || {
++        Ok(surface.property(window, "WM_STATE")? == Some(1)
++            && surface.window_has_color(window, BLUE)?)
++    })
++}
++
++fn activate(surface: &Surface, window: u32) -> Result<()> {
++    // Source indication 2: a pager, which window managers do not treat as focus stealing.
++    surface.message(window, "_NET_ACTIVE_WINDOW", [2, 0, 0, 0, 0])
++}
++
++/// Enter EWMH fullscreen, check the client covers the screen, and request restoration.
++fn fullscreen(surface: &Surface, red: u32, layout: Layout, output: &Path) -> Result<()> {
+     let fullscreen = surface.atom("_NET_WM_STATE_FULLSCREEN")?;
+     surface.message(red, "_NET_WM_STATE", [1, fullscreen, 0, 1, 0])?;
+     let fullscreen_result = surface.until("window manager fullscreen", || {
+         let size = surface.conn.get_geometry(red)?.reply()?;
++        let at_origin = match layout {
++            Layout::Tiling => size.x == 0 && size.y == 0,
++            Layout::Stacking => surface.origin(red)? == (0, 0),
++        };
+         Ok(
+             u32::from(size.width) + 2 * u32::from(size.border_width) == u32::from(surface.width)
+                 && u32::from(size.height) + 2 * u32::from(size.border_width)
+                     == u32::from(surface.height)
+-                && size.x == 0
+-                && size.y == 0
+-                && surface.property(red, "_NET_WM_STATE")? == Some(fullscreen)
+-                && surface.pixel((80, 80))? == 0x00ff_0000,
++                && at_origin
++                && surface
++                    .properties(red, "_NET_WM_STATE")?
++                    .contains(&fullscreen)
++                && surface.pixel((80, 80))? == RED,
+         )
+     });
+     fullscreen_result.with_context(|| {
+@@ -71,44 +229,7 @@ pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
+         fullscreen_geometry.width, fullscreen_geometry.height, fullscreen_geometry.border_width
+     );
+     surface.screenshot(&output.join("fullscreen.ppm"))?;
+-    surface.message(red, "_NET_WM_STATE", [0, fullscreen, 0, 1, 0])?;
+-    surface.until("window manager fullscreen restore", || {
+-        let size = surface.conn.get_geometry(red)?.reply()?;
+-        Ok(size.width == original.width
+-            && size.height == original.height
+-            && surface.window_has_color(blue, 0x0000_00ff)?
+-            && surface.window_has_color(red, 0x00ff_0000)?)
+-    })?;
+-
+-    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [1, 0, 0, 0, 0])?;
+-    surface.until("empty workspace", || {
+-        Ok(
+-            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(1)
+-                && surface.pixel((80, 80))? == BACKGROUND,
+-        )
+-    })?;
+-    surface.screenshot(&output.join("empty-workspace.ppm"))?;
+-    wallpaper(surface)?;
+-    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [0, 0, 0, 0, 0])?;
+-    surface.until("workspace restoration", || {
+-        Ok(
+-            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(0)
+-                && surface.window_has_color(red, 0x00ff_0000)?
+-                && surface.window_has_color(blue, 0x0000_00ff)?,
+-        )
+-    })?;
+-
+-    for _ in 0..32 {
+-        let transient = surface.window(0x0000_ff00, false)?;
+-        surface.conn.destroy_window(transient)?.check()?;
+-    }
+-    surface.conn.destroy_window(blue)?.check()?;
+-    surface.until("survivor after rapid lifecycle", || {
+-        let size = surface.conn.get_geometry(red)?.reply()?;
+-        Ok(size.width > original.width && surface.window_has_color(red, 0x00ff_0000)?)
+-    })?;
+-    surface.screenshot(&output.join("survivor.ppm"))?;
+-    Ok(red)
++    surface.message(red, "_NET_WM_STATE", [0, fullscreen, 0, 1, 0])
+ }
+ 
+ /// Show, then remove, a tiled root wallpaper on the empty workspace.
+diff --git a/examples/desktop/surface.rs b/examples/desktop/surface.rs
+index 96e9b31..e29b9c4 100644
+--- a/examples/desktop/surface.rs
++++ b/examples/desktop/surface.rs
+@@ -13,8 +13,8 @@ use x11rb::{
+         damage::{ConnectionExt as _, ReportLevel},
+         present::{ConnectionExt as _, EventMask as PresentMask},
+         xproto::{
+-            AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConnectionExt as _,
+-            CreateWindowAux, EventMask, WindowClass,
++            AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConfigureWindowAux,
++            ConnectionExt as _, CreateWindowAux, EventMask, PropMode, WindowClass,
+         },
+     },
+     rust_connection::RustConnection,
+@@ -137,7 +137,7 @@ impl Surface {
+             .check()?;
+         self.conn
+             .change_property8(
+-                x11rb::protocol::xproto::PropMode::REPLACE,
++                PropMode::REPLACE,
+                 window,
+                 AtomEnum::WM_NAME,
+                 AtomEnum::STRING,
+@@ -171,6 +171,84 @@ impl Surface {
+             .and_then(|mut values| values.next()))
+     }
+ 
++    /// Up to sixteen 32-bit values of a property, empty when it is absent.
++    pub(super) fn properties(&self, window: u32, name: &str) -> Result<Vec<u32>> {
++        Ok(self
++            .conn
++            .get_property(false, window, self.atom(name)?, AtomEnum::ANY, 0, 16)?
++            .reply()?
++            .value32()
++            .map(Iterator::collect)
++            .unwrap_or_default())
++    }
++
++    /// Root coordinates of the top-left corner of `window`, inside its border.
++    pub(super) fn origin(&self, window: u32) -> Result<(i16, i16)> {
++        let position = self
++            .conn
++            .translate_coordinates(window, self.root, 0, 0)?
++            .reply()?;
++        Ok((position.dst_x, position.dst_y))
++    }
++
++    /// Root coordinates of the center of `window`.
++    pub(super) fn center(&self, window: u32) -> Result<(i16, i16)> {
++        let geometry = self.conn.get_geometry(window)?.reply()?;
++        let origin = self.origin(window)?;
++        Ok((
++            origin.0 + i16::try_from(geometry.width / 2)?,
++            origin.1 + i16::try_from(geometry.height / 2)?,
++        ))
++    }
++
++    /// The root's child containing `window`: its frame under a reparenting window manager.
++    pub(super) fn frame(&self, window: u32) -> Result<u32> {
++        let mut frame = window;
++        loop {
++            let parent = self.conn.query_tree(frame)?.reply()?.parent;
++            if parent == self.root || parent == NONE {
++                return Ok(frame);
++            }
++            frame = parent;
++        }
++    }
++
++    /// Send the window manager a root property event. The probe receives it too, so a wait
++    /// that nudges is evaluated again immediately.
++    pub(super) fn nudge(&self) -> Result<()> {
++        self.conn
++            .change_property8(
++                PropMode::REPLACE,
++                self.root,
++                self.atom("_COMPUST_PROBE_NUDGE")?,
++                AtomEnum::STRING,
++                b"",
++            )?
++            .check()?;
++        Ok(())
++    }
++
++    /// Remove the nudge property and discard the events the nudges produced.
++    pub(super) fn settle(&self) -> Result<()> {
++        self.conn
++            .delete_property(self.root, self.atom("_COMPUST_PROBE_NUDGE")?)?
++            .check()?;
++        self.conn.sync()?;
++        while self.poll_event()?.is_some() {}
++        Ok(())
++    }
++
++    /// Ask the window manager to move `window`, as an application does.
++    pub(super) fn place(&self, window: u32, position: (i32, i32)) -> Result<()> {
++        self.conn
++            .configure_window(
++                window,
++                &ConfigureWindowAux::new().x(position.0).y(position.1),
++            )?
++            .check()?;
++        Ok(())
++    }
++
+     pub(super) fn message(&self, window: u32, name: &str, data: [u32; 5]) -> Result<()> {
+         let event = ClientMessageEvent::new(32, window, self.atom(name)?, data);
+         self.conn
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index 757a7b2..cd8819d 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -41,6 +41,10 @@ struct Args {
+     /// Survivor opacity percentage while measuring; below 100, each redraw blends and blurs.
+     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100), default_value_t = 100)]
+     opacity: u8,
++    /// How the window manager arranges windows; stacking adds frame, restacking, and
++    /// iconify scenarios.
++    #[arg(long, value_enum, default_value_t = scenarios::Layout::Tiling)]
++    layout: scenarios::Layout,
+     /// Keep one marker window instead of running the desktop scenarios. Read
+     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
+     #[arg(long)]
+@@ -68,7 +72,7 @@ fn main() -> Result<()> {
+     if args.hotplug {
+         return hotplug::run(&surface, &args, &processes);
+     }
+-    let window = scenarios::exercise(&surface, &args.output)?;
++    let window = scenarios::exercise(&surface, &args.output, args.layout)?;
+     if args.opacity < 100 {
+         scenarios::translucent(&surface, window, args.opacity)?;
+     }
+@@ -79,8 +83,12 @@ fn main() -> Result<()> {
+         scenarios::shows_red(&surface, window, args.opacity)
+     })?;
+     surface.screenshot(&args.output.join("final.ppm"))?;
++    let stacking = match args.layout {
++        scenarios::Layout::Tiling => "",
++        scenarios::Layout::Stacking => "decorated frames, restacking, iconify restore, ",
++    };
+     println!(
+-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
++        "PASS: managed windows, {stacking}popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
+         args.opacity
+     );
+     Ok(())
+diff --git a/tools/desktop-check.sh b/tools/desktop-check.sh
+index e1fe8e4..c52773a 100755
+--- a/tools/desktop-check.sh
++++ b/tools/desktop-check.sh
+@@ -6,6 +6,7 @@ if [[ ${1:-} == --help ]]; then
+     printf '%s\n' "$usage"
+     printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
+     printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
++    printf 'Set WINDOW_MANAGER to xmonad (the default) or openbox.\n'
+     exit 0
+ fi
+ if (( $# < 1 || $# > 2 )); then
+@@ -20,6 +21,12 @@ case "$mode" in
+     effects) config=tools/desktop/compust-effects.toml presentation=present opacity=50 ;;
+     *) printf 'Unknown mode: %s\n' "$mode" >&2; exit 2 ;;
+ esac
++window_manager=${WINDOW_MANAGER:-xmonad}
++case "$window_manager" in
++    xmonad) layout=tiling ;;
++    openbox) layout=stacking ;;
++    *) printf 'Unknown window manager: %s\n' "$window_manager" >&2; exit 2 ;;
++esac
+ if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
+     printf 'SERVER_PID must identify the X server of DESKTOP_DISPLAY.\n' >&2
+     exit 2
+@@ -43,13 +50,23 @@ trap cleanup EXIT
+ trap 'exit 130' INT
+ trap 'exit 143' TERM
+ 
+-wm_binary="$work/xmonad-$(uname -m)-linux"
+-ghc -dynamic -O1 -outputdir "$work/ghc" -o "$wm_binary" \
+-    tools/desktop/xmonad.hs >"$report/xmonad-build.log" 2>&1
+ mkdir "$work/config" "$work/cache" "$work/data"
+-export XMONAD_CONFIG_DIR="$work/config"
+-export XMONAD_CACHE_DIR="$work/cache"
+-export XMONAD_DATA_DIR="$work/data"
++if [[ $window_manager == xmonad ]]; then
++    wm_source=tools/desktop/xmonad.hs
++    wm_binary="$work/xmonad-$(uname -m)-linux"
++    ghc -dynamic -O1 -outputdir "$work/ghc" -o "$wm_binary" \
++        "$wm_source" >"$report/xmonad-build.log" 2>&1
++    wm_command=("$wm_binary")
++    export XMONAD_CONFIG_DIR="$work/config"
++    export XMONAD_CACHE_DIR="$work/cache"
++    export XMONAD_DATA_DIR="$work/data"
++else
++    wm_source=tools/desktop/openbox.xml
++    wm_binary=$(command -v openbox)
++    # Keep the user's own Openbox menus and session files out of the run.
++    wm_command=(env "XDG_CONFIG_HOME=$work/config" "XDG_CACHE_HOME=$work/cache"
++        "$wm_binary" --sm-disable --config-file "$wm_source")
++fi
+ 
+ if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
+     export DISPLAY=$DESKTOP_DISPLAY
+@@ -82,7 +99,7 @@ else
+     servers=("$(command -v "${XVFB:-Xvfb}")" "$(command -v "${XEPHYR:-Xephyr}")")
+ fi
+ 
+-"$wm_binary" >"$report/xmonad.log" 2>&1 &
++"${wm_command[@]}" >"$report/$window_manager.log" 2>&1 &
+ wm_pid=$!
+ pids=("$wm_pid" "${pids[@]}")
+ xdpyinfo >"$report/server.txt"
+@@ -102,10 +119,12 @@ uname -srmo >"$report/kernel.txt"
+ date -Is >"$report/started.txt"
+ lscpu >"$report/cpu.txt"
+ rustc --version >"$report/rust-version.txt"
+-xmonad --version >"$report/wm-version.txt"
++# Read the whole output first: closing the pipe early would fail the run under pipefail.
++wm_version=$("$window_manager" --version)
++printf '%s\n' "${wm_version%%$'\n'*}" >"$report/wm-version.txt"
+ cp "$config" "$report/compust.toml"
+ sha256sum target/release/compust target/release/examples/desktop_probe \
+-    tools/desktop/xmonad.hs "$wm_binary" "${servers[@]}" >"$report/binaries.txt"
++    "$wm_source" "$wm_binary" "${servers[@]}" >"$report/binaries.txt"
+ 
+ target/release/compust --display "$DISPLAY" --config "$report/compust.toml" \
+     >"$report/compust.log" 2>&1 &
+@@ -114,7 +133,7 @@ pids=("$compositor_pid" "${pids[@]}")
+ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
+     --process "compust:$compositor_pid" "${measured[@]}" --process "wm:$wm_pid" \
+     --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" --presentation "$presentation" \
+-    --opacity "$opacity" >"$report/probe.log" 2>&1
++    --opacity "$opacity" --layout "$layout" >"$report/probe.log" 2>&1
+ xprop -root _NET_SUPPORTING_WM_CHECK >"$report/wm.txt"
+ kill -TERM "$compositor_pid"
+ wait "$compositor_pid"
+diff --git a/tools/desktop/openbox.xml b/tools/desktop/openbox.xml
+new file mode 100644
+index 0000000..8a482ef
+--- /dev/null
++++ b/tools/desktop/openbox.xml
+@@ -0,0 +1,21 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Private Openbox configuration for tools/desktop-check.sh: decorated, reparented,
++     stacking windows on two desktops, with no key or mouse bindings. -->
++<openbox_config xmlns="http://openbox.org/3.4/rc">
++  <focus>
++    <focusNew>yes</focusNew>
++    <followMouse>no</followMouse>
++  </focus>
++  <placement>
++    <policy>Smart</policy>
++  </placement>
++  <theme>
++    <name>Clearlooks</name>
++    <titleLayout>NLIMC</titleLayout>
++    <animateIconify>no</animateIconify>
++  </theme>
++  <desktops>
++    <number>2</number>
++    <popupTime>0</popupTime>
++  </desktops>
++</openbox_config>

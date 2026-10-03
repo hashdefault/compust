@@ -13,8 +13,8 @@ use x11rb::{
         damage::{ConnectionExt as _, ReportLevel},
         present::{ConnectionExt as _, EventMask as PresentMask},
         xproto::{
-            AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConnectionExt as _,
-            CreateWindowAux, EventMask, WindowClass,
+            AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConfigureWindowAux,
+            ConnectionExt as _, CreateWindowAux, EventMask, PropMode, WindowClass,
         },
     },
     rust_connection::RustConnection,
@@ -137,7 +137,7 @@ impl Surface {
             .check()?;
         self.conn
             .change_property8(
-                x11rb::protocol::xproto::PropMode::REPLACE,
+                PropMode::REPLACE,
                 window,
                 AtomEnum::WM_NAME,
                 AtomEnum::STRING,
@@ -169,6 +169,84 @@ impl Surface {
             .reply()?
             .value32()
             .and_then(|mut values| values.next()))
+    }
+
+    /// Up to sixteen 32-bit values of a property, empty when it is absent.
+    pub(super) fn properties(&self, window: u32, name: &str) -> Result<Vec<u32>> {
+        Ok(self
+            .conn
+            .get_property(false, window, self.atom(name)?, AtomEnum::ANY, 0, 16)?
+            .reply()?
+            .value32()
+            .map(Iterator::collect)
+            .unwrap_or_default())
+    }
+
+    /// Root coordinates of the top-left corner of `window`, inside its border.
+    pub(super) fn origin(&self, window: u32) -> Result<(i16, i16)> {
+        let position = self
+            .conn
+            .translate_coordinates(window, self.root, 0, 0)?
+            .reply()?;
+        Ok((position.dst_x, position.dst_y))
+    }
+
+    /// Root coordinates of the center of `window`.
+    pub(super) fn center(&self, window: u32) -> Result<(i16, i16)> {
+        let geometry = self.conn.get_geometry(window)?.reply()?;
+        let origin = self.origin(window)?;
+        Ok((
+            origin.0 + i16::try_from(geometry.width / 2)?,
+            origin.1 + i16::try_from(geometry.height / 2)?,
+        ))
+    }
+
+    /// The root's child containing `window`: its frame under a reparenting window manager.
+    pub(super) fn frame(&self, window: u32) -> Result<u32> {
+        let mut frame = window;
+        loop {
+            let parent = self.conn.query_tree(frame)?.reply()?.parent;
+            if parent == self.root || parent == NONE {
+                return Ok(frame);
+            }
+            frame = parent;
+        }
+    }
+
+    /// Send the window manager a root property event. The probe receives it too, so a wait
+    /// that nudges is evaluated again immediately.
+    pub(super) fn nudge(&self) -> Result<()> {
+        self.conn
+            .change_property8(
+                PropMode::REPLACE,
+                self.root,
+                self.atom("_COMPUST_PROBE_NUDGE")?,
+                AtomEnum::STRING,
+                b"",
+            )?
+            .check()?;
+        Ok(())
+    }
+
+    /// Remove the nudge property and discard the events the nudges produced.
+    pub(super) fn settle(&self) -> Result<()> {
+        self.conn
+            .delete_property(self.root, self.atom("_COMPUST_PROBE_NUDGE")?)?
+            .check()?;
+        self.conn.sync()?;
+        while self.poll_event()?.is_some() {}
+        Ok(())
+    }
+
+    /// Ask the window manager to move `window`, as an application does.
+    pub(super) fn place(&self, window: u32, position: (i32, i32)) -> Result<()> {
+        self.conn
+            .configure_window(
+                window,
+                &ConfigureWindowAux::new().x(position.0).y(position.1),
+            )?
+            .check()?;
+        Ok(())
     }
 
     pub(super) fn message(&self, window: u32, name: &str, data: [u32; 5]) -> Result<()> {

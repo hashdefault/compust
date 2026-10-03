@@ -1,5 +1,6 @@
 use super::Surface;
 use anyhow::{Context, Result, ensure};
+use clap::ValueEnum;
 use std::path::Path;
 use x11rb::{
     connection::Connection,
@@ -10,43 +11,200 @@ use x11rb::{
 /// Color Compust paints where no window or wallpaper covers the root.
 pub(super) const BACKGROUND: u32 = 0x0018_1820;
 
-pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
-    let red = surface.window(0x00ff_0000, false)?;
-    let blue = surface.window(0x0000_00ff, false)?;
+const RED: u32 = 0x00ff_0000;
+const BLUE: u32 = 0x0000_00ff;
+const GREEN: u32 = 0x0000_ff00;
+
+/// How the window manager under test arranges ordinary windows.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(super) enum Layout {
+    /// Clients are resized to fill the screen and never overlap, as in Xmonad.
+    Tiling,
+    /// Clients keep their size inside decorated frames and may overlap, as in Openbox.
+    Stacking,
+}
+
+pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Result<u32> {
+    let red = surface.window(RED, false)?;
+    let blue = surface.window(BLUE, false)?;
     surface.until("window manager maps both clients", || {
+        if layout == Layout::Stacking {
+            // Openbox 3.6.1 can leave map requests unread when they arrive while it reacts
+            // to the compositor starting; it handles them with the next event it receives.
+            surface.nudge()?;
+        }
         Ok(surface.property(red, "WM_STATE")? == Some(1)
-            && surface.property(blue, "WM_STATE")? == Some(1)
-            && surface.window_has_color(red, 0x00ff_0000)?
-            && surface.window_has_color(blue, 0x0000_00ff)?)
+            && surface.property(blue, "WM_STATE")? == Some(1))
+    })?;
+    if layout == Layout::Stacking {
+        surface.settle()?;
+        decorated(surface, red, blue)?;
+    }
+    surface.until("managed client pixels", || {
+        Ok(surface.window_has_color(red, RED)? && surface.window_has_color(blue, BLUE)?)
     })?;
     surface.screenshot(&output.join("managed.ppm"))?;
     let original = surface.conn.get_geometry(red)?.reply()?;
     ensure!(
-        original.width != 320 || original.height != 240,
+        layout == Layout::Stacking || original.width != 320 || original.height != 240,
         "window manager did not arrange the client"
     );
 
     let below = surface.pixel((80, 80))?;
-    let popup = surface.window(0x0000_ff00, true)?;
-    surface.until("popup pixels", || {
-        Ok(surface.pixel((80, 80))? == 0x0000_ff00)
-    })?;
+    let popup = surface.window(GREEN, true)?;
+    surface.until("popup pixels", || Ok(surface.pixel((80, 80))? == GREEN))?;
     surface.screenshot(&output.join("popup.ppm"))?;
     surface.conn.destroy_window(popup)?.check()?;
     surface.until("popup removal", || Ok(surface.pixel((80, 80))? == below))?;
 
+    if layout == Layout::Stacking {
+        restack(surface, red, blue)?;
+        iconify(surface, blue)?;
+        activate(surface, red)?;
+    }
+    fullscreen(surface, red, layout, output)?;
+    surface.until("window manager fullscreen restore", || {
+        let size = surface.conn.get_geometry(red)?.reply()?;
+        Ok(size.width == original.width
+            && size.height == original.height
+            && surface.window_has_color(blue, BLUE)?
+            && surface.window_has_color(red, RED)?)
+    })?;
+
+    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [1, 0, 0, 0, 0])?;
+    surface.until("empty workspace", || {
+        Ok(
+            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(1)
+                && surface.pixel((80, 80))? == BACKGROUND,
+        )
+    })?;
+    surface.screenshot(&output.join("empty-workspace.ppm"))?;
+    wallpaper(surface)?;
+    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [0, 0, 0, 0, 0])?;
+    surface.until("workspace restoration", || {
+        Ok(
+            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(0)
+                && surface.window_has_color(red, RED)?
+                && surface.window_has_color(blue, BLUE)?,
+        )
+    })?;
+
+    for _ in 0..32 {
+        let transient = surface.window(GREEN, false)?;
+        surface.conn.destroy_window(transient)?.check()?;
+    }
+    let vacated = surface.center(blue)?;
+    surface.conn.destroy_window(blue)?.check()?;
+    surface.until("survivor after rapid lifecycle", || {
+        let size = surface.conn.get_geometry(red)?.reply()?;
+        let alone = match layout {
+            Layout::Tiling => size.width > original.width,
+            Layout::Stacking => surface.pixel(vacated)? == BACKGROUND,
+        };
+        Ok(alone && surface.window_has_color(red, RED)?)
+    })?;
+    surface.screenshot(&output.join("survivor.ppm"))?;
+    Ok(red)
+}
+
+/// Place both clients apart and require a reparenting frame with a painted title bar.
+fn decorated(surface: &Surface, red: u32, blue: u32) -> Result<()> {
+    surface.place(red, (60, 80))?;
+    surface.place(blue, (460, 80))?;
+    surface.until("stacking clients placed apart", || {
+        Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
+    })?;
+    for (window, color) in [(red, RED), (blue, BLUE)] {
+        let size = surface.conn.get_geometry(window)?.reply()?;
+        ensure!(
+            size.width == 320 && size.height == 240,
+            "stacking window manager resized the client"
+        );
+        let frame = surface.frame(window)?;
+        ensure!(
+            frame != window,
+            "window manager did not reparent the client"
+        );
+        let top = surface.conn.get_geometry(frame)?.reply()?.y;
+        let origin = surface.origin(window)?;
+        let title = origin.1 - top;
+        ensure!(title > 2, "frame has no title bar above the client");
+        surface.until("frame decoration pixels", || {
+            let pixel = surface.pixel((origin.0 + 160, top + title / 2))?;
+            Ok(pixel != BACKGROUND && pixel != color)
+        })?;
+        println!("frame={frame:#x} client={window:#x} title_height={title}");
+    }
+    Ok(())
+}
+
+/// Overlap the clients and require each activation to bring its window to the front.
+fn restack(surface: &Surface, red: u32, blue: u32) -> Result<()> {
+    let home = surface.origin(blue)?;
+    surface.place(blue, (220, 180))?;
+    surface.until("overlapping clients", || {
+        let (lower, upper) = (surface.origin(red)?, surface.origin(blue)?);
+        Ok(upper != home
+            && (lower.0..lower.0 + 300).contains(&upper.0)
+            && (lower.1..lower.1 + 220).contains(&upper.1))
+    })?;
+    let upper = surface.origin(blue)?;
+    let shared = (upper.0 + 10, upper.1 + 10);
+    for (window, color, description) in [
+        (blue, BLUE, "blue raised over red"),
+        (red, RED, "red raised over blue"),
+        (blue, BLUE, "blue raised again"),
+    ] {
+        activate(surface, window)?;
+        surface.until(description, || Ok(surface.pixel(shared)? == color))?;
+    }
+    surface.place(blue, (460, 80))?;
+    surface.until("clients apart again", || {
+        Ok(surface.pixel(shared)? == RED && surface.window_has_color(blue, BLUE)?)
+    })
+}
+
+/// Iconify a client through the window manager, then map it again.
+fn iconify(surface: &Surface, window: u32) -> Result<()> {
+    let center = surface.center(window)?;
+    surface.message(window, "WM_CHANGE_STATE", [3, 0, 0, 0, 0])?;
+    surface.until("iconified window leaves the screen", || {
+        Ok(
+            surface.property(window, "WM_STATE")? == Some(3)
+                && surface.pixel(center)? == BACKGROUND,
+        )
+    })?;
+    surface.conn.map_window(window)?.check()?;
+    surface.until("iconified window returns", || {
+        Ok(surface.property(window, "WM_STATE")? == Some(1)
+            && surface.window_has_color(window, BLUE)?)
+    })
+}
+
+fn activate(surface: &Surface, window: u32) -> Result<()> {
+    // Source indication 2: a pager, which window managers do not treat as focus stealing.
+    surface.message(window, "_NET_ACTIVE_WINDOW", [2, 0, 0, 0, 0])
+}
+
+/// Enter EWMH fullscreen, check the client covers the screen, and request restoration.
+fn fullscreen(surface: &Surface, red: u32, layout: Layout, output: &Path) -> Result<()> {
     let fullscreen = surface.atom("_NET_WM_STATE_FULLSCREEN")?;
     surface.message(red, "_NET_WM_STATE", [1, fullscreen, 0, 1, 0])?;
     let fullscreen_result = surface.until("window manager fullscreen", || {
         let size = surface.conn.get_geometry(red)?.reply()?;
+        let at_origin = match layout {
+            Layout::Tiling => size.x == 0 && size.y == 0,
+            Layout::Stacking => surface.origin(red)? == (0, 0),
+        };
         Ok(
             u32::from(size.width) + 2 * u32::from(size.border_width) == u32::from(surface.width)
                 && u32::from(size.height) + 2 * u32::from(size.border_width)
                     == u32::from(surface.height)
-                && size.x == 0
-                && size.y == 0
-                && surface.property(red, "_NET_WM_STATE")? == Some(fullscreen)
-                && surface.pixel((80, 80))? == 0x00ff_0000,
+                && at_origin
+                && surface
+                    .properties(red, "_NET_WM_STATE")?
+                    .contains(&fullscreen)
+                && surface.pixel((80, 80))? == RED,
         )
     });
     fullscreen_result.with_context(|| {
@@ -71,44 +229,7 @@ pub(super) fn exercise(surface: &Surface, output: &Path) -> Result<u32> {
         fullscreen_geometry.width, fullscreen_geometry.height, fullscreen_geometry.border_width
     );
     surface.screenshot(&output.join("fullscreen.ppm"))?;
-    surface.message(red, "_NET_WM_STATE", [0, fullscreen, 0, 1, 0])?;
-    surface.until("window manager fullscreen restore", || {
-        let size = surface.conn.get_geometry(red)?.reply()?;
-        Ok(size.width == original.width
-            && size.height == original.height
-            && surface.window_has_color(blue, 0x0000_00ff)?
-            && surface.window_has_color(red, 0x00ff_0000)?)
-    })?;
-
-    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [1, 0, 0, 0, 0])?;
-    surface.until("empty workspace", || {
-        Ok(
-            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(1)
-                && surface.pixel((80, 80))? == BACKGROUND,
-        )
-    })?;
-    surface.screenshot(&output.join("empty-workspace.ppm"))?;
-    wallpaper(surface)?;
-    surface.message(surface.root, "_NET_CURRENT_DESKTOP", [0, 0, 0, 0, 0])?;
-    surface.until("workspace restoration", || {
-        Ok(
-            surface.property(surface.root, "_NET_CURRENT_DESKTOP")? == Some(0)
-                && surface.window_has_color(red, 0x00ff_0000)?
-                && surface.window_has_color(blue, 0x0000_00ff)?,
-        )
-    })?;
-
-    for _ in 0..32 {
-        let transient = surface.window(0x0000_ff00, false)?;
-        surface.conn.destroy_window(transient)?.check()?;
-    }
-    surface.conn.destroy_window(blue)?.check()?;
-    surface.until("survivor after rapid lifecycle", || {
-        let size = surface.conn.get_geometry(red)?.reply()?;
-        Ok(size.width > original.width && surface.window_has_color(red, 0x00ff_0000)?)
-    })?;
-    surface.screenshot(&output.join("survivor.ppm"))?;
-    Ok(red)
+    surface.message(red, "_NET_WM_STATE", [0, fullscreen, 0, 1, 0])
 }
 
 /// Show, then remove, a tiled root wallpaper on the empty workspace.

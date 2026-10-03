@@ -1,0 +1,14 @@
+vendor=The X.Org Foundation release=12101011 geometry=1366x768 depth=24
+READY: enter 'sample LABEL' after each monitor transition, then 'quit'
+monitor=1366x768+0+0 marker_pixels=PASS
+phase=idle seconds=10.000082 updates=0 completions=257 damage_events=257
+phase=active seconds=10.000077 updates=600 completions=600 damage_events=600
+PASS sample=1 label=baseline monitors=1
+monitor=1280x720+0+0 marker_pixels=PASS
+phase=idle seconds=10.000092 updates=0 completions=153 damage_events=153
+phase=active seconds=10.000086 updates=600 completions=601 damage_events=601
+PASS sample=2 label=mode-1280x720 monitors=1
+monitor=1366x768+0+0 marker_pixels=PASS
+phase=idle seconds=10.000102 updates=0 completions=455 damage_events=455
+phase=active seconds=10.000115 updates=600 completions=601 damage_events=601
+PASS sample=3 label=mode-restored monitors=1

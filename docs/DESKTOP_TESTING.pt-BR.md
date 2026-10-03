@@ -6,7 +6,7 @@ Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmona
 
 ## Executar a medição isolada
 
-Instale a toolchain Rust fixada pelo projeto, um linker C, GHC com as bibliotecas `xmonad` e `xmonad-contrib`, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr` e utilitários Linux como `timeout`, `getconf` e `sha256sum`. Execute na raiz do repositório. O script aloca os dois displays automaticamente e inicia uma configuração privada do Xmonad; pode rodar em uma sessão Wayland ou sem desktop.
+Instale a toolchain Rust fixada pelo projeto, um linker C, GHC com as bibliotecas `xmonad` e `xmonad-contrib`, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr` e utilitários Linux como `timeout`, `getconf` e `sha256sum`. Execute na raiz do repositório. O script aloca os dois displays automaticamente e inicia uma configuração privada do Xmonad; pode rodar em uma sessão Wayland ou sem desktop. Defina `WINDOW_MANAGER=openbox` para testar o Openbox, com sua própria [configuração privada](../tools/desktop/openbox.xml); isso exige o Openbox instalado, e não GHC nem Xmonad.
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -21,7 +21,7 @@ Cada diretório de relatório precisa ser novo. Omitir o modo seleciona `present
 
 As configurações `present` e `direct` usam `opacity = 100`, `fade_ms = 0`, `blur_radius = 0` e `max_fps = 120`. A [configuração Present](../tools/desktop/compust.toml) usa `vsync = true`; a [configuração direta](../tools/desktop/compust-direct.toml) usa `vsync = false`. Esses dois modos, portanto, não incluem os custos de fade, translucidez e desfoque. A [configuração de efeitos](../tools/desktop/compust-effects.toml) usa Present com os fades padrão de 180 ms e raio de desfoque 4. No modo `effects`, o probe também deixa a janela sobrevivente 50% translúcida antes de medir, então cada atualização mistura essa janela e desfoca a tela inteira atrás dela.
 
-O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio, definição e remoção de um papel de parede na raiz nesse workspace, retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
+O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio, definição e remoção de um papel de parede na raiz nesse workspace, retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. Com o Openbox, as janelas mantêm seu tamanho dentro de molduras decoradas; por isso o probe também exige uma moldura com reparenting e barra de título pintada, sobrepõe as duas janelas e traz cada uma para a frente, e minimiza e restaura uma delas. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
 
 Após dois segundos de aquecimento, o probe mede uma fase ociosa e outra com uma janela grande, opaca exceto no modo `effects`, alternando vermelho e azul a uma frequência solicitada de 60 atualizações por segundo. Ele registra separadamente CPU de Compust, servidor X, Xvfb hospedeiro quando houver, Xmonad e probe, com RSS no início e no fim de cada fase. Os percentuais consideram um núcleo como 100%; zero significa que nenhum tick de CPU foi observado naquele intervalo. Valores de RSS nos extremos não constituem um teste prolongado de vazamentos.
 
@@ -38,7 +38,7 @@ cd caminho/para/compust
 env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hardware-desktop -- :20
 ```
 
-Escolha um número de display livre e o nome de uma saída exibida pelo `xrandr`; sem `SESSION_OUTPUT`, é usada a primeira saída conectada. O script deixa somente essa saída ativa no modo preferido, desativa o apagamento da tela e mantém um cliente conectado para que o servidor não seja reiniciado entre as execuções. Ele registra saídas, provedores e GPU e depois executa `present`, `direct` e `effects` no novo servidor, continuando após um modo com falha. Por fim, copia o log do servidor quando ele pode ser lido e encerra, terminando a sessão. Não use teclado nem mouse até aparecer `Hardware session finished`; depois faça logout e volte à sua sessão habitual. Revise `xorg.log` antes de compartilhá-lo: ele inclui números de série dos monitores e a linha de comando do kernel.
+Escolha um número de display livre e o nome de uma saída exibida pelo `xrandr`; sem `SESSION_OUTPUT`, é usada a primeira saída conectada. O script deixa somente essa saída ativa no modo preferido, desativa o apagamento da tela e mantém um cliente conectado para que o servidor não seja reiniciado entre as execuções. Ele registra saídas, provedores e GPU e depois executa `present`, `direct` e `effects` no novo servidor, continuando após um modo com falha. `WINDOW_MANAGER` também seleciona o gerenciador de janelas aqui. Por fim, copia o log do servidor quando ele pode ser lido e encerra, terminando a sessão. Não use teclado nem mouse até aparecer `Hardware session finished`; depois faça logout e volte à sua sessão habitual. Revise `xorg.log` antes de compartilhá-lo: ele inclui números de série dos monitores e a linha de comando do kernel.
 
 ## Preservar a identificação das evidências
 
@@ -221,6 +221,29 @@ As execuções Present e de efeitos tiveram, cada uma, um intervalo de dois vbla
 Duas verificações informais não têm registro arquivado. O compositor da sessão habitual, usando Present com fades e desfoque padrão, continuou atualizando o relógio da barra de status depois de um DPMS-off forçado de oito segundos e, de novo, depois da troca para o vt3 e do retorno; ele não registrou nenhum tempo limite do Present.
 
 Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas. Aplicativos reais, outros gerenciadores de janelas, suspensão e retomada e taxas de atualização mistas continuam em aberto.
+
+## Sessões registradas com Openbox: 2026-10-03
+
+O [laptop Intel/Xorg acima](#sessões-registradas-em-intelxorg-2026-10-03) repetiu os três procedimentos com o Openbox 3.6.1, um gerenciador de janelas empilhadas que coloca cada cliente dentro de uma moldura decorada. A base foi o `bbfbd68489a5550bd9d3aa70c587244097d33028`, o commit da versão 0.2.0-beta.2, mais as [mudanças registradas do probe e do executor](benchmarks/2026-10-03/intel-xorg/openbox/desktop/present/source.patch); o código do compositor não mudou, e seu binário foi o `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`. Os [registros](benchmarks/2026-10-03/intel-xorg/openbox/) seguem as mesmas convenções dos registros com Xmonad.
+
+Todas as execuções passaram nos cenários existentes e nos três acrescentados para gerenciadores de janelas empilhadas: molduras decoradas, reempilhamento de janelas sobrepostas e minimização com restauração.
+
+| Execução | CPU ativa do Compust | CPU ativa do servidor X | Quadros em 10 s | Mediana / p95 / máximo dos intervalos |
+| --- | ---: | ---: | ---: | ---: |
+| [Aninhada, Present](benchmarks/2026-10-03/intel-xorg/openbox/nested/present/processes.csv) | 0,8% | 13,4% | 599 | 16,690 / 17,804 / 19,867 ms |
+| [Aninhada, direto](benchmarks/2026-10-03/intel-xorg/openbox/nested/direct/processes.csv) | 0,3% | 14,7% | 600 Damage | — |
+| [Aninhada, efeitos](benchmarks/2026-10-03/intel-xorg/openbox/nested/effects/processes.csv) | 1,1% | 19,6% | 587 | 16,681 / 17,890 / 33,907 ms |
+| [Hardware, Present](benchmarks/2026-10-03/intel-xorg/openbox/desktop/present/processes.csv) | 0,8% | 4,6% | 599 | 16,650 / 16,663 / 33,301 ms |
+| [Hardware, direto](benchmarks/2026-10-03/intel-xorg/openbox/desktop/direct/processes.csv) | 0,6% | 2,9% | 600 Damage | — |
+| [Hardware, efeitos](benchmarks/2026-10-03/intel-xorg/openbox/desktop/effects/processes.csv) | 0,7% | 4,7% | 600 | 16,650 / 16,663 / 33,291 ms |
+
+O servidor aninhado é o Xorg Xephyr 21.1.11 em 1280×800; as linhas de hardware vêm de uma sessão dedicada no vt3 em 1366×768. Como com o Xmonad, cada execução Present em hardware teve um intervalo de dois vblanks. Nas fases ociosas em hardware, o Compust e o Xorg não registraram ticks de CPU, e o RSS não mudou dentro de cada fase: 3.380–3.440 KiB para o Compust.
+
+O [executor de transições de monitores](benchmarks/2026-10-03/intel-xorg/openbox/monitors/) também passou na referência, no eDP-1 em 1280×720 e no modo restaurado, nos dois modos de apresentação, em um desktop Openbox habitual. Os intervalos do Present tiveram mediana de 16,65 ms e máximo de 16,67 ms, e cada MSC avançou uma unidade. Um terminal estava animando durante essas amostras, causando de 153 a 550 repinturas ociosas a cada dez segundos; por isso seus valores de CPU não são comparáveis aos das amostras com Xmonad. As amostras de referência e de modo restaurado da execução direta informaram `resources.csv` idênticos; as da execução Present não, porque o número de janelas abertas no desktop mudou entre as amostras.
+
+Um comportamento do Openbox afetou o probe. Quando um cliente mapeava sua janela no momento em que o Compust assumia a tela, o Openbox 3.6.1 deixava o pedido de mapeamento sem tratamento até seu próximo evento; uma mudança posterior de propriedade na raiz o liberava. O probe agora envia essas mudanças de propriedade durante sua primeira espera sob um gerenciador de janelas empilhadas. A causa dentro do Openbox não foi investigada.
+
+Essas sessões usam as janelas sintéticas do probe. Mover e redimensionar janelas de forma interativa, os menus do próprio Openbox e aplicativos reais não têm cenário registrado.
 
 ## Concluir os critérios de hardware
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Private Openbox configuration for tools/desktop-check.sh: decorated, reparented,
+     stacking windows on two desktops, with no key or mouse bindings. -->
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+  </focus>
+  <placement>
+    <policy>Smart</policy>
+  </placement>
+  <theme>
+    <name>Clearlooks</name>
+    <titleLayout>NLIMC</titleLayout>
+    <animateIconify>no</animateIconify>
+  </theme>
+  <desktops>
+    <number>2</number>
+    <popupTime>0</popupTime>
+  </desktops>
+</openbox_config>

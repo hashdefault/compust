@@ -18,7 +18,7 @@ A primeira beta usa o backend XRender e declara suporte somente aos ambientes co
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre, além de uma mudança de modo do painel em um laptop Intel/Xorg; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
-| 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
+| 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; cenários do Openbox nesse laptop; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
 | 4. Distribuição da beta | Publicada como v0.2.0-beta.1; v0.2.0-beta.2 preparada com escopo declarado maior | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
@@ -165,6 +165,14 @@ A sessão dedicada em Intel executou o mesmo código desta versão, compilado ju
 
 Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produziram arquivos idênticos. O binário empacotado exibiu sua versão, não exige símbolos da glibc mais novos que a 2.34, recusou-se a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou. Com esse binário, as verificações de desktop aninhadas passaram nos três modos no Xorg Xephyr 21.1.11.
 
+### Etapa 3 com um segundo gerenciador de janelas: Openbox
+
+O executor de desktop e o probe agora aceitam o Openbox, o primeiro gerenciador de janelas decorado, com reparenting e empilhamento a ser testado. `WINDOW_MANAGER=openbox` o inicia com uma configuração privada, e a opção `--layout stacking` do probe acrescenta três cenários: cada cliente fica em uma moldura com reparenting e barra de título pintada, duas janelas sobrepostas vêm para a frente conforme cada uma é ativada, e uma janela minimizada sai da tela e volta. Os cenários existentes foram ajustados para janelas que mantêm seu tamanho. As execuções com Xmonad não mudaram.
+
+No laptop Intel/Xorg, o Openbox 3.6.1 passou nas verificações aninhadas, nas amostras de transição de monitores em um desktop habitual e em uma sessão dedicada em hardware, em todos os modos de cada uma. Nenhuma mudança no compositor foi necessária. O [guia de qualificação de desktops](DESKTOP_TESTING.pt-BR.md#sessões-registradas-com-openbox-2026-10-03) traz as medições, um comportamento de inicialização do Openbox que o probe contorna e os limites.
+
+Isso é evidência para um gerenciador de janelas empilhadas com janelas sintéticas. Mover e redimensionar de forma interativa, os menus do gerenciador e aplicativos reais ainda não têm cenários registrados, e o escopo declarado da 0.2.0-beta.2 não muda.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -172,6 +180,7 @@ Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produzir
 | Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos, destruição com eventos pendentes e onze pontos da captura; todos os 47 testes passam | Registro de 2026-10-02. Corridas de captura usam `fade_ms = 0`, `blur_radius = 0` e vsync padrão. Os casos anteriores de fades/formatos também usam `fade_ms = 1000`, `blur_radius = 4` ou `vsync = false`, conforme descrito acima. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
 | Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores estão fora desta configuração virtual. |
 | Xorg 21.1.11 nativo no Linux Mint 22.3, modesetting + i915, Intel Core i3-1005G1 (Iris Plus G1, Mesa 25.2.8), Xmonad 0.17.2, um painel de 1366×768 a 60 Hz | Verificações aninhadas; mudança de modo do painel e restauração nos dois modos de apresentação; cenários de desktop do probe nos modos Present, direto e de efeitos; CPU, RSS, XRes e regularidade do Present | Registrado em 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03). Sem hotplug físico: a máquina tem uma única tela. |
+| Mesmo laptop Intel/Xorg com Openbox 3.6.1 | Verificações aninhadas, mudança de modo do painel e cenários de desktop do probe em todos os modos, incluindo molduras decoradas, reempilhamento e minimização | Registrado em 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessões-registradas-com-openbox-2026-10-03). |
 | Xorg com gerenciador de janelas real e drivers AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com drivers Intel/NVIDIA ou outras configurações AMD | Pendente | Exige os mesmos registros de ambiente; uma sessão AMD não comprova outros drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, aninhado no Xvfb, 1280×800×24 | Cenários de desktop com troca de papel de parede, CPU/RSS em ociosidade e atividade, modos Present, XRender direto e efeitos, encerramento | Registros de 2026-10-03: [medição](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03) com fade/desfoque desativados e [medição com efeitos](DESKTOP_TESTING.pt-BR.md#medição-registrada-com-efeitos-2026-10-03). Sem validação de monitor físico ou driver. |
@@ -199,7 +208,7 @@ Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
 
 ### Critérios ainda pendentes
 
-Os cenários do probe passam em uma sessão AMD/XLibre e em uma sessão Intel/Xorg. Estenda os testes em hardware a outros gerenciadores de janelas, a aplicativos reais, aos drivers NVIDIA e ao Xorg com AMD. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
+Os cenários do probe passam em uma sessão AMD/XLibre e em uma sessão Intel/Xorg com Xmonad, e no laptop Intel/Xorg com Openbox. Estenda os testes em hardware a mais gerenciadores de janelas, a aplicativos reais, aos drivers NVIDIA e ao Xorg com AMD. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
 Repita o hotplug físico e as configurações com vários monitores com outros drivers e servidores, taxas de atualização mistas e mais de dois monitores, além de medir memória e apresentação em execuções mais longas. A sessão de monitores AMD/XLibre, as transições RandR virtuais, a recuperação de envios Present rejeitados ou não concluídos e a contagem repetida via XRes acima estão concluídas. Preserve a cobertura de destruição entre requisições de captura, liberação de recursos, formatos grandes ou fora da tela e propriedades malformadas registrada acima.
 

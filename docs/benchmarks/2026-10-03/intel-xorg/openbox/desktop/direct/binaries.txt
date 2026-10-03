@@ -1,0 +1,4 @@
+c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31  target/release/compust
+154901f4808a013bcdedbb1c763cf3028c4e55ce153cc26f21e1a88cc611fbc7  target/release/examples/desktop_probe
+d63660954f6e9c5c447c954cb0261122fdf6801225618d19641156ffc7d59c17  tools/desktop/openbox.xml
+941e69bf5479d77805bdeae7a6dee17142ff429b8db9e7d0c1b579e9c70a0b52  /usr/bin/openbox

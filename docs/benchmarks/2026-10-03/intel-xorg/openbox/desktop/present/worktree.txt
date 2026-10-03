@@ -1,0 +1,5 @@
+ M examples/desktop/scenarios.rs
+ M examples/desktop/surface.rs
+ M examples/desktop_probe.rs
+ M tools/desktop-check.sh
+?? tools/desktop/openbox.xml

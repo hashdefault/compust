@@ -18,7 +18,7 @@ The first beta uses the XRender backend and declares support only for environmen
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop, plus a panel mode change on one Intel/Xorg laptop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
-| 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
+| 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; Openbox scenarios on that laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Published as v0.2.0-beta.1; v0.2.0-beta.2 prepared with a wider declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
@@ -165,6 +165,14 @@ The Intel dedicated session ran the same source as this release, built together 
 
 Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identical archives. The packaged binary printed its version, needs no glibc symbol newer than 2.34, refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. With that binary in place, the nested desktop checks passed in all three modes on Xorg Xephyr 21.1.11.
 
+### Step 3 with a second window manager: Openbox
+
+The desktop runner and probe now accept Openbox, the first decorated, reparenting, stacking window manager tested. `WINDOW_MANAGER=openbox` starts it with a private configuration, and the probe's `--layout stacking` adds three scenarios: each client sits in a reparenting frame with a painted title bar, two overlapping windows come to the front as each is activated, and an iconified window leaves the screen and returns. The existing scenarios were adjusted for windows that keep their size. Xmonad runs are unchanged.
+
+On the Intel/Xorg laptop, Openbox 3.6.1 passed the nested checks, the monitor-transition samples on an ordinary desktop, and a dedicated hardware session, each in every mode. No compositor change was needed. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03) has the measurements, an Openbox startup behavior the probe works around, and the limits.
+
+This is evidence for one stacking window manager with synthetic windows. Interactive move and resize, window-manager menus, and actual applications still lack recorded scenarios, and the 0.2.0-beta.2 declared scope is unchanged.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -172,6 +180,7 @@ Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identi
 | Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, queued destruction events, and eleven capture-request boundaries; all 47 tests pass | Recorded 2026-10-02. Capture races use `fade_ms = 0`, `blur_radius = 0`, and default vsync. Earlier fade/shape cases also use `fade_ms = 1000`, `blur_radius = 4`, or `vsync = false` as described above. Hierarchies are created directly, without real window-manager or GPU qualification. |
 | Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors are outside this virtual setup. |
 | Xorg 21.1.11 native on Linux Mint 22.3, modesetting + i915, Intel Core i3-1005G1 (Iris Plus G1, Mesa 25.2.8), Xmonad 0.17.2, one 1366×768 panel at 60 Hz | Nested checks; panel mode change and restoration in both presentation modes; probe desktop scenarios in Present, direct, and effects modes; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03). No physical hotplug: the machine has one display. |
+| Same Intel/Xorg laptop with Openbox 3.6.1 | Nested checks, panel mode change, and probe desktop scenarios in all modes, including decorated frames, restacking, and iconify | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03). |
 | Xorg with a real window manager and AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with Intel/NVIDIA drivers or other AMD configurations | Pending | Requires the same environment evidence; one AMD session does not establish other drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios with wallpaper change, idle/active CPU and RSS, Present, direct XRender, and effects modes, shutdown | Recorded 2026-10-03: [baseline](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) with fade/blur disabled and an [effects baseline](DESKTOP_TESTING.md#recorded-effects-baseline-2026-10-03). No physical display or driver qualification. |
@@ -199,7 +208,7 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 ### Remaining acceptance work
 
-The probe's scenarios pass on one AMD/XLibre session and one Intel/Xorg session. Extend hardware testing to other window managers, actual applications, NVIDIA drivers, and Xorg with AMD. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
+The probe's scenarios pass on one AMD/XLibre session and one Intel/Xorg session with Xmonad, and on the Intel/Xorg laptop with Openbox. Extend hardware testing to further window managers, actual applications, NVIDIA drivers, and Xorg with AMD. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
 Repeat physical hotplug and multiple-monitor layouts with other drivers and servers, mixed refresh rates, and more than two monitors, and measure longer-running memory and presentation behavior. The AMD/XLibre monitor session, virtual RandR transitions, recovery from rejected or unfinished Present submissions, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
 

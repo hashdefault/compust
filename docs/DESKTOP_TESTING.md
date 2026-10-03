@@ -6,7 +6,7 @@ This guide covers the reproducible desktop work in beta step 3. Xmonad running i
 
 ## Run the isolated baseline
 
-Install the pinned Rust toolchain, a C linker, GHC with the `xmonad` and `xmonad-contrib` libraries, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr`, and standard Linux utilities including `timeout`, `getconf`, and `sha256sum`. Run from the repository root. The runner allocates both displays automatically and starts a private Xmonad configuration; it can run from a Wayland session or without a desktop.
+Install the pinned Rust toolchain, a C linker, GHC with the `xmonad` and `xmonad-contrib` libraries, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr`, and standard Linux utilities including `timeout`, `getconf`, and `sha256sum`. Run from the repository root. The runner allocates both displays automatically and starts a private Xmonad configuration; it can run from a Wayland session or without a desktop. Set `WINDOW_MANAGER=openbox` to test Openbox instead, with its own [private configuration](../tools/desktop/openbox.xml); that needs Openbox installed, not GHC or Xmonad.
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -21,7 +21,7 @@ Each report directory must be new. Omitting the mode selects `present`; `--help`
 
 The `present` and `direct` configurations use `opacity = 100`, `fade_ms = 0`, `blur_radius = 0`, and `max_fps = 120`. The [Present configuration](../tools/desktop/compust.toml) uses `vsync = true`; the [direct configuration](../tools/desktop/compust-direct.toml) uses `vsync = false`. Those two modes therefore exclude fade, translucency, and blur costs. The [effects configuration](../tools/desktop/compust-effects.toml) uses Present with the default 180 ms fades and blur radius 4. In `effects` mode, the probe also makes the surviving window 50% translucent before measuring, so each redraw blends that window and blurs the full screen behind it.
 
-The probe checks managed tiling, override-redirect popup removal, EWMH fullscreen and restoration, switching to an empty workspace, setting and removing a root wallpaper there, switching back, 32 rapid create/map/destroy sequences, and a surviving window's redraw. Each scene checks actual overlay pixels. The runner also requires a successful compositor exit after SIGTERM. Display startup waits for `-displayfd`, while selection, window-manager, and scene readiness use X11 notifications with deadlines.
+The probe checks managed tiling, override-redirect popup removal, EWMH fullscreen and restoration, switching to an empty workspace, setting and removing a root wallpaper there, switching back, 32 rapid create/map/destroy sequences, and a surviving window's redraw. Each scene checks actual overlay pixels. With Openbox, windows keep their size inside decorated frames, so the probe also requires a reparenting frame with a painted title bar, overlaps the two windows and raises each in turn, and iconifies and restores one. The runner also requires a successful compositor exit after SIGTERM. Display startup waits for `-displayfd`, while selection, window-manager, and scene readiness use X11 notifications with deadlines.
 
 After two seconds of warmup, the probe measures an idle phase and a phase with a large window, opaque except in `effects` mode, alternating red and blue at a requested 60 updates per second. It records Compust, the X server, the Xvfb host when one is used, Xmonad, and probe CPU separately, with RSS at each phase's endpoints. CPU percentages use one core as 100%; a zero value means no CPU ticks were observed during that interval. Endpoint RSS values are not a long-running leak test.
 
@@ -38,7 +38,7 @@ cd path/to/compust
 env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hardware-desktop -- :20
 ```
 
-Choose a free display number and an output name from `xrandr`; without `SESSION_OUTPUT`, the first connected output is used. The script leaves only that output enabled at its preferred mode, disables screen blanking, and keeps one client connected so the server does not reset between runs. It records the outputs, providers, and GPU, then runs `present`, `direct`, and `effects` against the new server, continuing after a failed mode. Finally it copies the server log when readable and exits, which ends the session. Do not use the keyboard or mouse until it prints `Hardware session finished`; then log out and return to your usual session. Review `xorg.log` before sharing it: it includes monitor serial numbers and the kernel command line.
+Choose a free display number and an output name from `xrandr`; without `SESSION_OUTPUT`, the first connected output is used. The script leaves only that output enabled at its preferred mode, disables screen blanking, and keeps one client connected so the server does not reset between runs. It records the outputs, providers, and GPU, then runs `present`, `direct`, and `effects` against the new server, continuing after a failed mode. `WINDOW_MANAGER` selects the window manager here too. Finally it copies the server log when readable and exits, which ends the session. Do not use the keyboard or mouse until it prints `Hardware session finished`; then log out and return to your usual session. Review `xorg.log` before sharing it: it includes monitor serial numbers and the kernel command line.
 
 ## Keep evidence attributable
 
@@ -221,6 +221,29 @@ The Present and effects runs each had one interval spanning two vblanks; in the 
 Two informal checks have no archived record. The usual session's compositor, running Present with default fades and blur, kept updating the status bar clock after an eight-second forced DPMS-off, and again after the switch to vt3 and back; it logged no Present timeout.
 
 These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested. Actual applications, other window managers, suspend and resume, and mixed refresh rates remain open.
+
+## Recorded Openbox sessions: 2026-10-03
+
+The [Intel/Xorg laptop above](#recorded-intelxorg-sessions-2026-10-03) repeated the three procedures with Openbox 3.6.1, a stacking window manager that reparents each client into a decorated frame. The base was `bbfbd68489a5550bd9d3aa70c587244097d33028`, the 0.2.0-beta.2 release commit, plus the [recorded probe and runner changes](benchmarks/2026-10-03/intel-xorg/openbox/desktop/present/source.patch); the compositor source is unchanged, and its binary was `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`. The [records](benchmarks/2026-10-03/intel-xorg/openbox/) follow the same conventions as the Xmonad ones.
+
+Every run passed the existing scenarios and the three added for stacking window managers: decorated frames, restacking of overlapping windows, and iconify and restore.
+
+| Run | Active Compust CPU | Active X server CPU | Frames in 10 s | Interval median / p95 / max |
+| --- | ---: | ---: | ---: | ---: |
+| [Nested, Present](benchmarks/2026-10-03/intel-xorg/openbox/nested/present/processes.csv) | 0.8% | 13.4% | 599 | 16.690 / 17.804 / 19.867 ms |
+| [Nested, direct](benchmarks/2026-10-03/intel-xorg/openbox/nested/direct/processes.csv) | 0.3% | 14.7% | 600 Damage | — |
+| [Nested, effects](benchmarks/2026-10-03/intel-xorg/openbox/nested/effects/processes.csv) | 1.1% | 19.6% | 587 | 16.681 / 17.890 / 33.907 ms |
+| [Hardware, Present](benchmarks/2026-10-03/intel-xorg/openbox/desktop/present/processes.csv) | 0.8% | 4.6% | 599 | 16.650 / 16.663 / 33.301 ms |
+| [Hardware, direct](benchmarks/2026-10-03/intel-xorg/openbox/desktop/direct/processes.csv) | 0.6% | 2.9% | 600 Damage | — |
+| [Hardware, effects](benchmarks/2026-10-03/intel-xorg/openbox/desktop/effects/processes.csv) | 0.7% | 4.7% | 600 | 16.650 / 16.663 / 33.291 ms |
+
+The nested server is Xorg Xephyr 21.1.11 at 1280×800; the hardware rows come from a dedicated session on vt3 at 1366×768. As with Xmonad, each hardware Present run had one interval spanning two vblanks. In idle phases on hardware, Compust and Xorg recorded no CPU ticks, and RSS was unchanged within each phase: 3,380–3,440 KiB for Compust.
+
+The [monitor-transition runner](benchmarks/2026-10-03/intel-xorg/openbox/monitors/) also passed the baseline, eDP-1 at 1280×720, and the restored mode in both presentation modes on an ordinary Openbox desktop. Present intervals had a 16.65 ms median and a 16.67 ms maximum, and every MSC advanced by one. A terminal was animating during those samples, causing 153–550 idle redraws per ten seconds, so their CPU figures are not comparable with the Xmonad samples. The direct run's baseline and restored samples reported identical `resources.csv`; the Present run's did not, because the number of open desktop windows changed between samples.
+
+One Openbox behavior affected the probe. When a client mapped its window at the moment Compust claimed the screen, Openbox 3.6.1 left the map request unhandled until its next event; a later root property change released it. The probe now sends such property changes during its first wait under a stacking window manager. The cause inside Openbox was not investigated.
+
+These sessions use the probe's synthetic windows. Interactive moving and resizing, Openbox's own menus, and actual applications have no recorded scenario.
 
 ## Complete the hardware gates
 

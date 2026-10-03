@@ -41,6 +41,10 @@ struct Args {
     /// Survivor opacity percentage while measuring; below 100, each redraw blends and blurs.
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100), default_value_t = 100)]
     opacity: u8,
+    /// How the window manager arranges windows; stacking adds frame, restacking, and
+    /// iconify scenarios.
+    #[arg(long, value_enum, default_value_t = scenarios::Layout::Tiling)]
+    layout: scenarios::Layout,
     /// Keep one marker window instead of running the desktop scenarios. Read
     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
     #[arg(long)]
@@ -68,7 +72,7 @@ fn main() -> Result<()> {
     if args.hotplug {
         return hotplug::run(&surface, &args, &processes);
     }
-    let window = scenarios::exercise(&surface, &args.output)?;
+    let window = scenarios::exercise(&surface, &args.output, args.layout)?;
     if args.opacity < 100 {
         scenarios::translucent(&surface, window, args.opacity)?;
     }
@@ -79,8 +83,12 @@ fn main() -> Result<()> {
         scenarios::shows_red(&surface, window, args.opacity)
     })?;
     surface.screenshot(&args.output.join("final.ppm"))?;
+    let stacking = match args.layout {
+        scenarios::Layout::Tiling => "",
+        scenarios::Layout::Stacking => "decorated frames, restacking, iconify restore, ",
+    };
     println!(
-        "PASS: managed windows, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
+        "PASS: managed windows, {stacking}popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
         args.opacity
     );
     Ok(())
