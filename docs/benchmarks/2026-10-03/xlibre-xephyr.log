@@ -1,0 +1,61 @@
+_XSERVTransSocketUNIXCreateListener: ...SocketCreateListener() failed
+_XSERVTransMakeAllCOTSServerListeners: server already running
+_XSERVTransSocketUNIXCreateListener: ...SocketCreateListener() failed
+_XSERVTransMakeAllCOTSServerListeners: server already running
+_amdgpu_device_initialize: amdgpu_query_info(ACCEL_WORKING) failed (-13)
+The XKEYBOARD keymap compiler (xkbcomp) reports:
+> Warning:          Multiple symbols for level 1/group 1 on key <FK23>
+>                   Using F23, ignoring XF86TouchpadOff
+> Warning:          Symbol map for key <FK23> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Symbol map for key <FK24> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOn
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOff
+> Warning:          Could not resolve keysym XF86ActionOnSelection
+> Warning:          Could not resolve keysym XF86ContextualInsert
+> Warning:          Could not resolve keysym XF86ContextualQuery
+Errors from xkbcomp are not fatal to the X server
+unrecognised device identifier: /dev/input/event15
+Pointer option key (_source) of value (server/udev) not assigned!
+Pointer option key (major) of value (13) not assigned!
+Pointer option key (minor) of value (73) not assigned!
+Pointer option key (config_info) of value (udev:/sys/devices/pci0000:00/0000:00:01.2/0000:02:00.0/usb1/1-5/1-5:1.2/0003:046D:C53F.0007/0003:046D:4074.0009/input/input19/event9) not assigned!
+couldn't find driver for pointer device "Logitech G305" (/dev/input/event9)
+Pointer option key (_source) of value (server/udev) not assigned!
+Pointer option key (major) of value (13) not assigned!
+Pointer option key (minor) of value (33) not assigned!
+Pointer option key (config_info) of value (udev:/sys/devices/pci0000:00/0000:00:01.2/0000:02:00.0/usb1/1-5/1-5:1.2/0003:046D:C53F.0007/0003:046D:4074.0009/input/input19/mouse1) not assigned!
+couldn't find driver for pointer device "Logitech G305" (/dev/input/mouse1)
+unrecognised device identifier: /dev/input/event11
+unrecognised device identifier: /dev/input/event12
+unrecognised device identifier: /dev/input/event13
+unrecognised device identifier: /dev/input/event14
+unrecognised device identifier: /dev/input/event2
+Kbd option key (_source) of value (server/udev) not assigned!
+Kbd option key (major) of value (13) not assigned!
+Kbd option key (minor) of value (67) not assigned!
+Kbd option key (config_info) of value (udev:/sys/devices/pci0000:00/0000:00:08.1/0000:09:00.3/usb3/3-2/3-2:1.0/0003:3151:5056.0002/input/input3/event3) not assigned!
+couldn't find driver for keyboard device "       TH80 V2" (/dev/input/event3)
+unrecognised device identifier: /dev/input/event4
+unrecognised device identifier: /dev/input/event5
+unrecognised device identifier: /dev/input/event6
+Pointer option key (_source) of value (server/udev) not assigned!
+Pointer option key (major) of value (13) not assigned!
+Pointer option key (minor) of value (71) not assigned!
+Pointer option key (config_info) of value (udev:/sys/devices/pci0000:00/0000:00:08.1/0000:09:00.3/usb3/3-2/3-2:1.1/0003:3151:5056.0003/input/input7/event7) not assigned!
+couldn't find driver for pointer device "       TH80 V2 Mouse" (/dev/input/event7)
+Pointer option key (_source) of value (server/udev) not assigned!
+Pointer option key (major) of value (13) not assigned!
+Pointer option key (minor) of value (32) not assigned!
+Pointer option key (config_info) of value (udev:/sys/devices/pci0000:00/0000:00:08.1/0000:09:00.3/usb3/3-2/3-2:1.1/0003:3151:5056.0003/input/input7/mouse0) not assigned!
+couldn't find driver for pointer device "       TH80 V2 Mouse" (/dev/input/mouse0)
+unrecognised device identifier: /dev/input/event8
+unrecognised device identifier: /dev/input/event16
+unrecognised device identifier: /dev/input/event17
+unrecognised device identifier: /dev/input/event18
+unrecognised device identifier: /dev/input/event19
+unrecognised device identifier: /dev/input/event20
+unrecognised device identifier: /dev/input/event1
+unrecognised device identifier: /dev/input/event0
+unrecognised device identifier: /dev/input/event10
