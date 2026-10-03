@@ -1,3 +1,5 @@
+#[path = "cases/capture_races.rs"]
+mod capture_races;
 #[path = "cases/client_lifecycle.rs"]
 mod client_lifecycle;
 #[path = "cases/compat.rs"]

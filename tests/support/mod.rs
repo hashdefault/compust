@@ -1,4 +1,7 @@
+pub(crate) mod capture;
+pub(crate) mod capture_proxy;
 mod pixels;
+pub(crate) mod proxy;
 use anyhow::{Context, Result, ensure};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use std::{
@@ -45,6 +48,14 @@ pub(crate) struct Desktop {
 
 impl Desktop {
     pub(crate) fn new(settings: &str) -> Result<Self> {
+        Self::with_display(settings, |display| Ok((display.to_owned(), ())))
+            .map(|(desktop, ())| desktop)
+    }
+
+    pub(crate) fn with_display<T>(
+        settings: &str,
+        route: impl FnOnce(&str) -> Result<(String, T)>,
+    ) -> Result<(Self, T)> {
         let executable = std::env::var_os("XVFB").unwrap_or_else(|| "Xvfb".into());
         let mut server = Process(
             Command::new(executable)
@@ -96,9 +107,10 @@ impl Desktop {
         conn.damage_query_version(1, 1)?.reply()?;
         let mut config = NamedTempFile::new()?;
         write!(config, "{settings}")?;
+        let (compositor_display, transport) = route(&display)?;
         let compositor = Process(
             Command::new(env!("CARGO_BIN_EXE_compust"))
-                .args(["--display", &display, "--config"])
+                .args(["--display", &compositor_display, "--config"])
                 .arg(config.path())
                 .stdout(Stdio::null())
                 .stderr(Stdio::inherit())
@@ -116,16 +128,19 @@ impl Desktop {
         let damage = conn.generate_id()?;
         conn.damage_create(damage, overlay, ReportLevel::NON_EMPTY)?
             .check()?;
-        Ok(Self {
-            conn,
-            root,
-            overlay,
-            display,
-            compositor,
-            _server: server,
-            _config: config,
-            damage,
-        })
+        Ok((
+            Self {
+                conn,
+                root,
+                overlay,
+                display,
+                compositor,
+                _server: server,
+                _config: config,
+                damage,
+            },
+            transport,
+        ))
     }
 
     pub(crate) fn window(&self, rect: Rectangle, color: u32) -> Result<Window> {
