@@ -1,3 +1,5 @@
+#[path = "desktop/bench.rs"]
+mod bench;
 #[path = "desktop/hotplug.rs"]
 mod hotplug;
 #[path = "desktop/metrics.rs"]
@@ -6,6 +8,8 @@ mod metrics;
 mod scenarios;
 #[path = "desktop/surface.rs"]
 mod surface;
+#[path = "desktop/topology.rs"]
+mod topology;
 
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, ValueEnum};
@@ -56,6 +60,14 @@ struct Args {
     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
     #[arg(long)]
     hotplug: bool,
+    /// Measure one benchmark scene instead of running the desktop scenarios. It needs no
+    /// window manager; label the compositor's process 'compositor'.
+    #[arg(long, value_enum)]
+    bench: Option<bench::Scene>,
+    /// A GPU load percentage file to sample during benchmark scenes, such as amdgpu's
+    /// `gpu_busy_percent` under `/sys/class/drm`.
+    #[arg(long, requires = "bench")]
+    gpu_busy: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -66,7 +78,7 @@ enum Presentation {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let surface = Surface::connect(&args.display)?;
+    let surface = Surface::connect(&args.display, args.bench.is_none())?;
     println!(
         "vendor={} release={} geometry={}x{} depth=24",
         String::from_utf8_lossy(&surface.conn.setup().vendor),
@@ -76,6 +88,9 @@ fn main() -> Result<()> {
     );
     let mut processes = args.process.clone();
     processes.push(Process::probe());
+    if let Some(scene) = args.bench {
+        return bench::run(&surface, &args, scene, &processes);
+    }
     if args.hotplug {
         return hotplug::run(&surface, &args, &processes);
     }

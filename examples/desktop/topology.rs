@@ -160,7 +160,10 @@ pub(super) fn seams(monitors: &[Area], marker: &Area) -> Vec<Seam> {
 }
 
 /// Write the compositor's X resource counts and full owned pixmap bytes to `resources.csv`.
-pub(super) fn resources(surface: &Surface, output: &Path) -> Result<()> {
+/// Record the compositor's server resources in `resources.csv`. Compust's pixmaps all report
+/// their size; with `strict` unset, pixmaps without one are counted instead of rejected, as
+/// another compositor's GLX pixmaps can be.
+pub(super) fn resources(surface: &Surface, output: &Path, strict: bool) -> Result<()> {
     let conn = &surface.conn;
     let version = conn.res_query_version(1, 2)?.reply()?;
     ensure!(
@@ -198,14 +201,19 @@ pub(super) fn resources(surface: &Surface, output: &Path) -> Result<()> {
         .reply()?
         .sizes;
     sizes.retain(|size| size.size.spec.type_ == u32::from(AtomEnum::PIXMAP));
+    let reported = u32::try_from(sizes.iter().filter(|size| size.size.bytes > 0).count())?;
     ensure!(
-        u32::try_from(sizes.len())? == pixmaps,
+        !strict || u32::try_from(sizes.len())? == pixmaps,
         "XRes omitted pixmap allocations"
     );
-    ensure!(
-        sizes.iter().all(|size| size.size.bytes > 0),
-        "XRes omitted pixmap bytes"
-    );
+    ensure!(!strict || reported == pixmaps, "XRes omitted pixmap bytes");
+    if !strict {
+        writeln!(
+            file,
+            "pixmaps_without_size,{}",
+            pixmaps.saturating_sub(reported)
+        )?;
+    }
     // Full allocation sizes stay stable when Present changes pixmap reference counts.
     let bytes = sizes.iter().try_fold(0_u64, |sum, size| {
         sum.checked_add(u64::from(size.size.bytes))

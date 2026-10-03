@@ -1,18 +1,18 @@
-use super::{Args, Surface, measure, metrics::Process};
+use super::{
+    Args, Surface, measure,
+    metrics::Process,
+    topology::{self, Area, Point},
+};
 use anyhow::{Context, Result, bail, ensure};
 use std::{
     fs::create_dir,
     io::{BufRead, Write},
     path::Path,
 };
-use topology::{Area, Point};
 use x11rb::protocol::{
     randr::ConnectionExt as _,
     xproto::{ConfigureWindowAux, ConnectionExt as _, StackMode},
 };
-
-#[path = "topology.rs"]
-mod topology;
 
 const RED: u32 = 0x00ff_0000;
 const GREEN: u32 = 0x0000_ff00;
@@ -121,7 +121,7 @@ fn sample(
     surface.until("marker redraw after measurement", || {
         surface.window_has_color(marker, GREEN)
     })?;
-    topology::resources(surface, output)?;
+    topology::resources(surface, output, true)?;
     Ok(monitors.len())
 }
 

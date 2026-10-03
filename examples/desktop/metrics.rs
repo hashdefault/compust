@@ -46,6 +46,15 @@ struct Usage {
 
 pub(super) struct Snapshot(Vec<Usage>);
 
+/// One process's CPU use and resident memory over a measured interval.
+pub(super) struct Delta {
+    pub(super) label: String,
+    /// Percentage of one core.
+    pub(super) cpu: f64,
+    pub(super) rss_before: u64,
+    pub(super) rss_after: u64,
+}
+
 impl Snapshot {
     pub(super) fn read(processes: &[Process]) -> Result<Self> {
         let mut values = Vec::with_capacity(processes.len());
@@ -85,12 +94,13 @@ impl Snapshot {
         phase: &str,
         elapsed: Duration,
         output: &mut impl Write,
-    ) -> Result<()> {
+    ) -> Result<Vec<Delta>> {
         let clock = Command::new("getconf").arg("CLK_TCK").output()?;
         ensure!(clock.status.success(), "getconf CLK_TCK failed");
         let frequency: u32 = std::str::from_utf8(&clock.stdout)?.trim().parse()?;
         ensure!(frequency > 0, "invalid CPU clock frequency");
         ensure!(self.0.len() == after.0.len(), "different process snapshots");
+        let mut deltas = Vec::with_capacity(self.0.len());
         for (before, after) in self.0.iter().zip(&after.0) {
             ensure!(
                 before.process.pid == after.process.pid && before.start_time == after.start_time,
@@ -111,7 +121,13 @@ impl Snapshot {
                 before.rss,
                 after.rss
             )?;
+            deltas.push(Delta {
+                label: before.process.label.clone(),
+                cpu: percent,
+                rss_before: before.rss,
+                rss_after: after.rss,
+            });
         }
-        Ok(())
+        Ok(deltas)
     }
 }

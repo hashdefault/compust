@@ -96,6 +96,32 @@ O probe mapeia uma janela gerenciada, que um gerenciador de janelas tiling acres
 
 Uma sequência útil começa com uma referência inicial e depois muda o modo, a disposição e desativa uma saída, restaurando após cada mudança. Para cada conector, registre amostras com ele desconectado enquanto o CRTC ainda está atribuído, após a reação do desktop (`xrandr --auto` abaixo), reconectado e restaurado. Execute a sequência uma vez por modo de apresentação.
 
+## Executar as cenas de benchmark
+
+`tools/bench.sh` mede cenas fixas com o Compust e depois com o picom em uma sessão X11 existente; ele não inicia servidor nem gerenciador de janelas. Pare antes o compositor da sessão e guarde o comando que o restaura. As [configurações](../tools/bench/) se equivalem: o Compust sem fades nem desfoque e com `vsync = true`, e o picom com as mesmas opções nos backends `xrender` e `glx`, sem sombras, fades, cantos arredondados, escurecimento nem suspensão da composição. As variantes com desfoque usam raio de 4 pixels. O backend xrender do picom não tem Dual Kawase e desfoca com uma caixa de tamanho 9; o backend glx usa Dual Kawase aproximando o mesmo tamanho. `COMPOSITORS` e `SCENES` escolhem um subconjunto.
+
+```sh
+cargo build --release --locked --bin compust --example desktop_probe
+SERVER_PID=$(pgrep -x Xorg) WM_PID=$(pgrep -x dwm) tools/bench.sh artifacts/bench
+```
+
+Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, para que nenhum gerenciador as posicione e a geometria seja igual em qualquer desktop. Depois de dois segundos de aquecimento, a sonda mede por `SECONDS_PER_PHASE`, dez segundos por padrão.
+
+| Cena | Carga |
+| --- | --- |
+| `idle` | Somente o fundo |
+| `small-update` | Uma janela de 64×64 alternando vermelho e azul 60 vezes por segundo |
+| `fullscreen-translucent` | Uma janela a 50% cobrindo a raiz, alternando do mesmo modo |
+| `eight-translucent` | Oito janelas de 480×360 sobrepostas a 50%; a de cima alterna |
+| `move-resize` | Uma janela movida e redimensionada 60 vezes por segundo |
+| `open-close` | 100 janelas, uma por vez, mapeadas até o overlay mostrá-las e destruídas até o overlay mostrar o fundo |
+
+As cenas translúcidas rodam sem desfoque e, com o sufixo `:blur`, com ele. Todas cabem em uma tela de 1366×768; em uma maior, só a janela de tela cheia cresce.
+
+Cada diretório de cena contém `summary.csv`, com intervalos do Present, CPU, RSS, latências de abertura e fechamento e carga da GPU; `frames.csv`, com cada conclusão do Present; `processes.csv`; `latency.csv` em `open-close`; `topology.txt`; `resources.csv`; e os logs do compositor e da sonda. A raiz do relatório reúne as linhas de resumo no próprio `summary.csv` e registra o commit, as configurações, a versão do picom e os hashes dos binários. A CPU é uma fração de um núcleo e, como nas outras medições, exclui o tempo de GPU. No amdgpu, a sonda também amostra `gpu_busy_percent` dez vezes por segundo; `GPU_BUSY` indica outro arquivo de carga. Uma latência de abertura ou fechamento vai da requisição até a sonda ler a mudança no overlay após uma conclusão do Present ou um evento Damage, então inclui uma ida e volta de `GetImage`. `skipped_vblanks` conta vblanks sem conclusão entre quadros consecutivos e só faz sentido em cenas que atualizam a cada vblank. O XRes conta pixmaps do X, mas não buffers GL, então os números do picom com glx subestimam sua memória.
+
+O Present não conclui quadros enquanto o DPMS mantém os monitores desligados. O script os liga, desativa a proteção de tela e o DPMS durante a execução e restaura as opções anteriores ao final. Execute-o em uma sessão dedicada ou em um desktop ocioso: os redesenhos de outros aplicativos entram em todas as cenas, com qualquer compositor.
+
 ## Sessão registrada em hardware: 2026-10-03
 
 A sessão rodou no CachyOS com Linux 7.2.8-2-cachyos e XLibre 25.1.9 nativo usando o driver modesetting. Ela usou o driver de kernel amdgpu, um AMD Ryzen 5 5600GT com gráficos Radeon Vega integrados, Mesa 26.2.4, libdrm 2.4.134 e Xmonad 0.18.1 com xmonad-contrib 0.18.2. O desktop manteve sua configuração habitual do Xmonad, barra de status e bandeja. HDMI-1 era a saída principal, à direita; DP-1, um adaptador DisplayPort para VGA, ficava à esquerda. Ambas usaram 1920×1080 a 60 Hz, formando uma raiz de 3840×1080. O Picom foi parado antes das execuções e reiniciado depois. As [versões dos pacotes](benchmarks/2026-10-03/hardware/packages.txt) estão arquivadas com os relatórios.

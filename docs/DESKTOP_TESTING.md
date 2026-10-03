@@ -96,6 +96,32 @@ The probe maps one managed window, which a tiling window manager adds to the cur
 
 A useful sequence starts with a baseline, then a mode change, another layout, and an output disabled, each followed by restoration. For each connector, sample it unplugged while its CRTC is still assigned, after the desktop's reaction (`xrandr --auto` below), reconnected, and restored. Run the sequence once per presentation mode.
 
+## Run the benchmark scenes
+
+`tools/bench.sh` measures fixed scenes under Compust and then under picom on an existing X11 session; it starts no server or window manager. Stop the session's compositor first and keep the command that restores it. The [configurations](../tools/bench/) match each other: Compust without fades or blur and with `vsync = true`, and picom with the same settings in its `xrender` and `glx` backends, without shadows, fades, rounded corners, dimming, or unredirection. The blur variants use a 4-pixel radius. picom's xrender backend lacks Dual Kawase, so it blurs with a size-9 box; its glx backend uses Dual Kawase approximating the same size. `COMPOSITORS` and `SCENES` select a subset.
+
+```sh
+cargo build --release --locked --bin compust --example desktop_probe
+SERVER_PID=$(pgrep -x Xorg) WM_PID=$(pgrep -x dwm) tools/bench.sh artifacts/bench
+```
+
+Each scene maps a backdrop over the whole root and then override-redirect windows, so no window manager places them and the geometry is the same on any desktop. After a two-second warmup the probe measures for `SECONDS_PER_PHASE`, ten seconds by default.
+
+| Scene | Workload |
+| --- | --- |
+| `idle` | The backdrop alone |
+| `small-update` | A 64×64 window alternating red and blue 60 times per second |
+| `fullscreen-translucent` | A 50% window covering the root, alternating the same way |
+| `eight-translucent` | Eight overlapping 480×360 windows at 50%; the top one alternates |
+| `move-resize` | A window moved and resized 60 times per second |
+| `open-close` | 100 windows in turn, each mapped until the overlay shows it, then destroyed until the overlay shows the backdrop |
+
+The translucent scenes run without blur and, with a `:blur` suffix, with it. All scenes fit a 1366×768 screen; on a larger one only the full-screen window grows.
+
+Each scene directory holds `summary.csv` with Present intervals, CPU, RSS, open and close latencies, and GPU load; `frames.csv` with every Present completion; `processes.csv`; `latency.csv` for `open-close`; `topology.txt`; `resources.csv`; and the compositor and probe logs. The report root collects the summary rows in its own `summary.csv` and records the commit, configurations, picom version, and binary hashes. CPU is a share of one core and, as elsewhere, excludes GPU time. On amdgpu the probe also samples `gpu_busy_percent` ten times a second; `GPU_BUSY` names another load file. An open or close latency runs from the request until the probe reads the change from the overlay after a Present completion or Damage event, so it includes one `GetImage` round trip. `skipped_vblanks` counts vblanks without a completion between consecutive frames, which is meaningful only in scenes that update every vblank. XRes counts X pixmaps but not GL buffers, so picom's glx figures understate its memory.
+
+Present completes no frames while DPMS has the monitors off. The runner turns them on, disables the screen saver and DPMS for the run, and restores the previous settings afterward. Run it in a dedicated session or on an otherwise idle desktop: other applications' redraws become part of every scene, under either compositor.
+
 ## Recorded hardware session: 2026-10-03
 
 The session ran on CachyOS with Linux 7.2.8-2-cachyos and native XLibre 25.1.9 using its modesetting driver. It used the amdgpu kernel driver, an AMD Ryzen 5 5600GT with integrated Radeon Vega graphics, Mesa 26.2.4, libdrm 2.4.134, and Xmonad 0.18.1 with xmonad-contrib 0.18.2. The desktop kept its ordinary Xmonad configuration, status bar, and tray. HDMI-1 was the primary output on the right; DP-1, a DisplayPort-to-VGA adapter, was on the left. Both ran 1920×1080 at 60 Hz for a 3840×1080 root. Picom was stopped before the runs and restarted afterward. The [package versions](benchmarks/2026-10-03/hardware/packages.txt) are archived with the reports.

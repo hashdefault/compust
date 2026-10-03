@@ -35,7 +35,9 @@ pub(super) struct Surface {
 }
 
 impl Surface {
-    pub(super) fn connect(display: &str) -> Result<Self> {
+    /// Connect once a compositor owns the screen and, when `window_manager` is set, an EWMH
+    /// window manager is running.
+    pub(super) fn connect(display: &str, window_manager: bool) -> Result<Self> {
         let (conn, screen_number) = x11rb::connect(Some(display))?;
         let screen = conn
             .setup()
@@ -100,11 +102,13 @@ impl Surface {
         surface.until("compositor selection", || {
             Ok(surface.conn.get_selection_owner(selection)?.reply()?.owner != NONE)
         })?;
-        surface.until("EWMH window manager", || {
-            Ok(surface
-                .property(root, "_NET_SUPPORTING_WM_CHECK")?
-                .is_some())
-        })?;
+        if window_manager {
+            surface.until("EWMH window manager", || {
+                Ok(surface
+                    .property(root, "_NET_SUPPORTING_WM_CHECK")?
+                    .is_some())
+            })?;
+        }
         Ok(surface)
     }
 
