@@ -19,7 +19,7 @@ The first beta uses the XRender backend and declares support only for environmen
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb, one AMD/XLibre desktop, and one Intel/Xorg laptop, each with physical hotplug; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
 | 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; Openbox and i3 scenarios on that laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
-| 4. Beta distribution | Published as v0.2.0-beta.1 and v0.2.0-beta.2; v0.2.0-beta.3 prepared with a wider declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
+| 4. Beta distribution | Published as v0.2.0-beta.1, v0.2.0-beta.2, and v0.2.0-beta.3, each for its declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
 
@@ -49,7 +49,7 @@ Publish a versioned beta prerelease with build or binary installation instructio
 
 **Acceptance:** a tester can install and run the exact release, return to their previous compositor, and report a failure from the supplied instructions. CI passes for the release commit and the previous three gates are satisfied for its declared support scope.
 
-Version 0.2.0-beta.1 completed these four acceptance gates for its declared scope. GPU backend expansion and advanced effects can follow the first beta.
+Version 0.2.0-beta.1 completed these four acceptance gates for its declared scope. GPU backend expansion and advanced effects can follow the first beta. The [next milestone](#next-measure-and-reduce-rendering-work) is rendering work; widening the beta's hardware coverage continues beside it as reports arrive.
 
 ## Progress and verification
 
@@ -247,15 +247,44 @@ Repeat physical hotplug and multiple-monitor layouts with other drivers and serv
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 
-## Then: measure and reduce rendering work
+## Next: measure and reduce rendering work
 
-The first hardware measurements set the priority: the convolution blur held an AMD/XLibre desktop to about five frames per second. The bilinear pyramid that replaced it keeps 60 there, with Xorg near 4% of a core. Measure later optimizations against these records.
+This is the current milestone. The beta shows where the cost is: Compust repaints the whole screen for every damage event, asks the server for the full window tree on every stacking-related event, and repeats the blur for every translucent window. On the recorded machines a 60-updates-per-second window costs Compust under 2% of a core and the X server 3–9%, and the pyramid blur adds between a tenth of a point and one point to the server. Nothing yet compares those figures with picom, and no record covers a 4K screen, many windows, or a slow GPU.
 
-Collect release-build baselines for idle CPU, application and X-server CPU, memory, frame pacing, and input-to-display latency. Compare equivalent scenes and effects against a recorded picom version/backend. Include high-resolution and mixed-refresh setups.
+The milestone has four steps, in order. Steps 3 and 4 start only if step 1 shows that they matter.
 
-Introduce region-based damage, blur-region expansion, occlusion culling, and cached blur only where measurements justify the complexity. Evaluate multiple presentation buffers with explicit ownership and completion accounting.
+| Step | Status | Required result |
+| --- | --- | --- |
+| 1. Benchmark scenes and picom comparison | Not started | Fixed scenes run under Compust and under an identified picom version and backend on both recorded machines, with raw records. |
+| 2. Event-path round trips | Not started | Window events no longer cost one tree query each; a test counts the requests. |
+| 3. Region-based repaint | Not started | Only damaged regions, expanded for blur, are repainted and presented; pixel tests cover region boundaries. |
+| 4. Occlusion and blur reuse | Not started; depends on step 1 | Fully covered windows are skipped and unchanged blur is reused, where the benchmark justifies it. |
 
-**Acceptance:** a reproducible benchmark demonstrates the improvement, pixel tests remain correct at damaged-region boundaries, and idle work does not increase. Publish both the benefit and the workload where it disappears.
+### 1. Benchmark scenes and picom comparison
+
+Extend the [desktop probe](../examples/desktop_probe.rs) with scenes that separate the costs: an idle desktop; a small window updating 60 times per second on a large screen; the existing full-screen translucent window with blur; eight overlapping translucent windows; a window moved and resized 60 times per second; and repeated open and close with the time from map to the first frame that shows the window. Record Compust and X-server CPU, memory, and Present intervals as today. Run the same scenes under picom with its version, backend, and an equivalent configuration recorded.
+
+**Acceptance:** both recorded machines have raw records for every scene under both compositors, the runner reproduces them, and the summary states where Compust is slower as plainly as where it is faster.
+
+### 2. Event-path round trips
+
+`Scene::restack` queries the root's children on every map, reparent, configure, and circulate event, and `configure` queries geometry for each one. An interactive resize therefore costs several round trips per event. Track stacking from the events' own sibling fields and query the tree only when the order is unknown.
+
+**Acceptance:** a regression counts requests through the existing test proxy and fails if a burst of configure events costs a tree query each; the stacking, destruction, and capture-race regressions still pass; step 1's move-and-resize scene shows the change.
+
+### 3. Region-based repaint
+
+Paint and present only what changed. Damage regions must grow by the blur margin wherever a translucent window overlaps them, cover both the old and new bounds of a moved window, and include fading windows. Present needs either a region copy or a second buffer whose age is known.
+
+**Acceptance:** pixel tests cover damage at region boundaries, under blur, across a window move, and after a monitor change; idle work does not increase; step 1's small-window scene shows the saving, and the record also shows the scenes where it does not help.
+
+### 4. Occlusion and blur reuse
+
+Skip windows fully covered by opaque, unshaped windows above them, and reuse a window's blurred background while nothing beneath it changed. Both add state that can go stale, so they are worth their complexity only if the eight-window and blur scenes in step 1 show a real cost.
+
+**Acceptance:** each optimization has pixel tests for the case that invalidates it, and a recorded scene where it saves work.
+
+Multiple presentation buffers with explicit ownership remain an open evaluation inside step 3. Input-to-display latency needs measuring equipment this project does not have; do not report it from software timings.
 
 ## Rendering backend and protocol expansion
 
@@ -267,7 +296,7 @@ Color management, HDR, VRR, XLibre-specific extensions, and per-output schedulin
 
 ## Everyday usability
 
-Add configuration discovery and reload, clearer troubleshooting, and distribution packaging. The Window Animations milestone below expands the existing movement/scale proposal and introduces the first typed per-window rules. Reuse that rule model for later effects. Consider shadows and rounded corners with proper shape and damage semantics.
+Add configuration discovery and reload, clearer troubleshooting, and distribution packaging. Beta use made two of these concrete: changing `fade_ms` required restarting the compositor, and a configuration is read only when `--config` names it. The Window Animations milestone below expands the existing movement/scale proposal and introduces the first typed per-window rules. Reuse that rule model for later effects. Consider shadows and rounded corners with proper shape and damage semantics.
 
 **Acceptance:** behavior is configurable, documented in both languages, testable, and does not silently claim compatibility with picom's configuration or scripting language.
 

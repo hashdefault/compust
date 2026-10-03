@@ -19,7 +19,7 @@ A primeira beta usa o backend XRender e declara suporte somente aos ambientes co
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificada no Xvfb, em um desktop AMD/XLibre e em um laptop Intel/Xorg, cada um com hotplug físico; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
 | 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; cenários do Openbox e do i3 nesse laptop; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
-| 4. Distribuição da beta | Publicada como v0.2.0-beta.1 e v0.2.0-beta.2; v0.2.0-beta.3 preparada com escopo declarado maior | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
+| 4. Distribuição da beta | Publicada como v0.2.0-beta.1, v0.2.0-beta.2 e v0.2.0-beta.3, cada uma para seu escopo declarado | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
 
@@ -49,7 +49,7 @@ Publicar uma prévia beta versionada com instruções de compilação ou instala
 
 **Aceitação:** uma pessoa consegue instalar e executar a versão exata, retornar ao compositor anterior e relatar uma falha seguindo as instruções fornecidas. O CI passa para o commit da versão, e as três etapas anteriores estão aprovadas dentro do escopo de suporte declarado.
 
-A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu escopo declarado. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta.
+A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu escopo declarado. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta. O [próximo marco](#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) é o trabalho de renderização; a ampliação da cobertura de hardware da beta continua em paralelo, conforme chegam relatos.
 
 ## Progresso e verificação
 
@@ -247,15 +247,44 @@ Repita o hotplug físico e as configurações com vários monitores com outros d
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 
-## Depois: medir e reduzir o trabalho de renderização
+## Próximo passo: medir e reduzir o trabalho de renderização
 
-As primeiras medições em hardware definiram a prioridade: o desfoque por convolução limitou um desktop AMD/XLibre a cerca de cinco quadros por segundo. A pirâmide bilinear que o substituiu mantém 60 nesse desktop, com o Xorg perto de 4% de um núcleo. Meça otimizações futuras em relação a esses registros.
+Este é o marco atual. A beta mostra onde está o custo: o Compust repinta a tela inteira a cada evento de dano, pede ao servidor a árvore completa de janelas a cada evento relacionado a empilhamento e repete o desfoque para cada janela translúcida. Nas máquinas registradas, uma janela com 60 atualizações por segundo custa ao Compust menos de 2% de um núcleo e ao servidor X de 3% a 9%, e o desfoque em pirâmide acrescenta ao servidor entre um décimo de ponto e um ponto. Nada ainda compara esses números com o picom, e nenhum registro cobre uma tela 4K, muitas janelas ou uma GPU lenta.
 
-Colete referências em builds de release para CPU ociosa, CPU do aplicativo e do servidor X, memória, regularidade dos quadros e latência entre entrada e exibição. Compare cenas e efeitos equivalentes com uma versão/backend registrados do picom. Inclua alta resolução e monitores com taxas diferentes.
+O marco tem quatro etapas, em ordem. As etapas 3 e 4 só começam se a etapa 1 mostrar que elas importam.
 
-Implemente regiões de dano, expansão das regiões de desfoque, descarte de áreas ocultas e cache somente quando a medição justificar a complexidade. Avalie múltiplos buffers de apresentação com controle explícito de propriedade e conclusão.
+| Etapa | Estado | Resultado exigido |
+| --- | --- | --- |
+| 1. Cenas de benchmark e comparação com o picom | Não iniciada | Cenas fixas executadas com o Compust e com uma versão e um backend identificados do picom nas duas máquinas registradas, com registros brutos. |
+| 2. Idas e voltas no caminho de eventos | Não iniciada | Eventos de janela não custam mais uma consulta da árvore cada um; um teste conta as requisições. |
+| 3. Repintura por regiões | Não iniciada | Somente as regiões com dano, ampliadas para o desfoque, são repintadas e apresentadas; testes de pixels cobrem as bordas das regiões. |
+| 4. Oclusão e reaproveitamento do desfoque | Não iniciada; depende da etapa 1 | Janelas totalmente cobertas são puladas e o desfoque inalterado é reaproveitado, quando o benchmark justificar. |
 
-**Aceitação:** um benchmark reproduzível demonstra a melhora, os testes de pixels continuam corretos nas bordas das regiões e o trabalho ocioso não aumenta. Publique o benefício e as cargas em que ele deixa de existir.
+### 1. Cenas de benchmark e comparação com o picom
+
+Amplie o [probe de desktop](../examples/desktop_probe.rs) com cenas que separem os custos: um desktop ocioso; uma janela pequena atualizando 60 vezes por segundo em uma tela grande; a janela translúcida em tela cheia com desfoque que já existe; oito janelas translúcidas sobrepostas; uma janela movida e redimensionada 60 vezes por segundo; e abertura e fechamento repetidos, com o tempo entre o mapeamento e o primeiro quadro que mostra a janela. Registre CPU do Compust e do servidor X, memória e intervalos do Present, como hoje. Execute as mesmas cenas com o picom, registrando sua versão, o backend e uma configuração equivalente.
+
+**Aceitação:** as duas máquinas registradas têm registros brutos de todas as cenas com os dois compositores, o executor os reproduz, e o resumo diz onde o Compust é mais lento com a mesma clareza com que diz onde é mais rápido.
+
+### 2. Idas e voltas no caminho de eventos
+
+`Scene::restack` consulta os filhos da raiz a cada evento de mapeamento, reparenting, configuração e circulação, e `configure` consulta a geometria em cada um. Um redimensionamento interativo custa, portanto, várias idas e voltas por evento. Acompanhe o empilhamento pelos campos de irmão dos próprios eventos e consulte a árvore só quando a ordem for desconhecida.
+
+**Aceitação:** uma regressão conta as requisições pelo proxy de testes existente e falha se uma rajada de eventos de configuração custar uma consulta da árvore cada; as regressões de empilhamento, destruição e corridas de captura continuam passando; a cena de mover e redimensionar da etapa 1 mostra a mudança.
+
+### 3. Repintura por regiões
+
+Pinte e apresente apenas o que mudou. As regiões de dano precisam crescer pela margem do desfoque onde uma janela translúcida as sobrepõe, cobrir os limites antigos e novos de uma janela movida e incluir janelas em fade. O Present precisa de uma cópia por região ou de um segundo buffer cuja idade seja conhecida.
+
+**Aceitação:** testes de pixels cobrem dano nas bordas das regiões, sob desfoque, durante o movimento de uma janela e depois de uma mudança de monitor; o trabalho ocioso não aumenta; a cena da janela pequena da etapa 1 mostra a economia, e o registro mostra também as cenas em que ela não ajuda.
+
+### 4. Oclusão e reaproveitamento do desfoque
+
+Pule janelas totalmente cobertas por janelas opacas e sem formato acima delas, e reaproveite o fundo desfocado de uma janela enquanto nada abaixo dela mudar. As duas otimizações acrescentam estado que pode ficar desatualizado; por isso só valem a complexidade se as cenas de oito janelas e de desfoque da etapa 1 mostrarem um custo real.
+
+**Aceitação:** cada otimização tem testes de pixels para o caso que a invalida e uma cena registrada em que economiza trabalho.
+
+Múltiplos buffers de apresentação com controle explícito de propriedade continuam como avaliação em aberto dentro da etapa 3. Medir a latência entre entrada e exibição exige equipamento que este projeto não tem; não a informe a partir de tempos medidos por software.
 
 ## Backend e expansão do protocolo
 
@@ -267,7 +296,7 @@ Gerenciamento de cores, HDR, VRR, extensões específicas do XLibre e agendament
 
 ## Uso cotidiano
 
-Adicione descoberta e recarga de configuração, diagnóstico mais claro e empacotamento para distribuições. O marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e introduz as primeiras regras por janela com tipos definidos. Reutilize esse modelo de regras em efeitos futuros. Considere sombras e cantos arredondados com tratamento correto de formato e dano.
+Adicione descoberta e recarga de configuração, diagnóstico mais claro e empacotamento para distribuições. O uso da beta tornou dois desses pontos concretos: mudar `fade_ms` exigiu reiniciar o compositor, e uma configuração só é lida quando `--config` a indica. O marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e introduz as primeiras regras por janela com tipos definidos. Reutilize esse modelo de regras em efeitos futuros. Considere sombras e cantos arredondados com tratamento correto de formato e dano.
 
 **Aceitação:** o comportamento é configurável, documentado nos dois idiomas e testável, sem anunciar implicitamente compatibilidade com a configuração ou a linguagem de animação do picom.
 

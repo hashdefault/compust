@@ -101,7 +101,7 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints the full screen when damaged, and every translucent window repeats the blur passes for its own area. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints the full screen when damaged, and every translucent window repeats the blur passes for its own area. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Region-based repainting, occlusion culling, GPU backends, and comparative benchmarks remain open work; the [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with those benchmarks. It has no shadows, rounded corners, movement/scale animations, per-window rules, live reload, fullscreen unredirection, or picom configuration compatibility.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 
