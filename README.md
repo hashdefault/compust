@@ -8,7 +8,7 @@ Compust is an experimental, standalone **X11 compositor written in Rust**, targe
 
 A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.
 
-**Status: second beta, version 0.2.0-beta.2, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification with Xmonad on two machines, an AMD desktop running XLibre and an Intel laptop running Xorg; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems; the [roadmap](docs/ROADMAP.md) lists the remaining work.
+**Status: third beta, version 0.2.0-beta.3, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification on two machines: an AMD desktop running XLibre with Xmonad, and an Intel laptop running Xorg with Xmonad, Openbox, and i3; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems; the [roadmap](docs/ROADMAP.md) lists the remaining work.
 
 ## What works today
 
@@ -23,7 +23,7 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 | Render 0.11+ | Required: composition, alpha masks, transforms; bilinear filtering enables blur |
 | XFixes 2.0+ and Shape 1.1+ | Required: input-transparent overlay and shaped windows |
 | Present | Optional: copy presentation, waiting for completion and buffer-idle events |
-| RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop |
+| RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop and one Intel/Xorg laptop |
 | EWMH / ICCCM | Compositor selection, manager announcement, opacity, and client discovery through `WM_STATE` |
 | Root wallpaper | `_XROOTPMAP_ID`, then `ESETROOT_PMAP_ID`; dark fallback when neither is usable |
 | DRI3 / Sync | Version diagnostics only; no DMA-BUF import or explicit-sync rendering backend |
@@ -105,7 +105,7 @@ This prototype repaints the full screen when damaged, and every translucent wind
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 
-One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Physical hotplug is verified only on the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). Native Wayland support is outside the current scope.
+One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Physical hotplug is verified only on the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and the [recorded Intel/Xorg laptop](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03). Native Wayland support is outside the current scope.
 
 ## Background and license
 

@@ -12,14 +12,14 @@ Esse marco cria uma base para experimentação. Ele não comprova compatibilidad
 
 ## Primeira beta: quatro etapas
 
-A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 foi essa beta e a 0.2.0-beta.2 vem em seguida; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado atual.
+A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 foi essa beta, e a 0.2.0-beta.2 e a 0.2.0-beta.3 vêm em seguida; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado atual.
 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificada no Xvfb, em um desktop AMD/XLibre e em um laptop Intel/Xorg, cada um com hotplug físico; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
 | 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; cenários do Openbox e do i3 nesse laptop; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
-| 4. Distribuição da beta | Publicada como v0.2.0-beta.1; v0.2.0-beta.2 preparada com escopo declarado maior | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
+| 4. Distribuição da beta | Publicada como v0.2.0-beta.1 e v0.2.0-beta.2; v0.2.0-beta.3 preparada com escopo declarado maior | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
 
@@ -196,6 +196,14 @@ Este é o segundo ambiente com evidência de hotplug físico, e o primeiro no Xo
 ### Suspensão e retomada em Intel/Xorg
 
 O laptop Intel/Xorg foi suspenso para a RAM uma vez em cada modo de apresentação, com amostras antes e depois. As seis amostras passaram, o ritmo do Present manteve a mediana de 16,65 ms, os bytes de pixmaps próprios do compositor ficaram idênticos do início ao fim e nenhum tempo limite do Present foi registrado. O [guia de qualificação de desktops](DESKTOP_TESTING.pt-BR.md#suspensão-e-retomada-registradas-2026-10-03) traz os registros. Junto com as trocas de terminal virtual das sessões dedicadas, isso cobre os dois casos que a entrada do tempo limite do Present acima deixou sem teste, nesta única máquina; nenhum deles produziu ali uma conclusão perdida.
+
+### Terceira pré-versão beta
+
+A versão 0.2.0-beta.3 traz a correção para janelas que ficavam com conteúdo antigo após um redimensionamento restaurado, defeito presente nas duas betas anteriores. Seu escopo declarado acrescenta o que o laptop Intel/Xorg registrou depois da 0.2.0-beta.2: Openbox e i3, uma tela externa com hotplug físico e suspensão e retomada. O [guia da beta](BETA.pt-BR.md) lista o escopo, e as [notas da versão](releases/v0.2.0-beta.3.md) listam as mudanças.
+
+Esses registros são anteriores à correção e usam janelas sintéticas; a correção em si foi confirmada com um teste gravado com o cabo sob o i3 e pelo teste de regressão. Nenhuma sessão em hardware foi repetida com o binário desta versão.
+
+Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produziram arquivos idênticos. O binário empacotado exibiu sua versão, não exige símbolos da glibc mais novos que a 2.34, recusou-se a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou. Com esse binário, as verificações de desktop aninhadas passaram nos três modos com Xmonad, Openbox e i3 no Xorg Xephyr 21.1.11, com fases de três segundos.
 
 ### Matriz de compatibilidade
 

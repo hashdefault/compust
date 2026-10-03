@@ -12,14 +12,14 @@ This milestone establishes a base for experiments. It does not establish desktop
 
 ## First beta: four steps
 
-The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 was that beta and 0.2.0-beta.2 follows it; the [beta guide](BETA.md) lists the current declared scope.
+The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 was that beta, and 0.2.0-beta.2 and 0.2.0-beta.3 follow it; the [beta guide](BETA.md) lists the current declared scope.
 
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb, one AMD/XLibre desktop, and one Intel/Xorg laptop, each with physical hotplug; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
 | 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; Openbox and i3 scenarios on that laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
-| 4. Beta distribution | Published as v0.2.0-beta.1; v0.2.0-beta.2 prepared with a wider declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
+| 4. Beta distribution | Published as v0.2.0-beta.1 and v0.2.0-beta.2; v0.2.0-beta.3 prepared with a wider declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
 
@@ -196,6 +196,14 @@ This is the second environment with physical hotplug evidence, and the first on 
 ### Suspend and resume on Intel/Xorg
 
 The Intel/Xorg laptop was suspended to RAM once in each presentation mode, with samples before and after. All six samples passed, Present pacing kept its 16.65 ms median, the compositor's owned pixmap bytes were identical throughout, and no Present timeout was logged. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-suspend-and-resume-2026-10-03) has the records. Together with the virtual-terminal switches of the dedicated sessions, this covers the two cases the Present timeout entry above left untested, on this one machine; neither produced a lost completion there.
+
+### Third beta prerelease
+
+Version 0.2.0-beta.3 carries the fix for windows left stale after a restored resize, which both earlier betas have. Its declared scope adds what the Intel/Xorg laptop recorded after 0.2.0-beta.2: Openbox and i3, an external display with physical hotplug, and suspend and resume. The [beta guide](BETA.md) lists the scope, and the [release notes](releases/v0.2.0-beta.3.md) list the changes.
+
+Those records predate the fix and use synthetic windows; the fix itself was confirmed with a recorded cable test under i3 and by the regression test. No hardware session was repeated with the release binary.
+
+Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identical archives. The packaged binary printed its version, needs no glibc symbol newer than 2.34, refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. With that binary in place, the nested desktop checks passed in all three modes with Xmonad, Openbox, and i3 on Xorg Xephyr 21.1.11, using three-second phases.
 
 ### Compatibility matrix
 

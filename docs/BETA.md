@@ -2,37 +2,38 @@
 
 [English (US)](BETA.md) | [Português (Brasil)](BETA.pt-BR.md)
 
-Compust 0.2.0-beta.2 is the second beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
+Compust 0.2.0-beta.3 is the third beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
 
 ## Declared scope
 
-Two recorded combinations are qualified: XLibre on the AMD desktop and Xorg on the Intel laptop.
+Two recorded machines are qualified: XLibre on the AMD desktop and Xorg on the Intel laptop.
 
 | Area | Qualified for this beta | Evidence |
 | --- | --- | --- |
 | X server | XLibre 25.1.9 or Xorg 21.1.11 in a native session | [AMD desktop session](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) and [Intel sessions](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03) |
-| Window manager | Xmonad 0.18.1 (AMD) or 0.17.2 (Intel) with EWMH | Same sessions |
+| Window manager | Xmonad 0.18.1 on AMD. On Intel: Xmonad 0.17.2, Openbox 3.6.1, or i3 4.23 | Same sessions, plus the [Openbox](DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03) and [i3](DESKTOP_TESTING.md#recorded-i3-sessions-2026-10-03) sessions |
 | GPU and driver | AMD Radeon Vega (Ryzen 5 5600GT) with Mesa 26.2.4, or Intel Iris Plus G1 (Core i3-1005G1) with Mesa 25.2.8; both with the modesetting driver and glamor | Same sessions |
-| Monitors | AMD: one or two outputs at 1920×1080 and 60 Hz, including unplugging and reconnecting. Intel: one 1366×768 laptop panel at 60 Hz, including a mode change | [Monitor session](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and Intel sessions |
+| Monitors | AMD: one or two outputs at 1920×1080 and 60 Hz. Intel: the 1366×768 laptop panel alone or with one external 1920×1080 display, both near 60 Hz. Both include mode and layout changes and unplugging and reconnecting | [AMD monitor session](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and [Intel hotplug session](DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03) |
 | Rendering | Present and direct XRender, fades, transparency, and blur | [Pyramid blur session](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) and Intel sessions |
+| Suspend and resume | Intel only: one suspension to RAM per presentation mode | [Suspend session](DESKTOP_TESTING.md#recorded-suspend-and-resume-2026-10-03) |
 
-Xorg 21.1 and XLibre 25.1 also pass the desktop scenarios nested in Xephyr, which covers protocol behavior but not drivers or displays. NVIDIA GPUs, other window managers, Xorg with AMD, XLibre with Intel, physical hotplug on Intel, mixed refresh rates, and HDR are untested. Reports from those setups are especially useful.
+The Openbox and i3 sessions, the Intel hotplug session, and the suspend session use synthetic test windows; application behavior under those window managers has only informal use behind it. Xorg 21.1 and XLibre 25.1 also pass the desktop scenarios nested in Xephyr, which covers protocol behavior but not drivers or displays. NVIDIA GPUs, other window managers, Xorg with AMD, XLibre with Intel, clearly different refresh rates, more than two monitors, and HDR are untested. Reports from those setups are especially useful.
 
 ## Install
 
-Download `compust-0.2.0-beta.2-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.2), then verify and unpack them:
+Download `compust-0.2.0-beta.3-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.3), then verify and unpack them:
 
 ```sh
 sha256sum -c SHA256SUMS
-tar -xzf compust-0.2.0-beta.2-x86_64-linux.tar.gz
-cd compust-0.2.0-beta.2-x86_64-linux
+tar -xzf compust-0.2.0-beta.3-x86_64-linux.tar.gz
+cd compust-0.2.0-beta.3-x86_64-linux
 ./compust --version
 ```
 
 The binary needs x86_64 Linux with glibc 2.34 or newer. `BUILDINFO` records the source revision, compiler, and build command. To build from source instead, install the pinned Rust toolchain and run:
 
 ```sh
-git clone --branch v0.2.0-beta.2 https://github.com/hashdefault/compust.git
+git clone --branch v0.2.0-beta.3 https://github.com/hashdefault/compust.git
 cd compust
 cargo build --release --locked
 ```

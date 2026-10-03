@@ -8,7 +8,7 @@ Compust é um **compositor independente para X11, escrito em Rust**, ainda exper
 
 O compositor combina as janelas dos aplicativos para formar a imagem final da área de trabalho. O Compust funciona **sobre um servidor X já em execução**, junto ao seu gerenciador de janelas. Ele não inicia nem substitui o Xorg/XLibre, não organiza as janelas e não oferece uma sessão Wayland nativa.
 
-**Estado atual: segunda beta, versão 0.2.0-beta.2, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada com o Xmonad em duas máquinas, um desktop AMD com XLibre e um laptop Intel com Xorg; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas; o [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) lista o trabalho restante.
+**Estado atual: terceira beta, versão 0.2.0-beta.3, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada em duas máquinas: um desktop AMD com XLibre e Xmonad, e um laptop Intel com Xorg e Xmonad, Openbox e i3; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas; o [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) lista o trabalho restante.
 
 ## O que já funciona
 
@@ -23,7 +23,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | Render 0.11+ | Obrigatória: composição, máscaras de opacidade e transformações; a filtragem bilinear habilita o desfoque |
 | XFixes 2.0+ e Shape 1.1+ | Obrigatórias: passagem de entrada e janelas com formatos não retangulares |
 | Present | Opcional: apresentação por cópia, aguardando conclusão e liberação do buffer |
-| RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre |
+| RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre e em um laptop Intel/Xorg |
 | EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade e descoberta do cliente por `WM_STATE` |
 | Papel de parede | `_XROOTPMAP_ID`, depois `ESETROOT_PMAP_ID`; fundo escuro quando nenhum é utilizável |
 | DRI3 / Sync | Apenas diagnóstico de versões; sem importação DMA-BUF nem backend com sincronização explícita |
@@ -105,7 +105,7 @@ O protótipo redesenha a tela inteira quando recebe dano, e cada janela translú
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 
-Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. O hotplug físico foi verificado apenas no [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03). Wayland nativo está fora do escopo atual.
+Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. O hotplug físico foi verificado apenas no [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03) e no [laptop Intel/Xorg registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-hotplug-em-intelxorg-2026-10-03). Wayland nativo está fora do escopo atual.
 
 ## Contexto e licença
 
