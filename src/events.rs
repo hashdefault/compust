@@ -107,6 +107,10 @@ impl Compositor {
             Event::SelectionClear(event) if event.selection == self.session.atoms.selection => {
                 self.running = false;
             }
+            Event::Error(error) if self.renderer.recover_present(&error)? => {
+                self.config.vsync = false;
+                self.dirty = true;
+            }
             Event::Error(error) => bail!("X11 request failed: {error:?}"),
             _ => (),
         }

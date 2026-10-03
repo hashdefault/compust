@@ -1,14 +1,16 @@
 use super::Renderer;
 use crate::session::Session;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use x11rb::{
     NONE,
     connection::Connection,
     protocol::{
+        ErrorKind,
         present::{ConnectionExt as _, EventMask, Option as PresentOption},
         render::{ConnectionExt as _, PictOp},
-        xproto::Rectangle,
+        xproto::{ConnectionExt as _, Rectangle},
     },
+    x11_utils::X11Error,
 };
 impl Renderer {
     pub(super) fn submit(&mut self, session: &Session) -> Result<()> {
@@ -21,7 +23,7 @@ impl Renderer {
         };
         if self.present {
             self.serial = self.serial.wrapping_add(1);
-            conn.present_pixmap(
+            let request = conn.present_pixmap(
                 session.overlay,
                 self.back.pixmap.context("back buffer lacks pixmap")?,
                 self.serial,
@@ -38,6 +40,9 @@ impl Renderer {
                 0,
                 &[],
             )?;
+            self.submission = Some(u16::try_from(
+                request.sequence_number() & u64::from(u16::MAX),
+            )?);
             self.idle = false;
             self.complete = false;
         } else {
@@ -59,6 +64,38 @@ impl Renderer {
         conn.flush()?;
 
         Ok(())
+    }
+
+    pub(crate) fn recover_present(&mut self, error: &X11Error) -> Result<bool> {
+        if !self.present
+            || Some(error.sequence) != self.submission
+            || error.extension_name.as_deref() != Some("Present")
+            || error.minor_opcode != u16::from(x11rb::protocol::present::PIXMAP_REQUEST)
+            || error.error_kind != ErrorKind::Match
+        {
+            return Ok(false);
+        }
+        let back = self
+            .conn
+            .get_geometry(self.back.pixmap.context("back buffer lacks pixmap")?)?
+            .reply()?;
+        let output = self.conn.get_geometry(self.overlay)?.reply()?;
+        ensure!(
+            back.root == output.root
+                && back.depth == output.depth
+                && back.width == self.size.width
+                && back.height == self.size.height,
+            "Present recovery requires compatible, intact render buffers"
+        );
+        self.present = false;
+        self.idle = true;
+        self.complete = true;
+        self.submission = None;
+        tracing::warn!(
+            ?error,
+            "Present rejected submission; continuing with XRender"
+        );
+        Ok(true)
     }
 }
 impl Drop for Renderer {

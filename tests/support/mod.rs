@@ -1,7 +1,10 @@
 pub(crate) mod capture;
 pub(crate) mod capture_proxy;
+pub(crate) mod monitors;
 mod pixels;
+pub(crate) mod presentation;
 pub(crate) mod proxy;
+pub(crate) mod resources;
 use anyhow::{Context, Result, ensure};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use std::{

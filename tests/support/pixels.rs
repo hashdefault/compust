@@ -65,7 +65,8 @@ impl Desktop {
             std::fs::create_dir_all(&directory)?;
             let path = std::path::PathBuf::from(directory).join(format!("{name}.ppm"));
             let mut output = std::io::BufWriter::new(std::fs::File::create(path)?);
-            write!(output, "P6\n320 240\n255\n")?;
+            let geometry = self.conn.get_geometry(self.overlay)?.reply()?;
+            write!(output, "P6\n{} {}\n255\n", geometry.width, geometry.height)?;
             let reply = self
                 .conn
                 .get_image(
@@ -73,8 +74,8 @@ impl Desktop {
                     self.overlay,
                     0,
                     0,
-                    320,
-                    240,
+                    geometry.width,
+                    geometry.height,
                     u32::MAX,
                 )?
                 .reply()?;

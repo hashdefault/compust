@@ -34,6 +34,7 @@ pub(crate) struct Renderer {
     pub(crate) idle: bool,
     pub(crate) complete: bool,
     pub(crate) serial: u32,
+    submission: Option<u16>,
     horizontal: Vec<i32>,
     vertical: Vec<i32>,
 }
@@ -122,6 +123,7 @@ impl Renderer {
             idle: true,
             complete: true,
             serial: 0,
+            submission: None,
             horizontal,
             vertical,
         };

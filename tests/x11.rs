@@ -15,6 +15,15 @@ mod shapes;
 #[path = "cases/stability.rs"]
 mod stability;
 mod support;
+
+#[path = "cases/resources.rs"]
+mod resources;
+
+#[path = "cases/monitors.rs"]
+mod monitors;
+
+#[path = "cases/presentation.rs"]
+mod presentation;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{
