@@ -6,7 +6,7 @@ if [[ ${1:-} == --help ]]; then
     printf '%s\n' "$usage"
     printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
     printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
-    printf 'Set WINDOW_MANAGER to xmonad (the default) or openbox.\n'
+    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, or i3.\n'
     exit 0
 fi
 if (( $# < 1 || $# > 2 )); then
@@ -23,8 +23,9 @@ case "$mode" in
 esac
 window_manager=${WINDOW_MANAGER:-xmonad}
 case "$window_manager" in
-    xmonad) layout=tiling ;;
-    openbox) layout=stacking ;;
+    xmonad) scenarios=(--layout tiling) ;;
+    openbox) scenarios=(--layout stacking) ;;
+    i3) scenarios=(--layout tiling --frames --workspace-anchor) ;;
     *) printf 'Unknown window manager: %s\n' "$window_manager" >&2; exit 2 ;;
 esac
 if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
@@ -60,12 +61,17 @@ if [[ $window_manager == xmonad ]]; then
     export XMONAD_CONFIG_DIR="$work/config"
     export XMONAD_CACHE_DIR="$work/cache"
     export XMONAD_DATA_DIR="$work/data"
-else
+elif [[ $window_manager == openbox ]]; then
     wm_source=tools/desktop/openbox.xml
     wm_binary=$(command -v openbox)
     # Keep the user's own Openbox menus and session files out of the run.
     wm_command=(env "XDG_CONFIG_HOME=$work/config" "XDG_CACHE_HOME=$work/cache"
         "$wm_binary" --sm-disable --config-file "$wm_source")
+else
+    wm_source=tools/desktop/i3.config
+    wm_binary=$(command -v i3)
+    # A private socket keeps this instance apart from an i3 session on another display.
+    wm_command=(env "I3SOCK=$work/i3.sock" "$wm_binary" -c "$wm_source")
 fi
 
 if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
@@ -133,7 +139,7 @@ pids=("$compositor_pid" "${pids[@]}")
 timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
     --process "compust:$compositor_pid" "${measured[@]}" --process "wm:$wm_pid" \
     --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" --presentation "$presentation" \
-    --opacity "$opacity" --layout "$layout" >"$report/probe.log" 2>&1
+    --opacity "$opacity" "${scenarios[@]}" >"$report/probe.log" 2>&1
 xprop -root _NET_SUPPORTING_WM_CHECK >"$report/wm.txt"
 kill -TERM "$compositor_pid"
 wait "$compositor_pid"

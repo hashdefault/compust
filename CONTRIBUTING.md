@@ -31,7 +31,7 @@ Include the commit (`git rev-parse HEAD`), distribution, server and version, win
 
 For performance reports, include resolution, monitor refresh rates, window count, workload, blur radius, compositor configuration, and whether the CPU measurement includes the X server. XRender can move work into that process. Compare release builds on the same machine and workload, and record the picom version and backend when making comparisons.
 
-The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs Xmonad or Openbox scenarios in Present, direct XRender, and effects modes on nested servers or a dedicated hardware session, samples physical monitor transitions, records process measurements, and describes the remaining hardware checks for the beta.
+The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs Xmonad, Openbox, or i3 scenarios in Present, direct XRender, and effects modes on nested servers or a dedicated hardware session, samples physical monitor transitions, records process measurements, and describes the remaining hardware checks for the beta.
 
 ## Prepare a pull request
 

@@ -1,0 +1,5 @@
+00:02.0 VGA compatible controller [0300]: Intel Corporation Iris Plus Graphics G1 (Ice Lake) [8086:8a56] (rev 07)
+	DeviceName: VGA
+	Subsystem: ASUSTeK Computer Inc. Iris Plus Graphics G1 (Ice Lake) [1043:14f2]
+	Kernel driver in use: i915
+	Kernel modules: i915

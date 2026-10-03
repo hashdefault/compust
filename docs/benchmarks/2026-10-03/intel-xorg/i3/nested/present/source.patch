@@ -1,0 +1,279 @@
+diff --git a/examples/desktop/scenarios.rs b/examples/desktop/scenarios.rs
+index 5dc5a81..ba8a963 100644
+--- a/examples/desktop/scenarios.rs
++++ b/examples/desktop/scenarios.rs
+@@ -24,7 +24,27 @@ pub(super) enum Layout {
+     Stacking,
+ }
+ 
+-pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Result<u32> {
++/// Which scenarios a window manager supports.
++#[derive(Clone, Copy)]
++pub(super) struct Plan {
++    pub(super) layout: Layout,
++    /// Clients sit in reparenting frames with a painted title bar.
++    pub(super) frames: bool,
++    /// The second workspace exists only while a window is assigned to it.
++    pub(super) anchor: bool,
++}
++
++pub(super) fn exercise(surface: &Surface, output: &Path, plan: Plan) -> Result<u32> {
++    let layout = plan.layout;
++    let anchor = if plan.anchor {
++        let anchor = surface.anchor()?;
++        surface.until("second workspace for the anchor window", || {
++            Ok(surface.property(surface.root, "_NET_NUMBER_OF_DESKTOPS")? >= Some(2))
++        })?;
++        Some(anchor)
++    } else {
++        None
++    };
+     let red = surface.window(RED, false)?;
+     let blue = surface.window(BLUE, false)?;
+     surface.until("window manager maps both clients", || {
+@@ -38,7 +58,16 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
+     })?;
+     if layout == Layout::Stacking {
+         surface.settle()?;
+-        decorated(surface, red, blue)?;
++        surface.place(red, (60, 80))?;
++        surface.place(blue, (460, 80))?;
++        surface.until("stacking clients placed apart", || {
++            Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
++        })?;
++    }
++    if plan.frames {
++        for (window, color) in [(red, RED), (blue, BLUE)] {
++            framed(surface, window, color, layout)?;
++        }
+     }
+     surface.until("managed client pixels", || {
+         Ok(surface.window_has_color(red, RED)? && surface.window_has_color(blue, BLUE)?)
+@@ -89,6 +118,9 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
+         )
+     })?;
+ 
++    if let Some(anchor) = anchor {
++        surface.conn.destroy_window(anchor)?.check()?;
++    }
+     for _ in 0..32 {
+         let transient = surface.window(GREEN, false)?;
+         surface.conn.destroy_window(transient)?.check()?;
+@@ -107,34 +139,28 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
+     Ok(red)
+ }
+ 
+-/// Place both clients apart and require a reparenting frame with a painted title bar.
+-fn decorated(surface: &Surface, red: u32, blue: u32) -> Result<()> {
+-    surface.place(red, (60, 80))?;
+-    surface.place(blue, (460, 80))?;
+-    surface.until("stacking clients placed apart", || {
+-        Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
++/// Require a reparenting frame around `window` with a painted title bar above it.
++fn framed(surface: &Surface, window: u32, color: u32, layout: Layout) -> Result<()> {
++    let size = surface.conn.get_geometry(window)?.reply()?;
++    ensure!(
++        layout == Layout::Tiling || (size.width == 320 && size.height == 240),
++        "stacking window manager resized the client"
++    );
++    let frame = surface.frame(window)?;
++    ensure!(
++        frame != window,
++        "window manager did not reparent the client"
++    );
++    let top = surface.conn.get_geometry(frame)?.reply()?.y;
++    let origin = surface.origin(window)?;
++    let title = origin.1 - top;
++    ensure!(title > 2, "frame has no title bar above the client");
++    let middle = origin.0 + i16::try_from(size.width / 2)?;
++    surface.until("frame decoration pixels", || {
++        let pixel = surface.pixel((middle, top + title / 2))?;
++        Ok(pixel != BACKGROUND && pixel != color)
+     })?;
+-    for (window, color) in [(red, RED), (blue, BLUE)] {
+-        let size = surface.conn.get_geometry(window)?.reply()?;
+-        ensure!(
+-            size.width == 320 && size.height == 240,
+-            "stacking window manager resized the client"
+-        );
+-        let frame = surface.frame(window)?;
+-        ensure!(
+-            frame != window,
+-            "window manager did not reparent the client"
+-        );
+-        let top = surface.conn.get_geometry(frame)?.reply()?.y;
+-        let origin = surface.origin(window)?;
+-        let title = origin.1 - top;
+-        ensure!(title > 2, "frame has no title bar above the client");
+-        surface.until("frame decoration pixels", || {
+-            let pixel = surface.pixel((origin.0 + 160, top + title / 2))?;
+-            Ok(pixel != BACKGROUND && pixel != color)
+-        })?;
+-        println!("frame={frame:#x} client={window:#x} title_height={title}");
+-    }
++    println!("frame={frame:#x} client={window:#x} title_height={title}");
+     Ok(())
+ }
+ 
+diff --git a/examples/desktop/surface.rs b/examples/desktop/surface.rs
+index e29b9c4..8e095c4 100644
+--- a/examples/desktop/surface.rs
++++ b/examples/desktop/surface.rs
+@@ -148,6 +148,37 @@ impl Surface {
+         Ok(window)
+     }
+ 
++    /// A small window that a window manager can assign to a second workspace by its title.
++    pub(super) fn anchor(&self) -> Result<u32> {
++        let window = self.conn.generate_id()?;
++        self.conn
++            .create_window(
++                COPY_DEPTH_FROM_PARENT,
++                window,
++                self.root,
++                600,
++                500,
++                48,
++                48,
++                0,
++                WindowClass::INPUT_OUTPUT,
++                COPY_FROM_PARENT,
++                &CreateWindowAux::new().background_pixel(0x0080_8080),
++            )?
++            .check()?;
++        self.conn
++            .change_property8(
++                PropMode::REPLACE,
++                window,
++                AtomEnum::WM_NAME,
++                AtomEnum::STRING,
++                b"Compust workspace anchor",
++            )?
++            .check()?;
++        self.conn.map_window(window)?.check()?;
++        Ok(window)
++    }
++
+     pub(super) fn paint(&self, window: u32, color: u32) -> Result<()> {
+         self.conn.change_window_attributes(
+             window,
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index cd8819d..70333ad 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -45,6 +45,13 @@ struct Args {
+     /// iconify scenarios.
+     #[arg(long, value_enum, default_value_t = scenarios::Layout::Tiling)]
+     layout: scenarios::Layout,
++    /// Require reparenting frames with a painted title bar; implied by the stacking layout.
++    #[arg(long)]
++    frames: bool,
++    /// Map a small window first so a window manager with dynamic workspaces, configured to
++    /// send it to a second one, has an otherwise empty workspace to switch to.
++    #[arg(long)]
++    workspace_anchor: bool,
+     /// Keep one marker window instead of running the desktop scenarios. Read
+     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
+     #[arg(long)]
+@@ -72,7 +79,15 @@ fn main() -> Result<()> {
+     if args.hotplug {
+         return hotplug::run(&surface, &args, &processes);
+     }
+-    let window = scenarios::exercise(&surface, &args.output, args.layout)?;
++    let window = scenarios::exercise(
++        &surface,
++        &args.output,
++        scenarios::Plan {
++            layout: args.layout,
++            frames: args.frames || args.layout == scenarios::Layout::Stacking,
++            anchor: args.workspace_anchor,
++        },
++    )?;
+     if args.opacity < 100 {
+         scenarios::translucent(&surface, window, args.opacity)?;
+     }
+@@ -83,9 +98,10 @@ fn main() -> Result<()> {
+         scenarios::shows_red(&surface, window, args.opacity)
+     })?;
+     surface.screenshot(&args.output.join("final.ppm"))?;
+-    let stacking = match args.layout {
+-        scenarios::Layout::Tiling => "",
+-        scenarios::Layout::Stacking => "decorated frames, restacking, iconify restore, ",
++    let stacking = match (args.layout, args.frames) {
++        (scenarios::Layout::Stacking, _) => "decorated frames, restacking, iconify restore, ",
++        (scenarios::Layout::Tiling, true) => "decorated frames, ",
++        (scenarios::Layout::Tiling, false) => "",
+     };
+     println!(
+         "PASS: managed windows, {stacking}popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",
+diff --git a/tools/desktop-check.sh b/tools/desktop-check.sh
+index c52773a..0dcc09a 100755
+--- a/tools/desktop-check.sh
++++ b/tools/desktop-check.sh
+@@ -6,7 +6,7 @@ if [[ ${1:-} == --help ]]; then
+     printf '%s\n' "$usage"
+     printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
+     printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
+-    printf 'Set WINDOW_MANAGER to xmonad (the default) or openbox.\n'
++    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, or i3.\n'
+     exit 0
+ fi
+ if (( $# < 1 || $# > 2 )); then
+@@ -23,8 +23,9 @@ case "$mode" in
+ esac
+ window_manager=${WINDOW_MANAGER:-xmonad}
+ case "$window_manager" in
+-    xmonad) layout=tiling ;;
+-    openbox) layout=stacking ;;
++    xmonad) scenarios=(--layout tiling) ;;
++    openbox) scenarios=(--layout stacking) ;;
++    i3) scenarios=(--layout tiling --frames --workspace-anchor) ;;
+     *) printf 'Unknown window manager: %s\n' "$window_manager" >&2; exit 2 ;;
+ esac
+ if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
+@@ -60,12 +61,17 @@ if [[ $window_manager == xmonad ]]; then
+     export XMONAD_CONFIG_DIR="$work/config"
+     export XMONAD_CACHE_DIR="$work/cache"
+     export XMONAD_DATA_DIR="$work/data"
+-else
++elif [[ $window_manager == openbox ]]; then
+     wm_source=tools/desktop/openbox.xml
+     wm_binary=$(command -v openbox)
+     # Keep the user's own Openbox menus and session files out of the run.
+     wm_command=(env "XDG_CONFIG_HOME=$work/config" "XDG_CACHE_HOME=$work/cache"
+         "$wm_binary" --sm-disable --config-file "$wm_source")
++else
++    wm_source=tools/desktop/i3.config
++    wm_binary=$(command -v i3)
++    # A private socket keeps this instance apart from an i3 session on another display.
++    wm_command=(env "I3SOCK=$work/i3.sock" "$wm_binary" -c "$wm_source")
+ fi
+ 
+ if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
+@@ -133,7 +139,7 @@ pids=("$compositor_pid" "${pids[@]}")
+ timeout 90s target/release/examples/desktop_probe --display "$DISPLAY" \
+     --process "compust:$compositor_pid" "${measured[@]}" --process "wm:$wm_pid" \
+     --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" --presentation "$presentation" \
+-    --opacity "$opacity" --layout "$layout" >"$report/probe.log" 2>&1
++    --opacity "$opacity" "${scenarios[@]}" >"$report/probe.log" 2>&1
+ xprop -root _NET_SUPPORTING_WM_CHECK >"$report/wm.txt"
+ kill -TERM "$compositor_pid"
+ wait "$compositor_pid"
+diff --git a/tools/desktop/i3.config b/tools/desktop/i3.config
+new file mode 100644
+index 0000000..44bb543
+--- /dev/null
++++ b/tools/desktop/i3.config
+@@ -0,0 +1,12 @@
++# Private i3 configuration for tools/desktop-check.sh: tiled, reparented clients with title
++# bars, no bar, and no key bindings.
++font pango:monospace 8
++default_border normal
++workspace_layout default
++focus_follows_mouse no
++
++# i3 only keeps workspaces that are focused or hold a window. The probe's small anchor
++# window goes to a second workspace, floating, so that workspace exists and stays empty
++# where the probe checks pixels.
++for_window [title="^Compust workspace anchor$"] floating enable
++assign [title="^Compust workspace anchor$"] 2

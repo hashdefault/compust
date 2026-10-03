@@ -45,6 +45,13 @@ struct Args {
     /// iconify scenarios.
     #[arg(long, value_enum, default_value_t = scenarios::Layout::Tiling)]
     layout: scenarios::Layout,
+    /// Require reparenting frames with a painted title bar; implied by the stacking layout.
+    #[arg(long)]
+    frames: bool,
+    /// Map a small window first so a window manager with dynamic workspaces, configured to
+    /// send it to a second one, has an otherwise empty workspace to switch to.
+    #[arg(long)]
+    workspace_anchor: bool,
     /// Keep one marker window instead of running the desktop scenarios. Read
     /// 'sample LABEL' after each monitor transition, then 'quit', from stdin.
     #[arg(long)]
@@ -72,7 +79,15 @@ fn main() -> Result<()> {
     if args.hotplug {
         return hotplug::run(&surface, &args, &processes);
     }
-    let window = scenarios::exercise(&surface, &args.output, args.layout)?;
+    let window = scenarios::exercise(
+        &surface,
+        &args.output,
+        scenarios::Plan {
+            layout: args.layout,
+            frames: args.frames || args.layout == scenarios::Layout::Stacking,
+            anchor: args.workspace_anchor,
+        },
+    )?;
     if args.opacity < 100 {
         scenarios::translucent(&surface, window, args.opacity)?;
     }
@@ -83,9 +98,10 @@ fn main() -> Result<()> {
         scenarios::shows_red(&surface, window, args.opacity)
     })?;
     surface.screenshot(&args.output.join("final.ppm"))?;
-    let stacking = match args.layout {
-        scenarios::Layout::Tiling => "",
-        scenarios::Layout::Stacking => "decorated frames, restacking, iconify restore, ",
+    let stacking = match (args.layout, args.frames) {
+        (scenarios::Layout::Stacking, _) => "decorated frames, restacking, iconify restore, ",
+        (scenarios::Layout::Tiling, true) => "decorated frames, ",
+        (scenarios::Layout::Tiling, false) => "",
     };
     println!(
         "PASS: managed windows, {stacking}popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at {}% opacity",

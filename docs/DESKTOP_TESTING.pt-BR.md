@@ -6,7 +6,7 @@ Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmona
 
 ## Executar a medição isolada
 
-Instale a toolchain Rust fixada pelo projeto, um linker C, GHC com as bibliotecas `xmonad` e `xmonad-contrib`, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr` e utilitários Linux como `timeout`, `getconf` e `sha256sum`. Execute na raiz do repositório. O script aloca os dois displays automaticamente e inicia uma configuração privada do Xmonad; pode rodar em uma sessão Wayland ou sem desktop. Defina `WINDOW_MANAGER=openbox` para testar o Openbox, com sua própria [configuração privada](../tools/desktop/openbox.xml); isso exige o Openbox instalado, e não GHC nem Xmonad.
+Instale a toolchain Rust fixada pelo projeto, um linker C, GHC com as bibliotecas `xmonad` e `xmonad-contrib`, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr` e utilitários Linux como `timeout`, `getconf` e `sha256sum`. Execute na raiz do repositório. O script aloca os dois displays automaticamente e inicia uma configuração privada do Xmonad; pode rodar em uma sessão Wayland ou sem desktop. Defina `WINDOW_MANAGER=openbox` ou `WINDOW_MANAGER=i3` para testar o Openbox ou o i3, cada um com sua própria configuração privada ([Openbox](../tools/desktop/openbox.xml), [i3](../tools/desktop/i3.config)); isso exige o gerenciador escolhido instalado, e não GHC nem Xmonad.
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -21,7 +21,7 @@ Cada diretório de relatório precisa ser novo. Omitir o modo seleciona `present
 
 As configurações `present` e `direct` usam `opacity = 100`, `fade_ms = 0`, `blur_radius = 0` e `max_fps = 120`. A [configuração Present](../tools/desktop/compust.toml) usa `vsync = true`; a [configuração direta](../tools/desktop/compust-direct.toml) usa `vsync = false`. Esses dois modos, portanto, não incluem os custos de fade, translucidez e desfoque. A [configuração de efeitos](../tools/desktop/compust-effects.toml) usa Present com os fades padrão de 180 ms e raio de desfoque 4. No modo `effects`, o probe também deixa a janela sobrevivente 50% translúcida antes de medir, então cada atualização mistura essa janela e desfoca a tela inteira atrás dela.
 
-O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio, definição e remoção de um papel de parede na raiz nesse workspace, retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. Com o Openbox, as janelas mantêm seu tamanho dentro de molduras decoradas; por isso o probe também exige uma moldura com reparenting e barra de título pintada, sobrepõe as duas janelas e traz cada uma para a frente, e minimiza e restaura uma delas. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
+O probe verifica organização das janelas pelo gerenciador, remoção de popup override-redirect, tela cheia via EWMH e restauração, troca para um workspace vazio, definição e remoção de um papel de parede na raiz nesse workspace, retorno, 32 sequências rápidas de criação/map/destruição e atualização de uma janela sobrevivente. Cada cena verifica pixels reais do overlay. Com o Openbox, as janelas mantêm seu tamanho dentro de molduras decoradas; por isso o probe também exige uma moldura com reparenting e barra de título pintada, sobrepõe as duas janelas e traz cada uma para a frente, e minimiza e restaura uma delas. Com o i3, um gerenciador tiling que também faz reparenting, o probe exige as mesmas barras de título nas molduras e mapeia antes uma pequena janela-âncora que o i3 envia para um segundo workspace, porque o i3 só mantém workspaces que têm foco ou alguma janela. O script também exige encerramento bem-sucedido do compositor após SIGTERM. A inicialização dos displays espera por `-displayfd`; seleção do compositor, gerenciador e cenas usam notificações X11 com prazo máximo.
 
 Após dois segundos de aquecimento, o probe mede uma fase ociosa e outra com uma janela grande, opaca exceto no modo `effects`, alternando vermelho e azul a uma frequência solicitada de 60 atualizações por segundo. Ele registra separadamente CPU de Compust, servidor X, Xvfb hospedeiro quando houver, Xmonad e probe, com RSS no início e no fim de cada fase. Os percentuais consideram um núcleo como 100%; zero significa que nenhum tick de CPU foi observado naquele intervalo. Valores de RSS nos extremos não constituem um teste prolongado de vazamentos.
 
@@ -244,6 +244,25 @@ O [executor de transições de monitores](benchmarks/2026-10-03/intel-xorg/openb
 Um comportamento do Openbox afetou o probe. Quando um cliente mapeava sua janela no momento em que o Compust assumia a tela, o Openbox 3.6.1 deixava o pedido de mapeamento sem tratamento até seu próximo evento; uma mudança posterior de propriedade na raiz o liberava. O probe agora envia essas mudanças de propriedade durante sua primeira espera sob um gerenciador de janelas empilhadas. A causa dentro do Openbox não foi investigada.
 
 Essas sessões usam as janelas sintéticas do probe. Mover e redimensionar janelas de forma interativa, os menus do próprio Openbox e aplicativos reais não têm cenário registrado.
+
+## Sessões registradas com i3: 2026-10-03
+
+O mesmo laptop repetiu os três procedimentos com o i3 4.23, um gerenciador de janelas tiling que coloca cada cliente dentro de uma moldura com barra de título. A base foi o `025cabdd0cd690a960f1891613c9a28186a5cfdf` mais as [mudanças registradas do probe e do executor](benchmarks/2026-10-03/intel-xorg/i3/desktop/present/source.patch); o código do compositor não mudou, e seu binário foi o `c3d810af11586206eff8c893d395a3b4a7c3f93bfcf43d71f27f8c7946d7bf31`. Todas as execuções passaram em todos os cenários, incluindo as barras de título das molduras e a troca para o workspace da âncora.
+
+| Execução | CPU ativa do Compust | CPU ativa do servidor X | Quadros em 10 s | Mediana / p95 / máximo dos intervalos |
+| --- | ---: | ---: | ---: | ---: |
+| [Aninhada, Present](benchmarks/2026-10-03/intel-xorg/i3/nested/present/processes.csv) | 0,8% | 18,3% | 599 | 16,679 / 17,776 / 18,984 ms |
+| [Aninhada, direto](benchmarks/2026-10-03/intel-xorg/i3/nested/direct/processes.csv) | 0,3% | 17,9% | 600 Damage | — |
+| [Aninhada, efeitos](benchmarks/2026-10-03/intel-xorg/i3/nested/effects/processes.csv) | 0,8% | 32,7% | 584 | 16,683 / 17,871 / 34,548 ms |
+| [Hardware, Present](benchmarks/2026-10-03/intel-xorg/i3/desktop/present/processes.csv) | 0,7% | 4,4% | 599 | 16,650 / 16,664 / 33,296 ms |
+| [Hardware, direto](benchmarks/2026-10-03/intel-xorg/i3/desktop/direct/processes.csv) | 0,4% | 2,9% | 600 Damage | — |
+| [Hardware, efeitos](benchmarks/2026-10-03/intel-xorg/i3/desktop/effects/processes.csv) | 0,9% | 4,6% | 600 | 16,650 / 16,664 / 33,318 ms |
+
+O servidor aninhado é o Xorg Xephyr 21.1.11 em 1280×800; as linhas de hardware vêm de uma sessão dedicada no vt3 em 1366×768. Cada execução Present em hardware teve um intervalo de dois vblanks. Nas fases ociosas em hardware, o Compust e o Xorg não registraram ticks de CPU, e o RSS do Compust ficou em 3.392–3.412 KiB.
+
+O [executor de transições de monitores](benchmarks/2026-10-03/intel-xorg/i3/monitors/) passou na referência, no eDP-1 em 1280×720 e no modo restaurado, nos dois modos de apresentação, em um desktop i3 habitual com sua barra. A CPU da fase ativa foi de 0,6–0,8% para o Compust e 5,7–6,5% para o Xorg com Present, e de 0,6–0,7% e 3,9–4,2% com cópia direta. Os intervalos do Present tiveram mediana de 16,65 ms; duas das três amostras tiveram um intervalo de dois vblanks. As amostras de referência e de modo restaurado informaram `resources.csv` idênticos em cada modo.
+
+Essas sessões usam as janelas sintéticas do probe no layout dividido padrão do i3. Os layouts empilhado e em abas, janelas flutuantes além da âncora e aplicativos reais não têm cenário registrado.
 
 ## Suspensão e retomada registradas: 2026-10-03
 

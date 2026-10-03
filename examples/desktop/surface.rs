@@ -148,6 +148,37 @@ impl Surface {
         Ok(window)
     }
 
+    /// A small window that a window manager can assign to a second workspace by its title.
+    pub(super) fn anchor(&self) -> Result<u32> {
+        let window = self.conn.generate_id()?;
+        self.conn
+            .create_window(
+                COPY_DEPTH_FROM_PARENT,
+                window,
+                self.root,
+                600,
+                500,
+                48,
+                48,
+                0,
+                WindowClass::INPUT_OUTPUT,
+                COPY_FROM_PARENT,
+                &CreateWindowAux::new().background_pixel(0x0080_8080),
+            )?
+            .check()?;
+        self.conn
+            .change_property8(
+                PropMode::REPLACE,
+                window,
+                AtomEnum::WM_NAME,
+                AtomEnum::STRING,
+                b"Compust workspace anchor",
+            )?
+            .check()?;
+        self.conn.map_window(window)?.check()?;
+        Ok(window)
+    }
+
     pub(super) fn paint(&self, window: u32, color: u32) -> Result<()> {
         self.conn.change_window_attributes(
             window,

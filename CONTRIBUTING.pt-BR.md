@@ -31,7 +31,7 @@ Informe o commit (`git rev-parse HEAD`), distribuição, servidor e versão, ger
 
 Em relatos de desempenho, informe resolução, taxas de atualização dos monitores, número de janelas, carga de trabalho, raio do desfoque, configuração e se a medição de CPU inclui o servidor X. O XRender pode transferir trabalho para esse processo. Compare builds de release na mesma máquina e com a mesma carga; ao comparar com picom, registre sua versão e backend.
 
-O [guia de validação de desktops](docs/DESKTOP_TESTING.pt-BR.md) executa cenários do Xmonad ou do Openbox nos modos Present, XRender direto e efeitos, em servidores aninhados ou em uma sessão dedicada em hardware, amostra transições físicas de monitores, registra medições dos processos e descreve as verificações de hardware restantes para a beta.
+O [guia de validação de desktops](docs/DESKTOP_TESTING.pt-BR.md) executa cenários do Xmonad, do Openbox ou do i3 nos modos Present, XRender direto e efeitos, em servidores aninhados ou em uma sessão dedicada em hardware, amostra transições físicas de monitores, registra medições dos processos e descreve as verificações de hardware restantes para a beta.
 
 ## Preparar um pull request
 

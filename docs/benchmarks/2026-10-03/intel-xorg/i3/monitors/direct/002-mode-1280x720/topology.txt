@@ -1,0 +1,4 @@
+root=1280x720
+output=eDP-1 connection=CONNECTED primary=true crtc=62 geometry=1280x720+0+0 rotation=ROTATE0 mode=1280x720@60.058Hz
+output=HDMI-1 connection=DISCONNECTED primary=false crtc=none
+monitor=eDP-1 primary=true automatic=true geometry=1280x720+0+0 outputs=1

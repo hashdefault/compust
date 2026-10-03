@@ -24,7 +24,27 @@ pub(super) enum Layout {
     Stacking,
 }
 
-pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Result<u32> {
+/// Which scenarios a window manager supports.
+#[derive(Clone, Copy)]
+pub(super) struct Plan {
+    pub(super) layout: Layout,
+    /// Clients sit in reparenting frames with a painted title bar.
+    pub(super) frames: bool,
+    /// The second workspace exists only while a window is assigned to it.
+    pub(super) anchor: bool,
+}
+
+pub(super) fn exercise(surface: &Surface, output: &Path, plan: Plan) -> Result<u32> {
+    let layout = plan.layout;
+    let anchor = if plan.anchor {
+        let anchor = surface.anchor()?;
+        surface.until("second workspace for the anchor window", || {
+            Ok(surface.property(surface.root, "_NET_NUMBER_OF_DESKTOPS")? >= Some(2))
+        })?;
+        Some(anchor)
+    } else {
+        None
+    };
     let red = surface.window(RED, false)?;
     let blue = surface.window(BLUE, false)?;
     surface.until("window manager maps both clients", || {
@@ -38,7 +58,16 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
     })?;
     if layout == Layout::Stacking {
         surface.settle()?;
-        decorated(surface, red, blue)?;
+        surface.place(red, (60, 80))?;
+        surface.place(blue, (460, 80))?;
+        surface.until("stacking clients placed apart", || {
+            Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
+        })?;
+    }
+    if plan.frames {
+        for (window, color) in [(red, RED), (blue, BLUE)] {
+            framed(surface, window, color, layout)?;
+        }
     }
     surface.until("managed client pixels", || {
         Ok(surface.window_has_color(red, RED)? && surface.window_has_color(blue, BLUE)?)
@@ -89,6 +118,9 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
         )
     })?;
 
+    if let Some(anchor) = anchor {
+        surface.conn.destroy_window(anchor)?.check()?;
+    }
     for _ in 0..32 {
         let transient = surface.window(GREEN, false)?;
         surface.conn.destroy_window(transient)?.check()?;
@@ -107,34 +139,28 @@ pub(super) fn exercise(surface: &Surface, output: &Path, layout: Layout) -> Resu
     Ok(red)
 }
 
-/// Place both clients apart and require a reparenting frame with a painted title bar.
-fn decorated(surface: &Surface, red: u32, blue: u32) -> Result<()> {
-    surface.place(red, (60, 80))?;
-    surface.place(blue, (460, 80))?;
-    surface.until("stacking clients placed apart", || {
-        Ok(surface.origin(red)?.0 + 320 <= surface.origin(blue)?.0)
+/// Require a reparenting frame around `window` with a painted title bar above it.
+fn framed(surface: &Surface, window: u32, color: u32, layout: Layout) -> Result<()> {
+    let size = surface.conn.get_geometry(window)?.reply()?;
+    ensure!(
+        layout == Layout::Tiling || (size.width == 320 && size.height == 240),
+        "stacking window manager resized the client"
+    );
+    let frame = surface.frame(window)?;
+    ensure!(
+        frame != window,
+        "window manager did not reparent the client"
+    );
+    let top = surface.conn.get_geometry(frame)?.reply()?.y;
+    let origin = surface.origin(window)?;
+    let title = origin.1 - top;
+    ensure!(title > 2, "frame has no title bar above the client");
+    let middle = origin.0 + i16::try_from(size.width / 2)?;
+    surface.until("frame decoration pixels", || {
+        let pixel = surface.pixel((middle, top + title / 2))?;
+        Ok(pixel != BACKGROUND && pixel != color)
     })?;
-    for (window, color) in [(red, RED), (blue, BLUE)] {
-        let size = surface.conn.get_geometry(window)?.reply()?;
-        ensure!(
-            size.width == 320 && size.height == 240,
-            "stacking window manager resized the client"
-        );
-        let frame = surface.frame(window)?;
-        ensure!(
-            frame != window,
-            "window manager did not reparent the client"
-        );
-        let top = surface.conn.get_geometry(frame)?.reply()?.y;
-        let origin = surface.origin(window)?;
-        let title = origin.1 - top;
-        ensure!(title > 2, "frame has no title bar above the client");
-        surface.until("frame decoration pixels", || {
-            let pixel = surface.pixel((origin.0 + 160, top + title / 2))?;
-            Ok(pixel != BACKGROUND && pixel != color)
-        })?;
-        println!("frame={frame:#x} client={window:#x} title_height={title}");
-    }
+    println!("frame={frame:#x} client={window:#x} title_height={title}");
     Ok(())
 }
 
