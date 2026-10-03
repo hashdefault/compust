@@ -15,7 +15,7 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use x11rb::{connection::Connection, protocol::xproto::ConnectionExt as _};
+use x11rb::connection::Connection;
 
 /// Present normally reports a submission within one refresh. Past this wait, the events are
 /// treated as lost so one missing notification cannot freeze the screen.
@@ -53,12 +53,7 @@ impl Compositor {
             atoms: &session.atoms,
             config: &config,
         };
-        for window in session
-            .conn
-            .query_tree(session.screen.root)?
-            .reply()?
-            .children
-        {
+        for window in scene.stack.query(&session)?.to_vec() {
             if window != session.owner && window != session.overlay {
                 scene.add(window, &context)?;
             }
@@ -90,11 +85,12 @@ impl Compositor {
         while self.running && !self.shutdown.load(Ordering::Relaxed) {
             let mut budget_exhausted = true;
             for _ in 0..512 {
-                let Some(event) = self.session.conn.poll_for_event()? else {
+                let Some((event, sequence)) = self.session.conn.poll_for_event_with_sequence()?
+                else {
                     budget_exhausted = false;
                     break;
                 };
-                self.handle(event)?;
+                self.handle(event, sequence)?;
             }
             if self.reload.swap(false, Ordering::Relaxed) {
                 self.reload_config();

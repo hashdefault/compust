@@ -9,28 +9,23 @@ use x11rb::{
     protocol::{
         Event,
         damage::ConnectionExt as _,
-        xproto::{ConfigureNotifyEvent, ConnectionExt as _, Window},
+        xproto::{ConfigureNotifyEvent, Place, Window},
     },
 };
 
 impl Compositor {
-    pub(crate) fn handle(&mut self, event: Event) -> Result<()> {
+    /// Handle one event; `sequence` orders it against the last window tree query.
+    pub(crate) fn handle(&mut self, event: Event, sequence: u64) -> Result<()> {
+        self.track_stacking(&event, sequence);
+        let root = self.session.screen.root;
         match event {
             Event::CreateNotify(event) => self.clients_changed(&[event.parent])?,
             Event::MapNotify(event)
-                if event.event == self.session.screen.root
+                if event.event == root
                     && event.window != self.session.owner
                     && event.window != self.session.overlay =>
             {
-                self.scene.add(
-                    event.window,
-                    &Capture {
-                        conn: &self.session.conn,
-                        formats: &self.renderer.formats,
-                        atoms: &self.session.atoms,
-                        config: &self.config,
-                    },
-                )?;
+                self.add(event.window)?;
                 self.scene.restack(&self.session)?;
                 self.dirty = true;
             }
@@ -44,16 +39,8 @@ impl Compositor {
                 self.dirty = true;
             }
             Event::ReparentNotify(event) => {
-                if event.parent == self.session.screen.root {
-                    self.scene.add(
-                        event.window,
-                        &Capture {
-                            conn: &self.session.conn,
-                            formats: &self.renderer.formats,
-                            atoms: &self.session.atoms,
-                            config: &self.config,
-                        },
-                    )?;
+                if event.parent == root {
+                    self.add(event.window)?;
                 } else {
                     self.scene.close(event.window, self.config.fade_duration());
                 }
@@ -62,14 +49,14 @@ impl Compositor {
                 self.dirty = true;
             }
             Event::ConfigureNotify(event) => {
-                if event.window == self.session.screen.root {
+                if event.window == root {
                     // Keep a replacement already requested by a RandR change in this batch.
                     self.resizing |= event.width != self.renderer.size.width
                         || event.height != self.renderer.size.height;
                 } else {
                     self.configure(&event)?;
+                    self.scene.restack(&self.session)?;
                 }
-                self.scene.restack(&self.session)?;
                 self.dirty = true;
             }
             Event::CirculateNotify(_) => {
@@ -117,6 +104,50 @@ impl Compositor {
             _ => (),
         }
         Ok(())
+    }
+
+    fn add(&mut self, window: Window) -> Result<()> {
+        self.scene.add(
+            window,
+            &Capture {
+                conn: &self.session.conn,
+                formats: &self.renderer.formats,
+                atoms: &self.session.atoms,
+                config: &self.config,
+            },
+        )
+    }
+
+    /// Mirror the root's stacking order from a structure event; see `Stack`.
+    fn track_stacking(&mut self, event: &Event, sequence: u64) {
+        let root = self.session.screen.root;
+        let stack = &mut self.scene.stack;
+        match event {
+            Event::CreateNotify(event) if event.parent == root => {
+                stack.raise(sequence, event.window);
+            }
+            Event::DestroyNotify(event) if event.event == root => {
+                stack.remove(sequence, event.window);
+            }
+            Event::ReparentNotify(event) if event.event == root && event.parent == root => {
+                stack.raise(sequence, event.window);
+            }
+            Event::ReparentNotify(event) if event.event == root => {
+                stack.remove(sequence, event.window);
+            }
+            Event::ConfigureNotify(event) if event.event == root && event.window != root => {
+                stack.place(sequence, event.window, event.above_sibling);
+            }
+            Event::CirculateNotify(event)
+                if event.event == root && event.place == Place::ON_TOP =>
+            {
+                stack.raise(sequence, event.window);
+            }
+            Event::CirculateNotify(event) if event.event == root => {
+                stack.lower(sequence, event.window);
+            }
+            _ => (),
+        }
     }
 
     fn shape_changed(&mut self, window: Window) -> Result<()> {
@@ -199,39 +230,34 @@ impl Compositor {
         else {
             return Ok(());
         };
-        let result = (|| -> Result<()> {
-            let geometry = self.session.conn.get_geometry(window)?.reply()?;
-            let captured = &surface.geometry;
-            // Each resize gives the window a new pixmap. A window resized and restored before
-            // this event is handled has its old size again, so the event's size counts too.
-            let resized = |width: u16, height: u16, border: u16| {
-                width != captured.width
-                    || height != captured.height
-                    || border != captured.border_width
-            };
-            if resized(event.width, event.height, event.border_width)
-                || resized(geometry.width, geometry.height, geometry.border_width)
-            {
-                if let Some(mut replacement) = Surface::capture(
-                    window,
-                    &Capture {
-                        conn: &self.session.conn,
-                        formats: &self.renderer.formats,
-                        atoms: &self.session.atoms,
-                        config: &self.config,
-                    },
-                )? {
-                    std::mem::swap(&mut replacement.fade, &mut surface.fade);
-                    *surface = replacement;
-                }
-            } else {
-                surface.geometry = geometry;
-                surface.refresh_shape()?;
+        let captured = &surface.geometry;
+        // Each resize gives the window a new pixmap and is reported, so a size in any event
+        // that differs from the captured one means the pixmap is stale, including for a window
+        // resized and restored before this event is handled. A capture reads the current state.
+        if event.width == captured.width
+            && event.height == captured.height
+            && event.border_width == captured.border_width
+        {
+            // A move keeps the pixmap and its shape; later events carry later positions.
+            surface.geometry.x = event.x;
+            surface.geometry.y = event.y;
+            return Ok(());
+        }
+        let capture = Surface::capture(
+            window,
+            &Capture {
+                conn: &self.session.conn,
+                formats: &self.renderer.formats,
+                atoms: &self.session.atoms,
+                config: &self.config,
+            },
+        );
+        match capture {
+            Ok(Some(mut replacement)) => {
+                std::mem::swap(&mut replacement.fade, &mut surface.fade);
+                *surface = replacement;
             }
-            Ok(())
-        })();
-        match result {
-            Ok(()) => (),
+            Ok(None) => (),
             Err(error) if vanished(&error) => {
                 surface.close(std::time::Instant::now(), self.config.fade_duration());
             }

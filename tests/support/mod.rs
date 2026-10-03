@@ -4,6 +4,7 @@ pub(crate) mod monitors;
 mod pixels;
 pub(crate) mod presentation;
 pub(crate) mod proxy;
+pub(crate) mod requests;
 pub(crate) mod resources;
 use anyhow::{Context, Result, ensure};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};

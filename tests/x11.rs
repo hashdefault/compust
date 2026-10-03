@@ -29,6 +29,9 @@ mod presentation;
 
 #[path = "cases/reload.rs"]
 mod reload;
+
+#[path = "cases/event_path.rs"]
+mod event_path;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{
