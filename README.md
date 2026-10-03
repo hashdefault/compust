@@ -8,7 +8,7 @@ Compust is an experimental, standalone **X11 compositor written in Rust**, targe
 
 A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.
 
-**Status: working prototype, version 0.1.0.** The current backend uses XRender and has automated pixel tests on Xvfb. Xorg and XLibre hardware sessions still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. See the [roadmap](docs/ROADMAP.md) for the work required to get there.
+**Status: first beta, version 0.2.0-beta.1, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification on one XLibre, Xmonad, and AMD desktop; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems; the [roadmap](docs/ROADMAP.md) lists the remaining work.
 
 ## What works today
 
@@ -34,7 +34,7 @@ If a Present submission is rejected with `BadMatch` and the original rendering b
 
 ## Build and run
 
-You need Linux, Rust 1.95.0 (the toolchain file selects it), Cargo, a C linker, and an X server with the required extensions. With a rustup installation, make sure `~/.cargo/bin` is in your `PATH`. The X11 connection uses `x11rb`'s Rust implementation; Compust does not require Xlib development headers.
+You need Linux, Rust 1.95.0 (the toolchain file selects it), Cargo, a C linker, and an X server with the required extensions. With a rustup installation, make sure `~/.cargo/bin` is in your `PATH`. The X11 connection uses `x11rb`'s Rust implementation; Compust does not require Xlib development headers. Beta testers can download a checked binary instead, as the [beta guide](docs/BETA.md) explains.
 
 ```sh
 git clone https://github.com/hashdefault/compust.git

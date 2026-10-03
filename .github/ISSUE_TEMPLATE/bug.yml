@@ -1,18 +1,34 @@
 name: Bug report / Relatar falha
 description: Reproduce an X11 or rendering problem / Reproduza um problema de X11 ou renderização
 body:
+  - type: input
+    id: version
+    attributes:
+      label: Compust version / Versão do Compust
+      description: Output of compust --version, and the release or commit you built / Saída de compust --version e a versão ou o commit compilado.
+      placeholder: compust 0.2.0-beta.1 (release v0.2.0-beta.1)
+    validations:
+      required: true
   - type: textarea
     id: environment
     attributes:
       label: Environment / Ambiente
-      description: Commit, distribution, Xorg or XLibre version, window manager, GPU, driver, and monitor setup.
+      description: Distribution, X server and version, window manager and version, GPU and driver, monitors and refresh rates / Distribuição, servidor X e versão, gerenciador de janelas e versão, GPU e driver, monitores e taxas de atualização.
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration / Configuração
+      description: Your compust.toml, or "defaults" / Seu compust.toml, ou "padrão".
+      render: toml
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
       label: Reproduction / Como reproduzir
-      description: Smallest steps and relevant configuration / Passos mínimos e configuração relevante.
+      description: Smallest steps that show the problem / Passos mínimos que mostram o problema.
     validations:
       required: true
   - type: textarea
@@ -21,8 +37,21 @@ body:
       label: Expected and actual behavior / Comportamento esperado e observado
     validations:
       required: true
+  - type: dropdown
+    id: recovery
+    attributes:
+      label: Did stopping Compust restore the desktop? / Encerrar o Compust restaurou o desktop?
+      options:
+        - Yes / Sim
+        - No / Não
+        - Not tried / Não testado
+    validations:
+      required: true
   - type: textarea
     id: diagnostics
     attributes:
       label: Diagnostics / Diagnóstico
-      description: Output of compust --diagnose, relevant logs, and optional screenshots. Remove private information.
+      description: Output of compust --diagnose and xrandr --current, and relevant lines from a RUST_LOG=compust=debug run. Remove private information / Saída de compust --diagnose e xrandr --current e trechos relevantes de uma execução com RUST_LOG=compust=debug. Remova informações privadas.
+      render: text
+    validations:
+      required: true

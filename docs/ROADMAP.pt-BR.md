@@ -12,14 +12,14 @@ Esse marco cria uma base para experimentação. Ele não comprova compatibilidad
 
 ## Primeira beta: quatro etapas
 
-A primeira beta usará o backend XRender atual e declarará suporte somente aos ambientes com evidências registradas de teste. Ela será voltada a testes controlados da comunidade. A versão 0.1.0 continua sendo um protótipo experimental; definir estes critérios não a transforma em uma versão beta.
+A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 é essa beta; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado.
 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
 | 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados e em um desktop AMD/XLibre; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
-| 4. Distribuição da beta | Pendente | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
+| 4. Distribuição da beta | Publicada como v0.2.0-beta.1 para o escopo declarado | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
 
@@ -128,6 +128,14 @@ A medição da etapa 3 mostrou que o glamor processa o filtro de convolução na
 No desktop AMD/XLibre, o modo de efeitos passou de 49 para 599 quadros em dez segundos, com todos os intervalos Present em um vblank. O Xorg usou 4,1% de um núcleo em vez de 93,7%. O Xephyr aninhado passou de 85 para 598–599 quadros, usando cerca de 20% de um núcleo em vez de 86%. O [guia de validação de desktops](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) traz os registros.
 
 Uma nova regressão desfoca uma borda preta/branca alinhada com todos os níveis nos raios 4 e 16. Ela exige uma transição monotônica centrada na borda, com pixels distantes inalterados; deslocar uma passada em um pixel faz o teste falhar. Os testes existentes de listras e de formato fora da tela passam sem mudanças, e três testes unitários cobrem o arredondamento do raio e os limites da pirâmide. A suíte completa tem 65 testes aprovados: nove unitários, três de CLI e cinquenta e três de integração X11.
+
+### Etapa 4: primeira pré-versão beta
+
+A versão 0.2.0-beta.1 está publicada como pré-lançamento no GitHub. O [guia da beta](BETA.pt-BR.md) declara o escopo: XLibre 25.1.9 com Xmonad 0.18.1 na máquina AMD/glamor registrada, com um ou dois monitores 1080p a 60 Hz. Ele também cobre instalação com verificação de checksums, inicialização com Xmonad ou `~/.xinitrc`, retorno ao compositor anterior, limitações conhecidas e as informações de que um relato de falha precisa. O [modelo de relato](../.github/ISSUE_TEMPLATE/bug.yml) pede os mesmos dados.
+
+[`package.sh`](../tools/package.sh) gera uma versão a partir de uma exportação limpa de uma revisão, com a toolchain fixada. Ele remove caminhos locais do binário, registra `BUILDINFO` e grava um arquivo compactado determinístico com `SHA256SUMS`; duas execuções na máquina de compilação produziram arquivos idênticos. O binário empacotado exibiu a versão, recusou-se a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e saiu com erro de conexão quando seu servidor X parou. Com esse binário, as verificações de desktop aninhadas passaram nos três modos no XLibre Xephyr, e a CI passou no commit da versão.
+
+Os registros em hardware usaram o mesmo código compilado junto com o probe de desktop, o que apenas acrescenta suporte a X-Resource ao x11rb; o binário publicado é compilado sozinho. Relatos da beta em outros ambientes definirão o que uma próxima versão poderá declarar.
 
 ### Matriz de compatibilidade
 

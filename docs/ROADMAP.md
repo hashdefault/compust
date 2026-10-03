@@ -12,14 +12,14 @@ This milestone establishes a base for experiments. It does not establish desktop
 
 ## First beta: four steps
 
-The first beta will use the existing XRender backend and declare support only for environments with recorded test evidence. It is intended for controlled community testing. The current 0.1.0 build remains an experimental prototype; defining these gates does not make it a beta release.
+The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 is that beta; the [beta guide](BETA.md) lists its declared scope.
 
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
 | 3. Real desktops | Xmonad scenarios recorded on nested servers and one AMD/XLibre desktop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
-| 4. Beta distribution | Pending | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
+| 4. Beta distribution | Published as v0.2.0-beta.1 for the declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
 
@@ -128,6 +128,14 @@ The step 3 measurement showed that glamor renders the convolution filter on the 
 On the AMD/XLibre desktop, effects mode went from 49 to 599 frames in ten seconds, with every Present interval at one vblank. Xorg used 4.1% of a core instead of 93.7%. Nested Xephyr went from 85 to 598–599 frames while using about 20% of a core instead of 86%. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) has the records.
 
 A new regression blurs a black/white edge aligned with every level at radii 4 and 16. It requires a monotonic transition centered on the edge, with distant pixels unchanged; shifting one pass by a pixel makes it fail. The existing stripe and off-screen shape tests pass unchanged, and three unit tests cover radius rounding and pyramid bounds. The full suite has 65 passing tests: nine unit, three CLI, and fifty-three X11 integration tests.
+
+### Step 4: first beta prerelease
+
+Version 0.2.0-beta.1 is published as a GitHub prerelease. The [beta guide](BETA.md) declares its scope: XLibre 25.1.9 with Xmonad 0.18.1 on the recorded AMD/glamor machine, with one or two 1080p monitors at 60 Hz. It also covers installation with checksum verification, startup with Xmonad or `~/.xinitrc`, returning to the previous compositor, known limits, and the information a bug report needs. The [bug template](../.github/ISSUE_TEMPLATE/bug.yml) asks for the same details.
+
+[`package.sh`](../tools/package.sh) builds a release from a clean export of a revision with the pinned toolchain. It removes local paths from the binary, records `BUILDINFO`, and writes a deterministic tarball with `SHA256SUMS`; two runs on the build machine produced identical archives. The packaged binary printed its version, refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. With that binary in place, the nested desktop checks passed in all three modes on XLibre Xephyr, and CI passed for the release commit.
+
+The hardware records used the same source built together with the desktop probe, which only adds X-Resource support to x11rb; the released binary is built alone. Beta reports from other environments decide what a later release can declare.
 
 ### Compatibility matrix
 

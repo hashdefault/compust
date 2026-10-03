@@ -74,7 +74,7 @@ function desktop(locale) {
 
   compust
   X11 compositor in Rust
-  v0.1.0 / experimental</pre></div>
+  v0.2.0-beta.1 / beta</pre></div>
       <div class="window window-front"><div class="window-title"><span>compust.toml</span><span class="dots">○ ○ ○</span></div><pre>opacity = 90
 fade_ms = 180
 blur_radius = 4

@@ -104,7 +104,7 @@ are hidden until JavaScript attaches, while the illustrated scene remains visibl
 without JavaScript. The terminal content is decorative and hidden from assistive
 technology; the figure caption provides the equivalent explanation.
 
-`doc-nav` links all four guides and the current article's headings. Current pages
+`doc-nav` links every guide and the current article's headings. Current pages
 use `aria-current=page` and a tonal fill. `prose` renders semantic Markdown with
 stable heading IDs, readable tables, selectable commands, and source-edit links.
 The locale switch always preserves the current guide, and uses full language names

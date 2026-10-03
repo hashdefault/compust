@@ -8,7 +8,7 @@ Compust é um **compositor independente para X11, escrito em Rust**, ainda exper
 
 O compositor combina as janelas dos aplicativos para formar a imagem final da área de trabalho. O Compust funciona **sobre um servidor X já em execução**, junto ao seu gerenciador de janelas. Ele não inicia nem substitui o Xorg/XLibre, não organiza as janelas e não oferece uma sessão Wayland nativa.
 
-**Estado atual: protótipo funcional, versão 0.1.0.** O backend usa XRender e possui testes automatizados de pixels no Xvfb. Sessões com Xorg e XLibre em hardware real ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) explica o trabalho necessário para chegar lá.
+**Estado atual: primeira beta, versão 0.2.0-beta.1, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada em um desktop com XLibre, Xmonad e AMD; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas; o [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) lista o trabalho restante.
 
 ## O que já funciona
 
@@ -34,7 +34,7 @@ Se um envio Present for rejeitado com `BadMatch` e os buffers originais de rende
 
 ## Compilar e executar
 
-Você precisa de Linux, Rust 1.95.0 (selecionado pelo arquivo de toolchain), Cargo, um linker C e um servidor X com as extensões obrigatórias. Se usa rustup, confira se `~/.cargo/bin` está no `PATH`. A conexão X11 usa a implementação Rust do `x11rb`; não é necessário instalar cabeçalhos de desenvolvimento da Xlib.
+Você precisa de Linux, Rust 1.95.0 (selecionado pelo arquivo de toolchain), Cargo, um linker C e um servidor X com as extensões obrigatórias. Se usa rustup, confira se `~/.cargo/bin` está no `PATH`. A conexão X11 usa a implementação Rust do `x11rb`; não é necessário instalar cabeçalhos de desenvolvimento da Xlib. Quem for testar a beta pode baixar um binário verificado, como explica o [guia da beta](docs/BETA.pt-BR.md).
 
 ```sh
 git clone https://github.com/hashdefault/compust.git

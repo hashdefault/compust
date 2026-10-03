@@ -25,7 +25,7 @@ test('every published page, asset, locale link, and local fragment resolves', as
   const directory = await mkdtemp(join(tmpdir(), 'compust-site-test-'));
   try {
     const routes = await build(directory);
-    assert.equal(routes.length, 10);
+    assert.equal(routes.length, 12);
     const pages = new Map();
     for (const route of [...routes, `${base}404.html`]) {
       const file = route.endsWith('/') ? `${route.slice(base.length)}index.html` : route.slice(base.length);

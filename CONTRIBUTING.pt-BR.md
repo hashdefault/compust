@@ -47,6 +47,19 @@ COMPUST_ARTIFACTS=artifacts cargo test --test x11
 
 O projeto usa a licença [MIT](LICENSE). As contribuições precisam ser compatíveis; identifique código de terceiros e sua licença. Usar o picom como inspiração não autoriza copiar código sob termos incompatíveis.
 
+## Preparar uma versão
+
+As versões continuam como pré-lançamentos até que os critérios do roteiro valham para um escopo maior. Atualize a versão em `Cargo.toml` e `Cargo.lock`, o guia da beta, as notas em `docs/releases/` e os dois idiomas do README e do roteiro. Depois que a CI passar no commit da versão, empacote esse commit e publique com a CLI do GitHub:
+
+```sh
+tools/package.sh HEAD artifacts/release
+gh release create vX.Y.Z-beta.N artifacts/release/* --prerelease \
+    --target "$(git rev-parse HEAD)" --title "Compust X.Y.Z-beta.N" \
+    --notes-file docs/releases/vX.Y.Z-beta.N.md
+```
+
+Baixe os arquivos publicados e confira `sha256sum -c SHA256SUMS` e `compust --version` antes de anunciar a versão.
+
 ## Contribuições para o site
 
 O [site do projeto](https://hashdefault.github.io/compust/pt-br/) publica os guias Markdown nos dois idiomas. Edite os arquivos de origem para atualizar a documentação publicada. Para alterar a página inicial, os estilos, a compilação ou a publicação no GitHub Pages, consulte o [guia de contribuição do site](site/README.pt-BR.md).

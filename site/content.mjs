@@ -4,7 +4,7 @@ export const locales = {
     description: 'Compust is an experimental Rust X11 compositor for Xorg and XLibre. Explore the project, build it, and contribute to animations, blur, and transparency.',
     skip: 'Skip to content', navigation: 'Main navigation', languages: 'Language',
     docs: 'Docs', roadmap: 'Roadmap', contribute: 'Contribute',
-    experimental: 'Experimental · v0.1.0',
+    experimental: 'Beta · v0.2.0-beta.1',
     headline: 'A new layer for your X11 desktop.',
     intro: 'Meet Compust: a minimal compositor taking shape in Rust. Animations, blur, and transparency for your existing Xorg or XLibre session.',
     readDocs: 'Read the docs', github: 'View on GitHub',
@@ -33,6 +33,7 @@ export const locales = {
     table: 'Scrollable documentation table', code: 'Code example',
     guides: [
       { slug: 'getting-started', source: 'README.md', title: 'Getting started', description: 'Requirements, installation, configuration, and current limits.' },
+      { slug: 'beta', source: 'docs/BETA.md', title: 'Beta testing', description: 'Install the beta, return to your previous compositor, and report problems.' },
       { slug: 'architecture', source: 'docs/ARCHITECTURE.md', title: 'Architecture', description: 'Follow a window from an X11 event to the final frame.' },
       { slug: 'roadmap', source: 'docs/ROADMAP.md', title: 'Roadmap', description: 'Four steps to the first beta, progress, and release criteria.' },
       { slug: 'contributing', source: 'CONTRIBUTING.md', title: 'Contributing', description: 'Set up your environment, run tests, and prepare a pull request.' },
@@ -43,7 +44,7 @@ export const locales = {
     description: 'Compust é um compositor X11 experimental em Rust para Xorg e XLibre. Conheça o projeto, compile e contribua com animações, desfoque e transparência.',
     skip: 'Pular para o conteúdo', navigation: 'Navegação principal', languages: 'Idioma',
     docs: 'Documentação', roadmap: 'Roteiro', contribute: 'Contribua',
-    experimental: 'Experimental · v0.1.0',
+    experimental: 'Beta · v0.2.0-beta.1',
     headline: 'Uma nova camada para o seu desktop X11.',
     intro: 'Conheça o Compust: um compositor minimalista tomando forma em Rust. Animações, desfoque e transparência para a sua sessão Xorg ou XLibre.',
     readDocs: 'Leia a documentação', github: 'Veja no GitHub',
@@ -72,6 +73,7 @@ export const locales = {
     table: 'Tabela da documentação com rolagem horizontal', code: 'Exemplo de código',
     guides: [
       { slug: 'getting-started', source: 'README.pt-BR.md', title: 'Primeiros passos', description: 'Requisitos, instalação, configuração e limitações atuais.' },
+      { slug: 'beta', source: 'docs/BETA.pt-BR.md', title: 'Teste da beta', description: 'Instale a beta, volte ao compositor anterior e relate problemas.' },
       { slug: 'architecture', source: 'docs/ARCHITECTURE.pt-BR.md', title: 'Arquitetura', description: 'Acompanhe uma janela, do evento X11 ao quadro final.' },
       { slug: 'roadmap', source: 'docs/ROADMAP.pt-BR.md', title: 'Roteiro', description: 'Quatro etapas até a primeira beta, progresso e critérios de liberação.' },
       { slug: 'contributing', source: 'CONTRIBUTING.pt-BR.md', title: 'Como contribuir', description: 'Prepare o ambiente, execute os testes e envie um pull request.' },
