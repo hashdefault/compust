@@ -2,35 +2,37 @@
 
 [English (US)](BETA.md) | [Português (Brasil)](BETA.pt-BR.md)
 
-Compust 0.2.0-beta.1 is the first beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
+Compust 0.2.0-beta.2 is the second beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
 
 ## Declared scope
 
+Two recorded combinations are qualified: XLibre on the AMD desktop and Xorg on the Intel laptop.
+
 | Area | Qualified for this beta | Evidence |
 | --- | --- | --- |
-| X server | XLibre 25.1.9 in a native session | [Hardware desktop session](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) |
-| Window manager | Xmonad 0.18.1 with EWMH | Same session |
-| GPU and driver | AMD Radeon Vega (Ryzen 5 5600GT) with the modesetting driver and glamor, Mesa 26.2.4 | Same session |
-| Monitors | One or two outputs at 1920×1080 and 60 Hz, including unplugging and reconnecting | [Monitor session](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) |
-| Rendering | Present and direct XRender, fades, transparency, and blur | [Pyramid blur session](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) |
+| X server | XLibre 25.1.9 or Xorg 21.1.11 in a native session | [AMD desktop session](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) and [Intel sessions](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03) |
+| Window manager | Xmonad 0.18.1 (AMD) or 0.17.2 (Intel) with EWMH | Same sessions |
+| GPU and driver | AMD Radeon Vega (Ryzen 5 5600GT) with Mesa 26.2.4, or Intel Iris Plus G1 (Core i3-1005G1) with Mesa 25.2.8; both with the modesetting driver and glamor | Same sessions |
+| Monitors | AMD: one or two outputs at 1920×1080 and 60 Hz, including unplugging and reconnecting. Intel: one 1366×768 laptop panel at 60 Hz, including a mode change | [Monitor session](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and Intel sessions |
+| Rendering | Present and direct XRender, fades, transparency, and blur | [Pyramid blur session](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) and Intel sessions |
 
-Xorg 21.1 and XLibre 25.1 also pass the desktop scenarios nested in Xephyr, which covers protocol behavior but not drivers or displays. Intel and NVIDIA GPUs, other window managers, Xorg on hardware, mixed refresh rates, and HDR are untested. Reports from those setups are especially useful.
+Xorg 21.1 and XLibre 25.1 also pass the desktop scenarios nested in Xephyr, which covers protocol behavior but not drivers or displays. NVIDIA GPUs, other window managers, Xorg with AMD, XLibre with Intel, physical hotplug on Intel, mixed refresh rates, and HDR are untested. Reports from those setups are especially useful.
 
 ## Install
 
-Download `compust-0.2.0-beta.1-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.1), then verify and unpack them:
+Download `compust-0.2.0-beta.2-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.2), then verify and unpack them:
 
 ```sh
 sha256sum -c SHA256SUMS
-tar -xzf compust-0.2.0-beta.1-x86_64-linux.tar.gz
-cd compust-0.2.0-beta.1-x86_64-linux
+tar -xzf compust-0.2.0-beta.2-x86_64-linux.tar.gz
+cd compust-0.2.0-beta.2-x86_64-linux
 ./compust --version
 ```
 
 The binary needs x86_64 Linux with glibc 2.34 or newer. `BUILDINFO` records the source revision, compiler, and build command. To build from source instead, install the pinned Rust toolchain and run:
 
 ```sh
-git clone --branch v0.2.0-beta.1 https://github.com/hashdefault/compust.git
+git clone --branch v0.2.0-beta.2 https://github.com/hashdefault/compust.git
 cd compust
 cargo build --release --locked
 ```

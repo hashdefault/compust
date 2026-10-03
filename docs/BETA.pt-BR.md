@@ -2,35 +2,37 @@
 
 [English (US)](BETA.md) | [Português (Brasil)](BETA.pt-BR.md)
 
-O Compust 0.2.0-beta.1 é a primeira beta, voltada a testes controlados da comunidade. Ele ainda não substitui o picom. O suporte é declarado somente onde há evidências registradas; outras configurações são bem-vindas para testes, mas continuam sem validação.
+O Compust 0.2.0-beta.2 é a segunda beta, voltada a testes controlados da comunidade. Ele ainda não substitui o picom. O suporte é declarado somente onde há evidências registradas; outras configurações são bem-vindas para testes, mas continuam sem validação.
 
 ## Escopo declarado
 
+Duas combinações registradas estão validadas: XLibre no desktop AMD e Xorg no laptop Intel.
+
 | Área | Validado nesta beta | Evidências |
 | --- | --- | --- |
-| Servidor X | XLibre 25.1.9 em sessão nativa | [Sessão de desktop em hardware](DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03) |
-| Gerenciador de janelas | Xmonad 0.18.1 com EWMH | Mesma sessão |
-| GPU e driver | AMD Radeon Vega (Ryzen 5 5600GT) com o driver modesetting e glamor, Mesa 26.2.4 | Mesma sessão |
-| Monitores | Uma ou duas saídas em 1920×1080 a 60 Hz, incluindo desconexão e reconexão | [Sessão de monitores](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03) |
-| Renderização | Present e XRender direto, fades, transparência e desfoque | [Sessão do desfoque em pirâmide](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) |
+| Servidor X | XLibre 25.1.9 ou Xorg 21.1.11 em sessão nativa | [Sessão de desktop AMD](DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03) e [sessões Intel](DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03) |
+| Gerenciador de janelas | Xmonad 0.18.1 (AMD) ou 0.17.2 (Intel) com EWMH | Mesmas sessões |
+| GPU e driver | AMD Radeon Vega (Ryzen 5 5600GT) com Mesa 26.2.4, ou Intel Iris Plus G1 (Core i3-1005G1) com Mesa 25.2.8; ambas com o driver modesetting e glamor | Mesmas sessões |
+| Monitores | AMD: uma ou duas saídas em 1920×1080 a 60 Hz, incluindo desconexão e reconexão. Intel: um painel de laptop de 1366×768 a 60 Hz, incluindo uma mudança de modo | [Sessão de monitores](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03) e sessões Intel |
+| Renderização | Present e XRender direto, fades, transparência e desfoque | [Sessão do desfoque em pirâmide](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) e sessões Intel |
 
-Xorg 21.1 e XLibre 25.1 também passam nos cenários de desktop aninhados no Xephyr, o que cobre o comportamento do protocolo, mas não drivers nem monitores. GPUs Intel e NVIDIA, outros gerenciadores de janelas, Xorg em hardware, taxas de atualização mistas e HDR não foram testados. Relatos dessas configurações são especialmente úteis.
+Xorg 21.1 e XLibre 25.1 também passam nos cenários de desktop aninhados no Xephyr, o que cobre o comportamento do protocolo, mas não drivers nem monitores. GPUs NVIDIA, outros gerenciadores de janelas, Xorg com AMD, XLibre com Intel, hotplug físico em Intel, taxas de atualização mistas e HDR não foram testados. Relatos dessas configurações são especialmente úteis.
 
 ## Instalar
 
-Baixe `compust-0.2.0-beta.1-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.1), depois verifique e extraia os arquivos:
+Baixe `compust-0.2.0-beta.2-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.2.0-beta.2), depois verifique e extraia os arquivos:
 
 ```sh
 sha256sum -c SHA256SUMS
-tar -xzf compust-0.2.0-beta.1-x86_64-linux.tar.gz
-cd compust-0.2.0-beta.1-x86_64-linux
+tar -xzf compust-0.2.0-beta.2-x86_64-linux.tar.gz
+cd compust-0.2.0-beta.2-x86_64-linux
 ./compust --version
 ```
 
 O binário exige Linux x86_64 com glibc 2.34 ou mais recente. `BUILDINFO` registra a revisão do código, o compilador e o comando de compilação. Para compilar a partir do código-fonte, instale a toolchain Rust fixada pelo projeto e execute:
 
 ```sh
-git clone --branch v0.2.0-beta.1 https://github.com/hashdefault/compust.git
+git clone --branch v0.2.0-beta.2 https://github.com/hashdefault/compust.git
 cd compust
 cargo build --release --locked
 ```

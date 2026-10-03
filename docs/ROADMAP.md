@@ -12,14 +12,14 @@ This milestone establishes a base for experiments. It does not establish desktop
 
 ## First beta: four steps
 
-The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 is that beta; the [beta guide](BETA.md) lists its declared scope.
+The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 was that beta and 0.2.0-beta.2 follows it; the [beta guide](BETA.md) lists the current declared scope.
 
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
 | 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop, plus a panel mode change on one Intel/Xorg laptop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
 | 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
-| 4. Beta distribution | Published as v0.2.0-beta.1 for the declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
+| 4. Beta distribution | Published as v0.2.0-beta.1; v0.2.0-beta.2 prepared with a wider declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
 
@@ -156,6 +156,14 @@ A laptop with Linux Mint 22.3, native Xorg 21.1.11, the modesetting driver with 
 Present followed the panel's 60.06 Hz refresh, with a 16.650 ms median. One interval in each of the two dedicated Present runs spanned two vblanks. With blur behind a full-screen translucent window, Xorg used 4.4% of a core against 4.3% without it, so the pyramid blur stays on the GPU here too. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03) has the measurements and limits.
 
 The laptop has one display, so physical hotplug was not tested there. The dedicated session ran the Present timeout change above on top of `ffd0b13`; the other runs used that commit unchanged. The released 0.2.0-beta.1 binary was not tested on this machine, so the beta's declared scope is unchanged.
+
+### Second beta prerelease
+
+Version 0.2.0-beta.2 carries the two fixes found after the first beta, the complete Xmonad borders and the Present timeout, and adds the Intel/Xorg laptop to the declared scope. The [beta guide](BETA.md) lists both qualified combinations, and the [release notes](releases/v0.2.0-beta.2.md) list the changes.
+
+The Intel dedicated session ran the same source as this release, built together with the desktop probe; the AMD records predate both fixes. Neither machine's physical monitor sessions were repeated for this release.
+
+Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identical archives. The packaged binary printed its version, needs no glibc symbol newer than 2.34, refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. With that binary in place, the nested desktop checks passed in all three modes on Xorg Xephyr 21.1.11.
 
 ### Compatibility matrix
 

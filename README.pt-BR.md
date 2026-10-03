@@ -8,7 +8,7 @@ Compust é um **compositor independente para X11, escrito em Rust**, ainda exper
 
 O compositor combina as janelas dos aplicativos para formar a imagem final da área de trabalho. O Compust funciona **sobre um servidor X já em execução**, junto ao seu gerenciador de janelas. Ele não inicia nem substitui o Xorg/XLibre, não organiza as janelas e não oferece uma sessão Wayland nativa.
 
-**Estado atual: primeira beta, versão 0.2.0-beta.1, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada em um desktop com XLibre, Xmonad e AMD; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas; o [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) lista o trabalho restante.
+**Estado atual: segunda beta, versão 0.2.0-beta.2, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada com o Xmonad em duas máquinas, um desktop AMD com XLibre e um laptop Intel com Xorg; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas; o [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) lista o trabalho restante.
 
 ## O que já funciona
 

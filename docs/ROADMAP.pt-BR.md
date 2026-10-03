@@ -12,14 +12,14 @@ Esse marco cria uma base para experimentação. Ele não comprova compatibilidad
 
 ## Primeira beta: quatro etapas
 
-A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 é essa beta; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado.
+A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 foi essa beta e a 0.2.0-beta.2 vem em seguida; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado atual.
 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
 | 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre, além de uma mudança de modo do painel em um laptop Intel/Xorg; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
 | 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
-| 4. Distribuição da beta | Publicada como v0.2.0-beta.1 para o escopo declarado | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
+| 4. Distribuição da beta | Publicada como v0.2.0-beta.1; v0.2.0-beta.2 preparada com escopo declarado maior | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
 
@@ -156,6 +156,14 @@ Um laptop com Linux Mint 22.3, Xorg 21.1.11 nativo, o driver modesetting com gla
 O Present seguiu a atualização de 60,06 Hz do painel, com mediana de 16,650 ms. Um intervalo em cada uma das duas execuções Present dedicadas durou dois vblanks. Com desfoque atrás de uma janela translúcida em tela cheia, o Xorg usou 4,4% de um núcleo, contra 4,3% sem ele; portanto, o desfoque em pirâmide também permanece na GPU aqui. O [guia de qualificação de desktops](DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03) traz as medições e os limites.
 
 O laptop tem uma única tela, então o hotplug físico não foi testado nele. A sessão dedicada executou a mudança do tempo limite do Present descrita acima sobre o `ffd0b13`; as outras execuções usaram esse commit sem alterações. O binário publicado da 0.2.0-beta.1 não foi testado nesta máquina, então o escopo declarado da beta não muda.
+
+### Segunda pré-versão beta
+
+A versão 0.2.0-beta.2 traz as duas correções encontradas depois da primeira beta, as bordas completas no Xmonad e o tempo limite do Present, e acrescenta o laptop Intel/Xorg ao escopo declarado. O [guia da beta](BETA.pt-BR.md) lista as duas combinações validadas, e as [notas da versão](releases/v0.2.0-beta.2.md) listam as mudanças.
+
+A sessão dedicada em Intel executou o mesmo código desta versão, compilado junto com o probe de desktop; os registros em AMD são anteriores às duas correções. As sessões de monitores físicos das duas máquinas não foram repetidas para esta versão.
+
+Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produziram arquivos idênticos. O binário empacotado exibiu sua versão, não exige símbolos da glibc mais novos que a 2.34, recusou-se a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou. Com esse binário, as verificações de desktop aninhadas passaram nos três modos no Xorg Xephyr 21.1.11.
 
 ### Matriz de compatibilidade
 
