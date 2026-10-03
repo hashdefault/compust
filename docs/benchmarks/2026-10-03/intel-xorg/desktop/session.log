@@ -1,0 +1,9 @@
+  54231 Xorg
+xprop:  no such property "_NET_SUPPORTING_WM_CHECK"
+Desktop checks passed: /home/lucas/compust/artifacts/mint-hardware-desktop/present
+present: passed
+Desktop checks passed: /home/lucas/compust/artifacts/mint-hardware-desktop/direct
+direct: passed
+Desktop checks passed: /home/lucas/compust/artifacts/mint-hardware-desktop/effects
+effects: passed
+Hardware session finished: /home/lucas/compust/artifacts/mint-hardware-desktop

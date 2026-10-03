@@ -4,7 +4,7 @@ use crate::{
     session::Session,
 };
 use anyhow::{Context, Result};
-use std::rc::Rc;
+use std::{rc::Rc, time::Instant};
 use x11rb::rust_connection::RustConnection;
 mod blur;
 mod paint;
@@ -34,6 +34,8 @@ pub(crate) struct Renderer {
     pub(crate) complete: bool,
     pub(crate) serial: u32,
     submission: Option<u16>,
+    /// When the outstanding Present submission was made; `None` once it is abandoned.
+    pub(crate) submitted: Option<Instant>,
     /// Blur pyramid, each level half the size of the previous one; empty without blur.
     levels: Vec<Picture>,
 }
@@ -125,6 +127,7 @@ impl Renderer {
             complete: true,
             serial: 0,
             submission: None,
+            submitted: None,
             levels,
         };
         renderer.refresh_wallpaper(session)?;

@@ -30,7 +30,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 
 “Suporte moderno a X11” é um objetivo incremental de compatibilidade, não uma promessa de implementar todas as extensões. A disponibilidade de Present não comprova ausência de tearing em todos os drivers. A cópia direta com XRender não é sincronizada com o intervalo vertical do monitor.
 
-Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Após uma mudança RandR, o Compust recria seus buffers sem esperar por uma apresentação pendente, porque uma reconfiguração de monitores em hardware AMD descartou os eventos de conclusão dela. Os demais erros de protocolo mantêm seus tratamentos existentes.
+Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Após uma mudança RandR, o Compust recria seus buffers sem esperar por uma apresentação pendente, porque uma reconfiguração de monitores em hardware AMD descartou os eventos de conclusão dela. Se o Present não informar nada sobre um envio em um segundo, o Compust também recria seus buffers e repinta, para que uma notificação perdida não congele a tela. Os demais erros de protocolo mantêm seus tratamentos existentes.
 
 ## Compilar e executar
 

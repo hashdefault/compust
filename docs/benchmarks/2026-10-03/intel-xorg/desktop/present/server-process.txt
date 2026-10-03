@@ -1,0 +1,1 @@
+  54231 /usr/lib/xorg/Xorg :20 vt4 -keeptty -auth /tmp/serverauth.k2ZU2O8oQE

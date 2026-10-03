@@ -17,8 +17,8 @@ A primeira beta usa o backend XRender e declara suporte somente aos ambientes co
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
 | 1. Estabilidade das janelas | Concluída no Xvfb | Ciclo de vida, menus, transições de tela cheia e propriedades inválidas com cobertura reproduzível, sem quedas nem janelas invisíveis ou imagens antigas. |
-| 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
-| 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados e em um desktop AMD/XLibre; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
+| 2. Monitores e recursos | Verificada no Xvfb e em um desktop AMD/XLibre, além de uma mudança de modo do painel em um laptop Intel/Xorg; demais hardwares pendentes | Mudanças de resolução, conexão/desconexão de monitores, recuperação da apresentação e consumo de recursos em redimensionamentos repetidos verificados. |
+| 3. Desktops reais | Cenários do Xmonad registrados em servidores aninhados, em um desktop AMD/XLibre e em um laptop Intel/Xorg; outros gerenciadores e drivers pendentes | Sessões Xorg/XLibre com registro de gerenciadores e drivers testados, além de medições de CPU, memória e regularidade dos quadros. |
 | 4. Distribuição da beta | Publicada como v0.2.0-beta.1 para o escopo declarado | Pré-lançamento versionado com instruções de instalação e execução, limitações conhecidas, artefatos verificados e procedimento reproduzível para relatar falhas. |
 
 ### 1. Estabilidade das janelas
@@ -58,6 +58,12 @@ A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu 
 O uso diário após `v0.2.0-beta.1` revelou bordas direitas e inferiores ausentes. Em uma janela sem formato delimitador definido pelo cliente, `ShapeGetRectangles` retornava dimensões menores que o pixmap capturado por uma largura de borda. O Compust agora usa os limites completos do pixmap nessas janelas e preserva os formatos explícitos do cliente.
 
 A [regressão de bordas fora da tela](../tests/cases/shapes.rs) existente falhou antes da correção e passa depois. As [regressões de bordas](../tests/cases/borders.rs) cobrem mudanças de cor por foco, redimensionamento com mudança da largura da borda e remoção de formato personalizado. Todos os 68 testes, formatação, Clippy estrito e build de release passam. Na sessão local do Xmonad, as duas janelas do Alacritty mantêm as quatro faixas de borda de 2 pixels com e sem foco. Isso continua os testes da beta; as tarefas de animação abaixo permanecem planejadas.
+
+### Teste local da beta: tempo limite do Present
+
+O Compust só reutiliza seu buffer do Present após os eventos de conclusão e liberação do envio anterior. Fora de uma mudança RandR, um evento perdido deixava a tela congelada enquanto o compositor continuava em execução. Nenhuma perda desse tipo foi observada em hardware; o risco foi encontrado em uma revisão do código. Um envio que não informa nada em um segundo agora é abandonado: o Compust substitui seus buffers e repinta o quadro uma vez. Se o envio seguinte também exceder o tempo limite, ele espera por novo dano antes de pintar de novo.
+
+Uma nova regressão em [presentation.rs](../tests/cases/presentation.rs) retém os eventos de um envio sem nenhuma mudança de monitor. Ela falhou antes da correção, com a tela parada no quadro anterior, e passa depois. Todos os 69 testes, formatação, Clippy estrito e build de release passam. A troca de terminal virtual e a suspensão/retomada, em que essa perda é mais provável, continuam sem teste em hardware.
 
 ### Ciclo de vida de clientes e molduras: implementado
 
@@ -143,13 +149,22 @@ A versão 0.2.0-beta.1 está publicada como pré-lançamento no GitHub. O [guia 
 
 Os registros em hardware usaram o mesmo código compilado junto com o probe de desktop, o que apenas acrescenta suporte a X-Resource ao x11rb; o binário publicado é compilado sozinho. Relatos da beta em outros ambientes definirão o que uma próxima versão poderá declarar.
 
+### Etapas 2 e 3 em uma segunda máquina: Xorg com Intel
+
+Um laptop com Linux Mint 22.3, Xorg 21.1.11 nativo, o driver modesetting com glamor, gráficos Intel Iris Plus G1 (i915, Mesa 25.2.8) e Xmonad 0.17.2 repetiu os procedimentos de qualificação. É o primeiro registro do Xorg em hardware e de um driver Intel. As verificações aninhadas passaram nos três modos. No desktop habitual, os dois modos de apresentação passaram em uma referência, na mudança do painel de 1366×768 para 1280×720 e na restauração, com contabilidade de recursos idêntica antes e depois. Em seguida, uma sessão dedicada passou em todos os cenários do probe nos modos Present, direto e de efeitos.
+
+O Present seguiu a atualização de 60,06 Hz do painel, com mediana de 16,650 ms. Um intervalo em cada uma das duas execuções Present dedicadas durou dois vblanks. Com desfoque atrás de uma janela translúcida em tela cheia, o Xorg usou 4,4% de um núcleo, contra 4,3% sem ele; portanto, o desfoque em pirâmide também permanece na GPU aqui. O [guia de qualificação de desktops](DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03) traz as medições e os limites.
+
+O laptop tem uma única tela, então o hotplug físico não foi testado nele. A sessão dedicada executou a mudança do tempo limite do Present descrita acima sobre o `ffd0b13`; as outras execuções usaram esse commit sem alterações. O binário publicado da 0.2.0-beta.1 não foi testado nesta máquina, então o escopo declarado da beta não muda.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
 | --- | --- | --- |
 | Xvfb 21.1.24 no CachyOS, 320×240×24, XRender e Present 1.2 | Clientes/molduras, propriedades, sequências rápidas, fades interrompidos, formatos, destruição com eventos pendentes e onze pontos da captura; todos os 47 testes passam | Registro de 2026-10-02. Corridas de captura usam `fade_ms = 0`, `blur_radius = 0` e vsync padrão. Os casos anteriores de fades/formatos também usam `fade_ms = 1000`, `blur_radius = 4` ou `vsync = false`, conforme descrito acima. Hierarquias criadas diretamente, sem validação de gerenciador real ou GPU. |
 | Mesmo Xvfb, uma saída virtual, RandR e XRes | Redimensionamento da raiz, desativação/restauração do CRTC, envio Present rejeitado e contagem repetida de recursos; todos os 59 testes passam | Registro de 2026-10-02 (horário local). Contagens e bytes do servidor são conferidos em estados renderizados equivalentes; hotplug físico e vários monitores estão fora desta configuração virtual. |
-| Xorg com gerenciador de janelas real e drivers Intel/AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
+| Xorg 21.1.11 nativo no Linux Mint 22.3, modesetting + i915, Intel Core i3-1005G1 (Iris Plus G1, Mesa 25.2.8), Xmonad 0.17.2, um painel de 1366×768 a 60 Hz | Verificações aninhadas; mudança de modo do painel e restauração nos dois modos de apresentação; cenários de desktop do probe nos modos Present, direto e de efeitos; CPU, RSS, XRes e regularidade do Present | Registrado em 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03). Sem hotplug físico: a máquina tem uma única tela. |
+| Xorg com gerenciador de janelas real e drivers AMD/NVIDIA | Pendente | Exige registro de servidor, gerenciador, driver, configuração e commit. |
 | XLibre com drivers Intel/NVIDIA ou outras configurações AMD | Pendente | Exige os mesmos registros de ambiente; uma sessão AMD não comprova outros drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, aninhado no Xvfb, 1280×800×24 | Cenários de desktop com troca de papel de parede, CPU/RSS em ociosidade e atividade, modos Present, XRender direto e efeitos, encerramento | Registros de 2026-10-03: [medição](DESKTOP_TESTING.pt-BR.md#medição-registrada-2026-10-03) com fade/desfoque desativados e [medição com efeitos](DESKTOP_TESTING.pt-BR.md#medição-registrada-com-efeitos-2026-10-03). Sem validação de monitor físico ou driver. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, mesma disposição virtual | Mesmos cenários e medições nos três modos | Registro de 2026-10-03; mesma configuração e limitações. Resultados do servidor aninhado não validam uma sessão XLibre em hardware. |
@@ -176,7 +191,7 @@ Defina `XVFB=/caminho/para/Xvfb` se o servidor estiver fora de `PATH`.
 
 ### Critérios ainda pendentes
 
-Os cenários do probe passam em uma sessão AMD/XLibre. Estenda os testes em hardware ao Xorg, a outros gerenciadores de janelas, a aplicativos reais e aos drivers Intel e NVIDIA. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
+Os cenários do probe passam em uma sessão AMD/XLibre e em uma sessão Intel/Xorg. Estenda os testes em hardware a outros gerenciadores de janelas, a aplicativos reais, aos drivers NVIDIA e ao Xorg com AMD. Registre servidor, driver, configuração e commit em cada relato. Cubra mudanças de parentesco após a inicialização, sequências rápidas de map/unmap/destroy, janelas decoradas e override-redirect, menus, tela cheia, ferramentas de papel de parede e encerramento da sessão.
 
 Repita o hotplug físico e as configurações com vários monitores com outros drivers e servidores, taxas de atualização mistas e mais de dois monitores, além de medir memória e apresentação em execuções mais longas. A sessão de monitores AMD/XLibre, as transições RandR virtuais, a recuperação de envios Present rejeitados ou não concluídos e a contagem repetida via XRes acima estão concluídas. Preserve a cobertura de destruição entre requisições de captura, liberação de recursos, formatos grandes ou fora da tela e propriedades malformadas registrada acima.
 

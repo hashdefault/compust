@@ -30,7 +30,7 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 
 “Modern X11 support” is an incremental compatibility goal, not a promise to implement every extension. Present availability does not establish tear-free behavior on every driver. The XRender fallback is not synchronized to vblank.
 
-If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. After a RandR change, Compust rebuilds its buffers without waiting for a pending presentation, because a monitor reconfiguration on AMD hardware discarded its completion events. Other protocol errors retain their existing handling.
+If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. After a RandR change, Compust rebuilds its buffers without waiting for a pending presentation, because a monitor reconfiguration on AMD hardware discarded its completion events. If Present reports nothing for a submission within one second, Compust likewise rebuilds its buffers and repaints, so a lost notification cannot freeze the screen. Other protocol errors retain their existing handling.
 
 ## Build and run
 

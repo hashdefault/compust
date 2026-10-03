@@ -2,7 +2,7 @@
 
 [English (US)](DESKTOP_TESTING.md) | [Português (Brasil)](DESKTOP_TESTING.pt-BR.md)
 
-This guide covers the reproducible desktop work in beta step 3. Xmonad running inside Xephyr exercises a real window manager and X server. Xephyr hosted by Xvfb uses software rendering; these results do not qualify a GPU driver, physical monitor, or tear-free scanout. Recorded AMD/XLibre sessions below cover physical monitor transitions for step 2 and the probe's desktop scenarios on hardware for step 3; other hardware, window managers, and actual applications remain open.
+This guide covers the reproducible desktop work in beta step 3. Xmonad running inside Xephyr exercises a real window manager and X server. Xephyr hosted by Xvfb uses software rendering; these results do not qualify a GPU driver, physical monitor, or tear-free scanout. Recorded AMD/XLibre sessions below cover physical monitor transitions for step 2 and the probe's desktop scenarios on hardware for step 3. A recorded Intel/Xorg laptop covers the same scenarios and a mode change on its single panel. Other hardware, window managers, and actual applications remain open.
 
 ## Run the isolated baseline
 
@@ -177,6 +177,50 @@ The convolution passes were then replaced by a bilinear pyramid, described in th
 | AMD/XLibre hardware, 1920×1080: convolution → pyramid | 49 → 599 | 93.7% → 4.1% | 199.998 → 16.667 ms |
 
 On hardware, every active-phase MSC advanced by one, and Compust used 0.4% of a core. Blur raised Xorg from 3.1% in the Present run to 4.1%. Present and direct results stayed within the run-to-run variation of the earlier records. The pyramid looks smoother and slightly stronger than the box filter at radius 4.
+
+## Recorded Intel/Xorg sessions: 2026-10-03
+
+A second machine ran Linux Mint 22.3 with Linux 7.0.0-34-generic and native Xorg 21.1.11, using the modesetting driver with glamor. It has an Intel Core i3-1005G1 with integrated Iris Plus G1 graphics (Ice Lake, i915 kernel driver, Mesa 25.2.8) and one 1366×768 panel, eDP-1, at 60.06 Hz. Xmonad was 0.17.2 with xmonad-contrib 0.17.1. The [records](benchmarks/2026-10-03/intel-xorg/) omit scene captures, and the server log has its hostname and kernel command line removed.
+
+The nested and monitor runs used the clean commit `ffd0b13222fa63723e8d1dac649fb1e0388e040e` with compositor binary `28c8a0622cda431433f77f60571c4880609766d7d857bc4143d4e259f94e676c`. The dedicated session used that commit plus the [recorded Present timeout change](benchmarks/2026-10-03/intel-xorg/desktop/present/source.patch), with binary `6b6c51f0e44aabb601c6fbd24bb1d43e341b8875e3f932f24fc5a2eb33f2ff0c`.
+
+### Nested baseline
+
+Xorg Xephyr 21.1.11 hosted by Xvfb at 1280×800 passed every scenario in all three modes.
+
+| Mode | Active Compust CPU | Active Xephyr CPU | Frames in 10 s | Interval median / p95 |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/intel-xorg/nested/present/processes.csv) | 0.8% | 18.0% | 599 | 16.680 / 17.753 ms |
+| [Direct](benchmarks/2026-10-03/intel-xorg/nested/direct/processes.csv) | 0.3% | 17.7% | 600 Damage | — |
+| [Effects](benchmarks/2026-10-03/intel-xorg/nested/effects/processes.csv) | 0.9% | 32.4% | 594 | 16.749 / 17.846 ms |
+
+### Monitor transitions on the panel
+
+The ordinary Xmonad desktop stayed open with its status bar, tray, terminal, and browser. The [monitor-transition runner](#sample-monitor-transitions) sampled the baseline, eDP-1 at 1280×720, and the restored mode, once per presentation mode. All six samples passed, and Compust exited successfully after SIGTERM. CPU is the active-phase percentage of one core.
+
+| Sample | Root | Present: Compust / Xorg CPU | Direct: Compust / Xorg CPU | Owned pixmap bytes |
+| --- | --- | ---: | ---: | ---: |
+| Baseline | 1366×768 | 0.8% / 6.3% | 0.8% / 4.2% | 8,364,965 |
+| eDP-1 at 1280×720 | 1280×720 | 0.8% / 6.4% | 0.7% / 4.1% | 7,358,677 |
+| Mode restored | 1366×768 | 0.9% / 5.5% | 0.8% / 4.2% | 8,364,965 |
+
+Each [Present sample](benchmarks/2026-10-03/intel-xorg/monitors/present/) received 601 completions, all `COPY`. Across its 1,800 active-phase intervals the median was 16.650 ms and the maximum 16.671 ms, and every MSC advanced by one. [Direct samples](benchmarks/2026-10-03/intel-xorg/monitors/direct/) received 707–711 overlay Damage notifications. During idle phases, Compust used 0.2–0.3% and Xorg 0.9–1.4% of one core while the desktop's own clients caused 116–134 redraws per ten seconds. The baseline and restored samples reported identical `resources.csv` in each mode. Compust RSS stayed within 3,416–3,668 KiB, and Xorg RSS went from 63,916 to 64,468 KiB over both runs.
+
+### Dedicated desktop session
+
+[`hardware-session.sh`](../tools/hardware-session.sh) ran on a new server on vt3 while the usual session stayed on vt7. All three modes passed every scenario; the [session log](benchmarks/2026-10-03/intel-xorg/desktop/session.log) lists the results.
+
+| Mode | Active Compust CPU | Active Xorg CPU | Frames in 10 s | Interval median / p95 / max |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/intel-xorg/desktop/present/processes.csv) | 0.7% | 4.3% | 600 | 16.650 / 16.664 / 33.294 ms |
+| [Direct](benchmarks/2026-10-03/intel-xorg/desktop/direct/processes.csv) | 0.5% | 3.0% | 600 Damage | — |
+| [Effects](benchmarks/2026-10-03/intel-xorg/desktop/effects/processes.csv) | 0.7% | 4.4% | 600 | 16.651 / 16.664 / 33.294 ms |
+
+The Present and effects runs each had one interval spanning two vblanks; in the other 598, the MSC advanced by one. In idle phases, Compust and Xorg recorded no CPU ticks. Compust RSS stayed at 3,580–3,664 KiB and Xorg RSS at 99,804–99,812 KiB, unchanged within each phase. Blur behind the full-screen translucent window raised Xorg from 4.3% to 4.4% of a core, so the pyramid also stays on the GPU with glamor on this Intel driver.
+
+Two informal checks have no archived record. The usual session's compositor, running Present with default fades and blur, kept updating the status bar clock after an eight-second forced DPMS-off, and again after the switch to vt3 and back; it logged no Present timeout.
+
+These sessions use the probe's synthetic windows, one panel, Xmonad 0.17.2, and ten-second phases. The laptop has a single display, so physical unplugging and reconnection were not tested. Actual applications, other window managers, suspend and resume, and mixed refresh rates remain open.
 
 ## Complete the hardware gates
 

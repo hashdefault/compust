@@ -17,8 +17,8 @@ The first beta uses the XRender backend and declares support only for environmen
 | Step | Status | Required result |
 | --- | --- | --- |
 | 1. Window stability | Complete on Xvfb | Window lifecycle, menus, fullscreen transitions, and invalid properties have reproducible coverage without crashes or stale/invisible windows. |
-| 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
-| 3. Real desktops | Xmonad scenarios recorded on nested servers and one AMD/XLibre desktop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
+| 2. Monitors and resources | Verified on Xvfb and one AMD/XLibre desktop, plus a panel mode change on one Intel/Xorg laptop; other hardware pending | Resolution changes, monitor connection/disconnection, presentation recovery, and repeated resize resource use are verified. |
+| 3. Real desktops | Xmonad scenarios recorded on nested servers, one AMD/XLibre desktop, and one Intel/Xorg laptop; other WMs and drivers pending | Xorg/XLibre sessions have recorded window-manager and driver coverage, plus CPU, memory, and frame-pacing measurements. |
 | 4. Beta distribution | Published as v0.2.0-beta.1 for the declared scope | A versioned prerelease includes install/run instructions, known limits, verified artifacts, and a reproducible bug-report procedure. |
 
 ### 1. Window stability
@@ -58,6 +58,12 @@ Version 0.2.0-beta.1 completed these four acceptance gates for its declared scop
 Daily use after `v0.2.0-beta.1` exposed missing right and bottom borders. On a window without a client bounding shape, `ShapeGetRectangles` returned dimensions shorter than the captured pixmap by one border width. Compust now uses the full pixmap bounds for these windows and preserves explicit client shapes.
 
 The existing [off-screen border regression](../tests/cases/shapes.rs) failed before the fix and passes afterward. [Border regressions](../tests/cases/borders.rs) cover focus color updates, resize with a changed border width, and removal of a custom shape. All 68 tests, formatting, strict Clippy, and the release build pass. In the local Xmonad session, both Alacritty windows retain all four 2-pixel border strips in focused and unfocused states. This continues beta testing; the animation tasks below remain planned.
+
+### Local beta testing: Present timeout
+
+Compust reuses its Present buffer only after the completion and idle events of the previous submission. Outside a RandR change, a lost event left the screen frozen while the compositor kept running. No such loss has been observed on hardware; the risk was found by reviewing the code. A submission that reports nothing within one second is now abandoned: Compust replaces its buffers and repaints the frame once. If the next submission also times out, it waits for new damage before painting again.
+
+A new regression in [presentation.rs](../tests/cases/presentation.rs) withholds one submission's events without any monitor change. It failed before the fix, with the screen left on the previous frame, and passes afterward. All 69 tests, formatting, strict Clippy, and the release build pass. Virtual-terminal switching and suspend/resume, where such a loss is most likely, remain untested on hardware.
 
 ### Client/frame lifecycle: implemented
 
@@ -143,13 +149,22 @@ Version 0.2.0-beta.1 is published as a GitHub prerelease. The [beta guide](BETA.
 
 The hardware records used the same source built together with the desktop probe, which only adds X-Resource support to x11rb; the released binary is built alone. Beta reports from other environments decide what a later release can declare.
 
+### Steps 2 and 3 on a second machine: Xorg with Intel
+
+A laptop with Linux Mint 22.3, native Xorg 21.1.11, the modesetting driver with glamor, Intel Iris Plus G1 graphics (i915, Mesa 25.2.8), and Xmonad 0.17.2 repeated the qualification procedures. It is the first record of Xorg on hardware and of an Intel driver. The nested checks passed in all three modes. On the ordinary desktop, both presentation modes passed a baseline, a change of the 1366×768 panel to 1280×720, and its restoration, with identical resource accounting before and after. A dedicated session then passed every probe scenario in Present, direct, and effects modes.
+
+Present followed the panel's 60.06 Hz refresh, with a 16.650 ms median. One interval in each of the two dedicated Present runs spanned two vblanks. With blur behind a full-screen translucent window, Xorg used 4.4% of a core against 4.3% without it, so the pyramid blur stays on the GPU here too. The [desktop qualification guide](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03) has the measurements and limits.
+
+The laptop has one display, so physical hotplug was not tested there. The dedicated session ran the Present timeout change above on top of `ffd0b13`; the other runs used that commit unchanged. The released 0.2.0-beta.1 binary was not tested on this machine, so the beta's declared scope is unchanged.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
 | --- | --- | --- |
 | Xvfb 21.1.24 on CachyOS, 320×240×24, XRender and Present 1.2 | Clients/frames, properties, rapid sequences, interrupted fades, shapes, queued destruction events, and eleven capture-request boundaries; all 47 tests pass | Recorded 2026-10-02. Capture races use `fade_ms = 0`, `blur_radius = 0`, and default vsync. Earlier fade/shape cases also use `fade_ms = 1000`, `blur_radius = 4`, or `vsync = false` as described above. Hierarchies are created directly, without real window-manager or GPU qualification. |
 | Same Xvfb, one virtual output, RandR and XRes | Root shrink/restore, CRTC disable/restore, rejected Present submission, and repeated resource accounting; all 59 tests pass | Recorded 2026-10-02 (local time). Server resource counts and bytes are checked at matching rendered states; physical hotplug and multiple monitors are outside this virtual setup. |
-| Xorg with a real window manager and Intel/AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
+| Xorg 21.1.11 native on Linux Mint 22.3, modesetting + i915, Intel Core i3-1005G1 (Iris Plus G1, Mesa 25.2.8), Xmonad 0.17.2, one 1366×768 panel at 60 Hz | Nested checks; panel mode change and restoration in both presentation modes; probe desktop scenarios in Present, direct, and effects modes; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03). No physical hotplug: the machine has one display. |
+| Xorg with a real window manager and AMD/NVIDIA drivers | Pending | Requires a recorded server, window manager, driver, configuration, and commit. |
 | XLibre with Intel/NVIDIA drivers or other AMD configurations | Pending | Requires the same environment evidence; one AMD session does not establish other drivers. |
 | Xorg Xephyr 21.1.24 + Xmonad 0.18.1, nested in Xvfb, 1280×800×24 | Desktop scenarios with wallpaper change, idle/active CPU and RSS, Present, direct XRender, and effects modes, shutdown | Recorded 2026-10-03: [baseline](DESKTOP_TESTING.md#recorded-baseline-2026-10-03) with fade/blur disabled and an [effects baseline](DESKTOP_TESTING.md#recorded-effects-baseline-2026-10-03). No physical display or driver qualification. |
 | XLibre Xephyr 25.1.9 + Xmonad 0.18.1, same virtual layout | Same desktop scenarios and measurements in all three modes | Recorded 2026-10-03; same configuration and limitations. Nested server results do not qualify an XLibre hardware session. |
@@ -176,7 +191,7 @@ Set `XVFB=/path/to/Xvfb` when the server is outside `PATH`.
 
 ### Remaining acceptance work
 
-The probe's scenarios pass on one AMD/XLibre session. Extend hardware testing to Xorg, other window managers, actual applications, and Intel and NVIDIA drivers. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
+The probe's scenarios pass on one AMD/XLibre session and one Intel/Xorg session. Extend hardware testing to other window managers, actual applications, NVIDIA drivers, and Xorg with AMD. Record server, driver, configuration, and commit with every report. Cover reparenting after startup, rapid map/unmap/destroy sequences, decorated and override-redirect windows, menus, fullscreen transitions, wallpaper tools, and session shutdown.
 
 Repeat physical hotplug and multiple-monitor layouts with other drivers and servers, mixed refresh rates, and more than two monitors, and measure longer-running memory and presentation behavior. The AMD/XLibre monitor session, virtual RandR transitions, recovery from rejected or unfinished Present submissions, and repeated XRes accounting above are complete. Preserve the capture-request destruction, resource cleanup, large/off-screen shape, and malformed-property coverage recorded above.
 

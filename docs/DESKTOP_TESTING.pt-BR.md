@@ -2,7 +2,7 @@
 
 [English (US)](DESKTOP_TESTING.md) | [Português (Brasil)](DESKTOP_TESTING.pt-BR.md)
 
-Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. Sessões AMD/XLibre registradas abaixo cobrem as transições físicas de monitores da etapa 2 e os cenários de desktop do probe em hardware da etapa 3; outros hardwares, gerenciadores de janelas e aplicativos reais continuam em aberto.
+Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmonad dentro do Xephyr exercita um gerenciador de janelas e um servidor X reais. O Xephyr hospedado pelo Xvfb usa renderização por software; esses resultados não validam driver de GPU, monitor físico nem apresentação sem tearing. Sessões AMD/XLibre registradas abaixo cobrem as transições físicas de monitores da etapa 2 e os cenários de desktop do probe em hardware da etapa 3. Um laptop Intel/Xorg registrado cobre os mesmos cenários e uma mudança de modo em seu único painel. Outros hardwares, gerenciadores de janelas e aplicativos reais continuam em aberto.
 
 ## Executar a medição isolada
 
@@ -177,6 +177,50 @@ Em seguida, as passadas de convolução foram substituídas por uma pirâmide bi
 | Hardware AMD/XLibre, 1920×1080: convolução → pirâmide | 49 → 599 | 93,7% → 4,1% | 199,998 → 16,667 ms |
 
 Em hardware, cada MSC da fase ativa avançou uma unidade, e o Compust usou 0,4% de um núcleo. O desfoque elevou o Xorg de 3,1% na execução Present para 4,1%. Os resultados Present e diretos ficaram dentro da variação entre execuções dos registros anteriores. A pirâmide fica mais suave e um pouco mais forte que o filtro de caixa no raio 4.
+
+## Sessões registradas em Intel/Xorg: 2026-10-03
+
+Uma segunda máquina executou Linux Mint 22.3 com Linux 7.0.0-34-generic e Xorg 21.1.11 nativo, usando o driver modesetting com glamor. Ela tem um Intel Core i3-1005G1 com gráficos integrados Iris Plus G1 (Ice Lake, driver de kernel i915, Mesa 25.2.8) e um painel de 1366×768, eDP-1, a 60,06 Hz. O Xmonad era o 0.17.2 com xmonad-contrib 0.17.1. Os [registros](benchmarks/2026-10-03/intel-xorg/) omitem as capturas das cenas, e o log do servidor teve o nome da máquina e a linha de comando do kernel removidos.
+
+As execuções aninhadas e de monitores usaram o commit limpo `ffd0b13222fa63723e8d1dac649fb1e0388e040e` com o binário do compositor `28c8a0622cda431433f77f60571c4880609766d7d857bc4143d4e259f94e676c`. A sessão dedicada usou esse commit mais a [mudança registrada do tempo limite do Present](benchmarks/2026-10-03/intel-xorg/desktop/present/source.patch), com o binário `6b6c51f0e44aabb601c6fbd24bb1d43e341b8875e3f932f24fc5a2eb33f2ff0c`.
+
+### Medição aninhada
+
+O Xorg Xephyr 21.1.11 hospedado pelo Xvfb em 1280×800 passou em todos os cenários nos três modos.
+
+| Modo | CPU ativa do Compust | CPU ativa do Xephyr | Quadros em 10 s | Mediana / p95 dos intervalos |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/intel-xorg/nested/present/processes.csv) | 0,8% | 18,0% | 599 | 16,680 / 17,753 ms |
+| [Direto](benchmarks/2026-10-03/intel-xorg/nested/direct/processes.csv) | 0,3% | 17,7% | 600 Damage | — |
+| [Efeitos](benchmarks/2026-10-03/intel-xorg/nested/effects/processes.csv) | 0,9% | 32,4% | 594 | 16,749 / 17,846 ms |
+
+### Transições de monitor no painel
+
+O desktop Xmonad habitual ficou aberto com barra de status, bandeja, terminal e navegador. O [executor de transições de monitores](#amostrar-transições-de-monitores) amostrou a referência, o eDP-1 em 1280×720 e o modo restaurado, uma vez por modo de apresentação. As seis amostras passaram, e o Compust encerrou com sucesso após SIGTERM. A CPU é o percentual de um núcleo na fase ativa.
+
+| Amostra | Raiz | Present: CPU do Compust / Xorg | Direto: CPU do Compust / Xorg | Bytes de pixmaps próprios |
+| --- | --- | ---: | ---: | ---: |
+| Referência | 1366×768 | 0,8% / 6,3% | 0,8% / 4,2% | 8.364.965 |
+| eDP-1 em 1280×720 | 1280×720 | 0,8% / 6,4% | 0,7% / 4,1% | 7.358.677 |
+| Modo restaurado | 1366×768 | 0,9% / 5,5% | 0,8% / 4,2% | 8.364.965 |
+
+Cada [amostra Present](benchmarks/2026-10-03/intel-xorg/monitors/present/) recebeu 601 conclusões, todas `COPY`. Nos 1.800 intervalos da fase ativa, a mediana foi de 16,650 ms e o máximo de 16,671 ms, e cada MSC avançou uma unidade. As [amostras diretas](benchmarks/2026-10-03/intel-xorg/monitors/direct/) receberam de 707 a 711 notificações de Damage na janela de composição. Nas fases ociosas, o Compust usou 0,2–0,3% e o Xorg 0,9–1,4% de um núcleo, enquanto os próprios clientes do desktop causaram de 116 a 134 repinturas a cada dez segundos. As amostras de referência e de modo restaurado informaram `resources.csv` idênticos em cada modo. O RSS do Compust ficou entre 3.416 e 3.668 KiB, e o do Xorg foi de 63.916 a 64.468 KiB ao longo das duas execuções.
+
+### Sessão dedicada de desktop
+
+O [`hardware-session.sh`](../tools/hardware-session.sh) rodou em um novo servidor no vt3 enquanto a sessão habitual permaneceu no vt7. Os três modos passaram em todos os cenários; o [log da sessão](benchmarks/2026-10-03/intel-xorg/desktop/session.log) lista os resultados.
+
+| Modo | CPU ativa do Compust | CPU ativa do Xorg | Quadros em 10 s | Mediana / p95 / máximo dos intervalos |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-03/intel-xorg/desktop/present/processes.csv) | 0,7% | 4,3% | 600 | 16,650 / 16,664 / 33,294 ms |
+| [Direto](benchmarks/2026-10-03/intel-xorg/desktop/direct/processes.csv) | 0,5% | 3,0% | 600 Damage | — |
+| [Efeitos](benchmarks/2026-10-03/intel-xorg/desktop/effects/processes.csv) | 0,7% | 4,4% | 600 | 16,651 / 16,664 / 33,294 ms |
+
+As execuções Present e de efeitos tiveram, cada uma, um intervalo de dois vblanks; nos outros 598, o MSC avançou uma unidade. Nas fases ociosas, o Compust e o Xorg não registraram ticks de CPU. O RSS do Compust ficou em 3.580–3.664 KiB e o do Xorg em 99.804–99.812 KiB, sem mudança dentro de cada fase. O desfoque atrás da janela translúcida em tela cheia elevou o Xorg de 4,3% para 4,4% de um núcleo; portanto, a pirâmide também permanece na GPU com o glamor neste driver Intel.
+
+Duas verificações informais não têm registro arquivado. O compositor da sessão habitual, usando Present com fades e desfoque padrão, continuou atualizando o relógio da barra de status depois de um DPMS-off forçado de oito segundos e, de novo, depois da troca para o vt3 e do retorno; ele não registrou nenhum tempo limite do Present.
+
+Essas sessões usam as janelas sintéticas do probe, um painel, Xmonad 0.17.2 e fases de dez segundos. O laptop tem uma única tela, então a desconexão e a reconexão físicas não foram testadas. Aplicativos reais, outros gerenciadores de janelas, suspensão e retomada e taxas de atualização mistas continuam em aberto.
 
 ## Concluir os critérios de hardware
 

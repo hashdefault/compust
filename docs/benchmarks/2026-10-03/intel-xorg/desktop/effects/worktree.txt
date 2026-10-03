@@ -1,0 +1,10 @@
+ M README.md
+ M README.pt-BR.md
+ M docs/ARCHITECTURE.md
+ M docs/ARCHITECTURE.pt-BR.md
+ M docs/ROADMAP.md
+ M docs/ROADMAP.pt-BR.md
+ M src/compositor.rs
+ M src/renderer.rs
+ M src/renderer/present.rs
+ M tests/cases/presentation.rs

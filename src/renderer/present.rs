@@ -1,6 +1,7 @@
 use super::Renderer;
 use crate::session::Session;
 use anyhow::{Context, Result, ensure};
+use std::time::Instant;
 use x11rb::{
     NONE,
     connection::Connection,
@@ -43,6 +44,7 @@ impl Renderer {
             self.submission = Some(u16::try_from(
                 request.sequence_number() & u64::from(u16::MAX),
             )?);
+            self.submitted = Some(Instant::now());
             self.idle = false;
             self.complete = false;
         } else {
@@ -91,6 +93,7 @@ impl Renderer {
         self.idle = true;
         self.complete = true;
         self.submission = None;
+        self.submitted = None;
         tracing::warn!(
             ?error,
             "Present rejected submission; continuing with XRender"

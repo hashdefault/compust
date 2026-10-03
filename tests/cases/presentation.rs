@@ -80,6 +80,17 @@ fn replaces_unfinished_presentation_after_output_toggle() -> Result<()> {
     finish_replacement(&mut desktop, &mut presentation, stalled)
 }
 
+#[test]
+fn replaces_unfinished_presentation_after_timeout() -> Result<()> {
+    let (mut desktop, mut presentation, window, stalled) = stalled_presentation()?;
+    // No monitor change follows: the withheld frame itself must reach the screen.
+    desktop.until_pixel((200, 40), |pixel| pixel == [0, 0, 255])?;
+    assert_eq!(desktop.pixel((40, 40))?, [24, 24, 32]);
+    move_into_view(&desktop, window, 120)?;
+    move_into_view(&desktop, window, 220)?;
+    finish_replacement(&mut desktop, &mut presentation, stalled)
+}
+
 /// Hold back a submission's completion and idle events, as a CRTC change did on hardware.
 fn stalled_presentation() -> Result<(Desktop, Presentation, Window, u32)> {
     let (desktop, presentation) =

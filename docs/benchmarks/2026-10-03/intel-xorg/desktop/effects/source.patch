@@ -1,0 +1,137 @@
+diff --git a/src/compositor.rs b/src/compositor.rs
+index d8095f8..31582bb 100644
+--- a/src/compositor.rs
++++ b/src/compositor.rs
+@@ -10,6 +10,11 @@ use std::{
+ };
+ use x11rb::{connection::Connection, protocol::xproto::ConnectionExt as _};
+ 
++/// Present normally reports a submission within one refresh. Past this wait, the events are
++/// treated as lost so one missing notification cannot freeze the screen.
++const PRESENT_TIMEOUT: Duration = Duration::from_secs(1);
++const IDLE_POLL: Duration = Duration::from_secs(1);
++
+ pub(crate) struct Compositor {
+     pub(crate) scene: Scene,
+     pub(crate) renderer: Renderer,
+@@ -63,6 +68,8 @@ impl Compositor {
+         signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown))?;
+         let mut next_frame = Instant::now();
+         let mut was_animating = false;
++        // A submission timed out and no later one has finished.
++        let mut stalled = false;
+         while self.running && !shutdown.load(Ordering::Relaxed) {
+             let mut budget_exhausted = true;
+             for _ in 0..512 {
+@@ -73,6 +80,20 @@ impl Compositor {
+                 self.handle(event)?;
+             }
+             let now = Instant::now();
++            if self.renderer.submitted.is_some() && !self.resizing && self.can_paint() {
++                stalled = false;
++            }
++            if self
++                .present_deadline()
++                .is_some_and(|deadline| now >= deadline)
++            {
++                tracing::warn!("Present did not finish a submission; replacing its buffers");
++                self.resizing = true;
++                // The lost frame may never have been shown. Repaint it once; if Present keeps
++                // stalling, wait for new damage instead of repainting every timeout.
++                self.dirty |= !stalled;
++                stalled = true;
++            }
+             let previous_count = self.scene.windows.len();
+             let animating = self.scene.animate(now);
+             self.dirty |= previous_count != self.scene.windows.len() || animating || was_animating;
+@@ -93,7 +114,11 @@ impl Compositor {
+             let timeout = if (self.dirty || animating) && self.can_paint() {
+                 next_frame.saturating_duration_since(Instant::now())
+             } else {
+-                Duration::from_secs(1)
++                self.present_deadline().map_or(IDLE_POLL, |deadline| {
++                    deadline
++                        .saturating_duration_since(Instant::now())
++                        .min(IDLE_POLL)
++                })
+             };
+             let timespec = Timespec::try_from(timeout)?;
+             let mut fds = [PollFd::new(self.session.conn.stream(), PollFlags::IN)];
+@@ -107,9 +132,17 @@ impl Compositor {
+     }
+ 
+     /// Present must release a buffer before it is painted again. A monitor reconfiguration can
+-    /// discard a pending submission without completion or idle events; the replacement renderer
+-    /// has its own buffers and event selection, so it does not wait for them.
++    /// discard a pending submission without completion or idle events, and so can a timeout;
++    /// the replacement renderer has its own buffers and event selection, so it does not wait.
+     fn can_paint(&self) -> bool {
+         self.resizing || (self.renderer.idle && self.renderer.complete)
+     }
++
++    /// When the outstanding submission is given up, if one is still blocking painting.
++    fn present_deadline(&self) -> Option<Instant> {
++        if self.can_paint() {
++            return None;
++        }
++        Some(self.renderer.submitted? + PRESENT_TIMEOUT)
++    }
+ }
+diff --git a/src/renderer.rs b/src/renderer.rs
+index 6a83863..3a66e6c 100644
+--- a/src/renderer.rs
++++ b/src/renderer.rs
+@@ -4,7 +4,7 @@ use crate::{
+     session::Session,
+ };
+ use anyhow::{Context, Result};
+-use std::rc::Rc;
++use std::{rc::Rc, time::Instant};
+ use x11rb::rust_connection::RustConnection;
+ mod blur;
+ mod paint;
+@@ -34,6 +34,8 @@ pub(crate) struct Renderer {
+     pub(crate) complete: bool,
+     pub(crate) serial: u32,
+     submission: Option<u16>,
++    /// When the outstanding Present submission was made; `None` once it is abandoned.
++    pub(crate) submitted: Option<Instant>,
+     /// Blur pyramid, each level half the size of the previous one; empty without blur.
+     levels: Vec<Picture>,
+ }
+@@ -125,6 +127,7 @@ impl Renderer {
+             complete: true,
+             serial: 0,
+             submission: None,
++            submitted: None,
+             levels,
+         };
+         renderer.refresh_wallpaper(session)?;
+diff --git a/src/renderer/present.rs b/src/renderer/present.rs
+index 845f7a8..4d635d5 100644
+--- a/src/renderer/present.rs
++++ b/src/renderer/present.rs
+@@ -1,6 +1,7 @@
+ use super::Renderer;
+ use crate::session::Session;
+ use anyhow::{Context, Result, ensure};
++use std::time::Instant;
+ use x11rb::{
+     NONE,
+     connection::Connection,
+@@ -43,6 +44,7 @@ impl Renderer {
+             self.submission = Some(u16::try_from(
+                 request.sequence_number() & u64::from(u16::MAX),
+             )?);
++            self.submitted = Some(Instant::now());
+             self.idle = false;
+             self.complete = false;
+         } else {
+@@ -91,6 +93,7 @@ impl Renderer {
+         self.idle = true;
+         self.complete = true;
+         self.submission = None;
++        self.submitted = None;
+         tracing::warn!(
+             ?error,
+             "Present rejected submission; continuing with XRender"
