@@ -442,11 +442,42 @@ Depois da [etapa 3 do marco de renderização](ROADMAP.pt-BR.md#3-repintura-por-
 | Abrir e fechar | Dois | 0,45 + 9,30% | 0,45 + 8,70% | 8,9% | 8,6% |
 | Abrir e fechar | Um | 0,40 + 9,10% | 0,45 + 8,55% | 7,8% | 7,2% |
 
-Onde só parte da tela muda, o servidor X trabalhou menos. Com dois monitores, economizou 0,7 ponto com a janela pequena, 0,9 com oito janelas translúcidas e 0,5 ao mover e redimensionar; abrir e fechar economizou 0,5–0,6 ponto nas duas disposições. Com um monitor, em que o redesenho completo antigo cobria metade da área, a janela pequena economizou apenas 0,15 ponto, e mover e redimensionar, 0,2. A carga da GPU caiu 0,5–1,1 ponto nessas cenas, não pela metade: uma atualização de 64×64 ainda mantém a GPU 7–7,5% ocupada, então a maior parte dessa carga é um custo por quadro, não por pixel. Uma janela translúcida em tela cheia muda a tela inteira, e um dano sob qualquer uma de oito janelas desfocadas sobrepostas junta todas as suas áreas de alcance, então essas cenas repintam tanto quanto antes e custam o mesmo. A CPU do próprio Compust não variou mais de 0,05 ponto em nenhuma cena. Todas as cenas mantiveram 60 quadros por segundo; a versão antiga perdeu 4 vblanks uma vez com oito janelas desfocadas em um monitor, e a nova não perdeu nenhum.
+Onde só parte da tela muda, o servidor X trabalhou menos. Com dois monitores, economizou 0,7 ponto com a janela pequena, 0,9 com oito janelas translúcidas e 0,5 ao mover e redimensionar. Abrir e fechar mediu 0,5–0,6 ponto a menos nas duas disposições, mas isso são dois ticks de CPU em uma cena de 3,3 segundos, como o [registro do reaproveitamento do desfoque](#reaproveitamento-do-desfoque-registrado-2026-10-04) explica. Com um monitor, em que o redesenho completo antigo cobria metade da área, a janela pequena economizou apenas 0,15 ponto, e mover e redimensionar, 0,2. A carga da GPU caiu 0,5–1,1 ponto nessas cenas, não pela metade: uma atualização de 64×64 ainda mantém a GPU 7–7,5% ocupada, então a maior parte dessa carga é um custo por quadro, não por pixel. Uma janela translúcida em tela cheia muda a tela inteira, e um dano sob qualquer uma de oito janelas desfocadas sobrepostas junta todas as suas áreas de alcance, então essas cenas repintam tanto quanto antes e custam o mesmo. A CPU do próprio Compust não variou mais de 0,05 ponto em nenhuma cena. Todas as cenas mantiveram 60 quadros por segundo; a versão antiga perdeu 4 vblanks uma vez com oito janelas desfocadas em um monitor, e a nova não perdeu nenhum.
 
-A versão nova não apresentou nenhum quadro em nenhuma execução ociosa. A primeira execução ociosa da versão antiga, primeira cena da sequência, apresentou 20 quadros nos três primeiros segundos, enquanto clientes do desktop ainda redesenhavam depois que o compositor em uso foi parado; o número do servidor X nela, 6,55%, eleva a média ociosa dessa versão com dois monitores. Abrir e fechar foi a cena que mais variou entre execuções de uma mesma versão, até 0,8 ponto para o servidor X: em uma execução da versão antiga, 19 dos primeiros ciclos levaram dois quadros para abrir e fechar, contra um quadro em todas as outras aberturas e fechamentos das duas versões.
+A versão nova não apresentou nenhum quadro em nenhuma execução ociosa. A primeira execução ociosa da versão antiga, primeira cena da sequência, apresentou 20 quadros nos três primeiros segundos, enquanto clientes do desktop ainda redesenhavam depois que o compositor em uso foi parado; o número do servidor X nela, 6,55%, eleva a média ociosa dessa versão com dois monitores. Abrir e fechar foi a cena que mais variou entre execuções de uma mesma versão, até 0,8 ponto, menos de três ticks, para o servidor X: em uma execução da versão antiga, 19 dos primeiros ciclos levaram dois quadros para abrir e fechar, contra um quadro em todas as outras aberturas e fechamentos das duas versões.
 
 O desfoque é agora o maior custo restante da cena de oito janelas. Com a repintura por regiões, ele acrescenta 0,6 ponto ao Compust e 1,9 ao servidor X com dois monitores, e 0,7 e 1,2 com um, porque uma mudança na janela de cima repinta toda a pilha de janelas desfocadas. É esse o custo que a [etapa 4](ROADMAP.pt-BR.md#4-oclusão-e-reaproveitamento-do-desfoque) reduziria.
+
+## Reaproveitamento do desfoque registrado: 2026-10-04
+
+Depois do [reaproveitamento do desfoque na etapa 4 do marco de renderização](ROADMAP.pt-BR.md#4-oclusão-e-reaproveitamento-do-desfoque), o executor mediu todas as cenas no mesmo desktop com o commit da repintura por regiões `fdc11224f3d3add229aa7197b6f00a79e5a9ea85`, cujo binário do compositor é idêntico à versão nova do [registro de regiões](#repintura-por-regiões-registrada-2026-10-04), e o commit do reaproveitamento `d1bd2f7f9ed7ef4d0e58cc71c76a308e3fb50040`. As versões se alternaram, duas vezes com os dois monitores e duas com somente DP-2; as duas tinham o código limpo e usaram o mesmo binário da sonda. As células se leem como no registro de regiões. Os [registros](benchmarks/2026-10-04/backdrop-amd-dwm/) incluem a [sequência](benchmarks/2026-10-04/backdrop-amd-dwm/sequence.sh).
+
+| Cena | Monitores | Antes | Depois | GPU antes | GPU depois |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Ociosa | Dois | 0,00 + 5,65% | 0,00 + 5,35% | 0,0% | 0,0% |
+| Ociosa | Um | 0,00 + 5,35% | 0,00 + 5,32% | 0,0% | 0,0% |
+| Janela pequena atualizando | Dois | 0,28 + 7,40% | 0,28 + 7,32% | 6,2% | 6,2% |
+| Janela pequena atualizando | Um | 0,30 + 7,35% | 0,25 + 7,32% | 7,0% | 7,0% |
+| Translúcida em tela cheia | Dois | 0,30 + 7,90% | 0,30 + 7,85% | 8,6% | 8,5% |
+| Translúcida em tela cheia | Um | 0,28 + 7,40% | 0,30 + 7,38% | 7,7% | 7,8% |
+| Translúcida em tela cheia, desfoque | Dois | 0,50 + 8,30% | 0,35 + 8,12% | 5,8% | 5,5% |
+| Translúcida em tela cheia, desfoque | Um | 0,43 + 7,62% | 0,30 + 7,45% | 8,5% | 8,0% |
+| Oito translúcidas | Dois | 0,40 + 7,62% | 0,40 + 7,65% | 6,5% | 6,5% |
+| Oito translúcidas | Um | 0,40 + 7,62% | 0,43 + 7,70% | 7,5% | 7,5% |
+| Oito translúcidas, desfoque | Dois | 1,02 + 9,22% | 0,50 + 8,00% | 8,6% | 6,5% |
+| Oito translúcidas, desfoque | Um | 1,02 + 8,82% | 0,50 + 8,05% | 8,9% | 7,4% |
+| Mover e redimensionar | Dois | 0,97 + 8,25% | 0,97 + 8,30% | 6,2% | 5,9% |
+| Mover e redimensionar | Um | 0,97 + 8,28% | 0,97 + 8,28% | 7,1% | 7,0% |
+| Abrir e fechar | Dois | 0,30 + 8,70% | 0,30 + 9,00% | 6,3% | 6,1% |
+| Abrir e fechar | Um | 0,45 + 8,55% | 0,30 + 8,70% | 7,0% | 7,2% |
+
+O reaproveitamento ajuda onde muda o próprio conteúdo de uma janela desfocada. Com oito janelas desfocadas sobrepostas e a de cima mudando, a CPU do Compust caiu pela metade, de 1,02% para 0,50%, e o servidor X trabalhou 1,2 ponto a menos com dois monitores e 0,8 com um. O desfoque agora acrescenta cerca de 0,1 ponto ao Compust e 0,35 ao servidor X em relação à mesma cena sem desfoque, contra 0,6 e 1,2–1,6 antes. Uma janela translúcida em tela cheia com desfoque custou 0,13–0,18 ponto a menos aos dois processos; cada quadro dela ainda copia o fundo guardado pela tela inteira. As cenas sem desfoque variaram no máximo dois ticks de CPU, exceto a ociosa com dois monitores: a primeira execução ociosa da versão antiga, de novo a primeira cena da sequência, apresentou 2 quadros e elevou essa média. Todas as cenas mantiveram 60 quadros por segundo, e nenhuma perdeu vblank.
+
+Os números de CPU contam os ticks de escalonamento de cada processo, 100 por segundo. A maioria das cenas mede 20 segundos, em que um tick vale 0,05 ponto, mas abrir e fechar mede só 3,3 segundos, em que um tick vale 0,3 ponto. O número do servidor X nessa cena com dois monitores subiu exatamente um tick nas duas execuções, e a economia de 0,5–0,6 ponto que o registro de regiões informa para ela é de dois ticks.
+
+A carga da GPU na cena de oito janelas com desfoque caiu de 8,6% para 6,5% com dois monitores e de 8,9% para 7,4% com um, mas entre cenas ela não acompanha o trabalho: a cena de tela cheia com desfoque mostrou menos carga que a mesma cena sem desfoque. Compare-a apenas entre versões dentro de uma mesma cena.
+
+Os fundos guardados são pixmaps do servidor. Na cena de tela cheia com desfoque, os bytes de pixmaps que o XRes atribui ao Compust passaram de 71,5 MB para 96,4 MB: um fundo para a janela translúcida de 3840×1080 e outro, de 1920×1080, para a janela do Alacritty no desktop, que tem canal alfa e ficava sob o fundo opaco do benchmark. Na cena de oito janelas, passaram de 60,5 MB para 75,1 MB.
 
 ## Concluir os critérios de hardware
 

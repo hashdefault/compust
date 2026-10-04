@@ -1,0 +1,9 @@
+compositor,blur,scene,seconds,completions,damage_events,interval_median_ms,interval_p95_ms,interval_max_ms,skipped_vblanks,msc_discontinuities,compositor_cpu,server_cpu,wm_cpu,probe_cpu,compositor_rss_before_kib,compositor_rss_after_kib,open_median_ms,open_p95_ms,open_max_ms,close_median_ms,close_p95_ms,close_max_ms,gpu_busy_mean,gpu_busy_max
+compust,0,idle,20.001,0,0,,,,0,0,0.00,5.30,0.00,0.90,3928,3928,,,,,,,0.0,0
+compust,0,small-update,20.000,1200,1200,16.667,16.677,16.678,0,0,0.30,7.35,0.00,0.60,3948,3948,,,,,,,6.2,8
+compust,0,fullscreen-translucent,20.000,1200,1200,16.667,16.673,16.677,0,0,0.30,7.85,0.00,0.65,3948,3948,,,,,,,8.5,9
+compust,1,fullscreen-translucent,20.001,1200,1200,16.667,16.673,16.677,0,0,0.35,8.10,0.00,0.75,3924,3924,,,,,,,5.5,6
+compust,0,eight-translucent,20.000,1200,1200,16.667,16.677,16.678,0,0,0.40,7.70,0.00,0.60,3960,3960,,,,,,,6.5,9
+compust,1,eight-translucent,20.000,1200,1200,16.667,16.676,16.678,0,0,0.50,7.95,0.00,0.60,3900,3900,,,,,,,6.5,8
+compust,0,move-resize,20.001,1200,1200,16.667,16.676,16.678,0,0,1.00,8.30,0.10,0.55,3884,3884,,,,,,,5.9,7
+compust,0,open-close,3.333,200,200,16.667,16.676,16.678,0,0,0.30,9.00,0.00,0.30,3944,3944,16.554,16.708,16.962,16.713,16.842,17.047,6.2,8
