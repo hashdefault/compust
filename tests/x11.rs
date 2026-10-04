@@ -38,6 +38,9 @@ mod regions;
 
 #[path = "cases/backdrops.rs"]
 mod backdrops;
+
+#[path = "cases/occlusion.rs"]
+mod occlusion;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

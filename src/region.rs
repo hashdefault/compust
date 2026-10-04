@@ -54,6 +54,30 @@ impl Rect {
             && self.bottom >= other.bottom
     }
 
+    /// The parts of this rectangle outside `other`: at most four bands, full-width above
+    /// and below `other` and beside it in between.
+    pub(crate) fn minus(self, other: Self) -> Vec<Self> {
+        let Some(cut) = self.intersect(other) else {
+            return vec![self];
+        };
+        let bands = [
+            (self.left, self.top, self.right, cut.top),
+            (self.left, cut.bottom, self.right, self.bottom),
+            (self.left, cut.top, cut.left, cut.bottom),
+            (cut.right, cut.top, self.right, cut.bottom),
+        ];
+        bands
+            .into_iter()
+            .map(|(left, top, right, bottom)| Self {
+                left,
+                top,
+                right,
+                bottom,
+            })
+            .filter(|band| !band.is_empty())
+            .collect()
+    }
+
     fn hull(self, other: Self) -> Self {
         Self {
             left: self.left.min(other.left),
@@ -128,14 +152,13 @@ impl Region {
     }
 
     /// The parts of `rects` inside this region, for a clip list.
-    pub(crate) fn clip(&self, rects: impl Iterator<Item = Rect>) -> Result<Vec<Rectangle>> {
+    pub(crate) fn clip(&self, rects: impl Iterator<Item = Rect>) -> Vec<Rect> {
         rects
             .flat_map(|rect| {
                 self.rects
                     .iter()
                     .filter_map(move |kept| kept.intersect(rect))
             })
-            .map(Rect::x11)
             .collect()
     }
 
@@ -189,14 +212,30 @@ mod tests {
         let mut inside = Region::default();
         inside.add(square(0, 0, 20));
         inside.add(square(100, 100, 20));
-        let clip = inside.clip([square(10, 10, 100)].into_iter()).ok();
-        let corners: Option<Vec<_>> = clip.map(|clip| {
-            clip.iter()
-                .map(|rect| (rect.x, rect.y, rect.width, rect.height))
-                .collect()
-        });
-        assert_eq!(corners, Some(vec![(10, 10, 10, 10), (100, 100, 10, 10)]));
+        let clip = inside.clip([square(10, 10, 100)].into_iter());
+        assert_eq!(clip, [square(10, 10, 10), square(100, 100, 10)]);
         assert!(!inside.intersects(square(20, 0, 80)));
         assert!(inside.intersects(square(19, 19, 2)));
+    }
+
+    #[test]
+    fn subtraction_leaves_the_bands_around_a_cut() {
+        // Given a cut in the middle, four bands remain; at an edge or outside, fewer.
+        let whole = square(0, 0, 30);
+        assert_eq!(
+            whole.minus(square(10, 10, 10)),
+            [
+                Rect::new(0, 0, 30, 10),
+                Rect::new(0, 20, 30, 10),
+                Rect::new(0, 10, 10, 10),
+                Rect::new(20, 10, 10, 10),
+            ]
+        );
+        assert_eq!(
+            whole.minus(Rect::new(-5, -5, 40, 15)),
+            [Rect::new(0, 10, 30, 20)]
+        );
+        assert_eq!(whole.minus(square(-5, -5, 50)), []);
+        assert_eq!(whole.minus(square(40, 40, 5)), [whole]);
     }
 }
