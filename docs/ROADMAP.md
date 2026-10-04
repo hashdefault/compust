@@ -2,7 +2,7 @@
 
 [English (US)](ROADMAP.md) | [Português (Brasil)](ROADMAP.pt-BR.md)
 
-The goal is a minimal Rust compositor that becomes a practical choice for Xorg and XLibre users. “Better than picom” must eventually mean observable improvements in reliability, latency, resource use, or maintainability. Rewriting an existing feature in Rust is not, by itself, evidence of better performance.
+The goal is a minimal Rust compositor that becomes a practical choice for Xorg and XLibre users; the [1.0 milestone](#10-stable-release) defines what that takes. “Better than picom” must eventually mean observable improvements in reliability, latency, resource use, or maintainability. Rewriting an existing feature in Rust is not, by itself, evidence of better performance.
 
 ## 0.1 foundation: implemented
 
@@ -49,7 +49,7 @@ Publish a versioned beta prerelease with build or binary installation instructio
 
 **Acceptance:** a tester can install and run the exact release, return to their previous compositor, and report a failure from the supplied instructions. CI passes for the release commit and the previous three gates are satisfied for its declared support scope.
 
-Version 0.2.0-beta.1 completed these four acceptance gates for its declared scope. GPU backend expansion and advanced effects can follow the first beta. The [next milestone](#next-measure-and-reduce-rendering-work) is rendering work; widening the beta's hardware coverage continues beside it as reports arrive.
+Version 0.2.0-beta.1 completed these four acceptance gates for its declared scope. GPU backend expansion and advanced effects can follow the first beta. The [rendering milestone](#rendering-work-four-steps-done-on-one-desktop) followed it, and [1.0](#10-stable-release) is the current one; widening the beta's hardware coverage continues beside them as reports arrive.
 
 ## Progress and verification
 
@@ -264,9 +264,9 @@ Repeat physical hotplug and multiple-monitor layouts with other drivers and serv
 
 **Acceptance:** documented reproductions become regression tests when feasible; ordinary desktop activity does not crash or leave invisible/stale windows; repeated lifecycle changes do not grow server resources without bound. Maintain a compatibility matrix with evidence instead of a blanket “supported” label.
 
-## Next: measure and reduce rendering work
+## Rendering work: four steps done on one desktop
 
-This is the current milestone; its four steps are done on the RX 9060 XT desktop, and step 1 still lacks a second machine. The beta showed where the cost was: Compust repainted the whole screen for every damage event, asked the server for the full window tree on every stacking-related event, and repeated the blur for every translucent window. Steps 2 and 3 removed the first two, and step 4 keeps each blur until something beneath it changes and skips what opaque windows hide. On the recorded machines a 60-updates-per-second window costs Compust under 2% of a core and the X server 3–9%, and the pyramid blur adds between a tenth of a point and one point to the server. The [first benchmark records](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine; no record covers a 4K screen, many windows, or a slow GPU.
+The four steps of this milestone are done on the RX 9060 XT desktop. Step 1 still lacks a second machine, which [1.0's performance step](#3-performance-against-picom) records. The beta showed where the cost was: Compust repainted the whole screen for every damage event, asked the server for the full window tree on every stacking-related event, and repeated the blur for every translucent window. Steps 2 and 3 removed the first two, and step 4 keeps each blur until something beneath it changes and skips what opaque windows hide. On the recorded machines a 60-updates-per-second window costs Compust under 2% of a core and the X server 3–9%, and the pyramid blur adds between a tenth of a point and one point to the server. The [first benchmark records](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine; no record covers a 4K screen, many windows, or a slow GPU.
 
 The milestone has four steps, in order. Steps 3 and 4 start only if step 1 shows that they matter.
 
@@ -319,6 +319,79 @@ Windows hidden behind opaque ones are skipped. A window without an alpha channel
 
 Step 3 kept the single Present buffer: outside the update region its contents already match the screen. Multiple presentation buffers with explicit ownership remain an open evaluation for latency. Input-to-display latency needs measuring equipment this project does not have; do not report it from software timings.
 
+## 1.0: stable release
+
+**Goal:** a release that a picom user on common Xorg or XLibre hardware can switch to for daily use, whose configuration stays valid across 1.x, and whose support claims rest on records. Stable does not mean that every driver works: every environment the release names has evidence, and the rest are listed as untested. This is the current milestone. It follows the rendering milestone above, and its step 3 also gives that milestone the second machine it lacks. It has no date.
+
+### What 1.0 promises
+
+- **Versions:** from 1.0.0, versions follow [semantic versioning](https://semver.org/). Every configuration field and command-line option that 1.0 accepts keeps working with the same meaning in every 1.x release. New ones may appear; removing or changing one waits for 2.0, after a 1.x release that warns about it.
+- **Robustness:** ordinary desktop activity does not stop the compositor or leave a stale or invisible window. That covers windows that vanish between requests, malformed properties, monitor changes, suspend and resume, and a refused Present, each with a regression test or a recorded session.
+- **Renderers:** XRender stays the default. The GPU renderer ships opt-in and falls back to XRender; it becomes the default only once recorded sessions on AMD, Intel, and NVIDIA show it drawing the same frames for no more CPU.
+- **Claims:** the release names each qualified environment with its records, and says plainly where Compust is slower than picom.
+
+### Steps
+
+| Step | Status | Required result |
+| --- | --- | --- |
+| 1. Features picom users rely on | Per-window rules done; the rest not started | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
+| 2. Hardware and desktops | AMD/XLibre, Intel/Xorg, and four window managers recorded with earlier builds; NVIDIA and Xorg on AMD pending | A release candidate recorded on AMD, Intel, and NVIDIA, on Xorg and XLibre, under six window managers with real applications |
+| 3. Performance against picom | One machine, recorded before region repaint | On one machine per GPU vendor, Compust keeps picom glx's frame rate in every benchmark scene, within one point of a core of its total CPU |
+| 4. Endurance | Not started | 10,000 automated window cycles, and a week of daily use on two machines, without a crash or growing resources |
+| 5. Outside testing | No outside reports yet | Three testers other than the maintainer run a release candidate, which then goes two weeks without a new crash, stale-window, or leak report |
+| 6. Distribution and documentation | Release archives with checksums | An Arch User Repository package, manual pages, a picom migration guide, troubleshooting, and a reviewed configuration |
+
+### 1. Features picom users rely on
+
+- **Shadows:** a soft shadow beneath windows, with global settings for its radius, offset, and opacity and a `shadow` setting for rules. Docks and desktop windows get none by default, and neither does a window that draws its own, such as a browser menu or a client-side-decorated GTK window. A shadow widens the area its window changes, never hides what lies beneath it, and fades with its window.
+- **Fullscreen unredirection:** an opt-in setting. While one opaque window covers the whole root and nothing above it is translucent, Compust stops compositing: windows draw to the screen directly and the overlay is hidden. Compositing resumes as soon as that changes. One overlay covers every monitor, so a window that fills one of several monitors stays composited, and the documentation says so.
+- **Rules by focus:** a `focused` selector, from the root's `_NET_ACTIVE_WINDOW`, so that rules can make inactive windows translucent, as picom's `inactive-opacity` does. The documentation lists window managers that do not set the property.
+
+**Acceptance:** pixel tests cover each feature, in both painters where it draws, comparing frames with a fresh renderer's: shadow extent, offset, and shape; shadows of moving, fading, covered, and excluded windows; unredirection entered and left by mapping, unmapping, and resizing the fullscreen window and by stacking a translucent one above it, with correct pixels afterward; and focus moving between windows. The region repaint, blur reuse, and occlusion tests keep passing. Each new setting is documented in both languages.
+
+### 2. Hardware and desktops
+
+With a release candidate, record the probe scenarios, monitor changes, and the activities below on:
+
+- AMD on Xorg and on XLibre, Intel on Xorg, and NVIDIA's proprietary driver on Xorg;
+- one and two monitors, with physical hotplug on at least two of those machines and two monitors at different refresh rates on one;
+- six window managers: Xmonad, Openbox, i3, and dwm, recorded so far with earlier builds, plus bspwm and Xfwm4 with its own compositor off;
+- real applications: a Firefox and a Chromium-based browser with their menus, a terminal, mpv windowed and fullscreen, a fullscreen game or OpenGL demo, a client-side-decorated GTK application, and an Electron application;
+- workspace switches, entering and leaving fullscreen, drag and drop, a screen locker, suspend and resume, and logging out.
+
+**Acceptance:** each environment has a record with its server, driver, window manager, configuration, and the release candidate's commit, and the compatibility matrix names only recorded environments. Each failure found is fixed, with a regression test where one can tell it apart, or listed as a known limit before the release. Records of earlier builds stay, but do not qualify 1.0.
+
+### 3. Performance against picom
+
+Run the benchmark scenes with a release candidate on one machine per GPU vendor, against the current picom release with its xrender and glx backends and [equivalent configurations](../tools/bench/), as in the [first records](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03).
+
+**Acceptance:** in every scene on every machine, Compust holds the frame rate that picom glx holds, and its total CPU, its own and the X server's, stays within one point of a core of picom glx's. An idle desktop presents no frames. The release notes report, scene by scene, where Compust is slower and where it is faster.
+
+### 4. Endurance
+
+**Acceptance:** an automated run of 10,000 cycles that open, resize, and close windows, with reloads among them, ends with the XRes counts and owned pixmap bytes it had after warmup. Two machines run a release candidate as their daily compositor for seven days, sampling Compust's memory and the X server's resources every ten minutes, with no crash, no repeated Present timeouts, and idle memory on the last day within 5% of the first day's after warmup.
+
+### 5. Outside testing
+
+Publish betas as features land, starting with everything since 0.2.0-beta.3, and announce each release candidate where X11 users gather.
+
+**Acceptance:** at least three testers other than the maintainer report running a release candidate through the issue templates, and that candidate then goes two weeks without a new report of a crash, a stale or invisible window, or a leak. Every report is fixed or listed as a known limit with its environment.
+
+### 6. Distribution and documentation
+
+**Acceptance:** an Arch User Repository package builds the release tag; release archives keep their checksums and reproducible packaging; manual pages cover the command and its configuration; a migration guide maps picom's common options to Compust's and names those without an equivalent; and a troubleshooting guide covers a refused start, the Present fallback, tearing, the GPU renderer's fallback, and logs. Before the first release candidate, every configuration field and command-line option is reviewed once, since 1.0 freezes them.
+
+### Release path
+
+1. **0.3.0-beta.1:** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing starts now.
+2. **Further 0.3 betas** as step 1's features land.
+3. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
+4. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.
+
+### Not in 1.0
+
+Rounded corners, the [Window Animations](#window-animations-planned) milestone, multiple Present buffers, explicit synchronization, color management, HDR, VRR, and more than one X screen per process can come in 1.x releases that keep the 1.0 promises. Picom configuration compatibility and Wayland are outside the project's scope.
+
 ## Rendering backend and protocol expansion
 
 Evaluate an EGL/OpenGL or Vulkan backend once the import and synchronization path is specified. Modern X11 integration may involve DRI3 DMA-BUF import, modifier negotiation, Present scheduling, and explicit synchronization. Each requires real implementation and driver testing; version probes do not count.
@@ -331,7 +404,7 @@ Color management, HDR, VRR, XLibre-specific extensions, and per-output schedulin
 
 ## Everyday usability
 
-Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. Add clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Consider shadows and rounded corners with proper shape and damage semantics.
+Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. [1.0](#10-stable-release) requires clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Shadows are part of 1.0; rounded corners can follow it, with proper shape and damage semantics.
 
 **Acceptance:** behavior is configurable, documented in both languages, testable, and does not silently claim compatibility with picom's configuration or scripting language.
 

@@ -2,7 +2,7 @@
 
 [English (US)](ROADMAP.md) | [Português (Brasil)](ROADMAP.pt-BR.md)
 
-O objetivo é tornar este compositor mínimo em Rust uma opção prática para usuários de Xorg e XLibre. “Melhor que o picom” precisa significar melhorias observáveis em confiabilidade, latência, consumo de recursos ou manutenção. Reescrever um recurso em Rust, por si só, não comprova melhor desempenho.
+O objetivo é tornar este compositor mínimo em Rust uma opção prática para usuários de Xorg e XLibre; o [marco 1.0](#10-versão-estável) define o que isso exige. “Melhor que o picom” precisa significar melhorias observáveis em confiabilidade, latência, consumo de recursos ou manutenção. Reescrever um recurso em Rust, por si só, não comprova melhor desempenho.
 
 ## Base 0.1: implementada
 
@@ -49,7 +49,7 @@ Publicar uma prévia beta versionada com instruções de compilação ou instala
 
 **Aceitação:** uma pessoa consegue instalar e executar a versão exata, retornar ao compositor anterior e relatar uma falha seguindo as instruções fornecidas. O CI passa para o commit da versão, e as três etapas anteriores estão aprovadas dentro do escopo de suporte declarado.
 
-A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu escopo declarado. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta. O [próximo marco](#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) é o trabalho de renderização; a ampliação da cobertura de hardware da beta continua em paralelo, conforme chegam relatos.
+A versão 0.2.0-beta.1 concluiu esses quatro critérios de liberação para seu escopo declarado. A expansão de backend de GPU e os efeitos avançados podem vir depois da primeira beta. O [marco de renderização](#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) veio em seguida, e a [1.0](#10-versão-estável) é o marco atual; a ampliação da cobertura de hardware da beta continua em paralelo, conforme chegam relatos.
 
 ## Progresso e verificação
 
@@ -264,9 +264,9 @@ Repita o hotplug físico e as configurações com vários monitores com outros d
 
 **Aceitação:** reproduções documentadas viram testes quando viável; o uso normal não causa quedas nem deixa janelas invisíveis ou imagens antigas; mudanças repetidas de ciclo de vida não fazem os recursos do servidor crescerem indefinidamente. Mantenha uma matriz de compatibilidade com evidências.
 
-## Próximo passo: medir e reduzir o trabalho de renderização
+## Trabalho de renderização: quatro etapas concluídas em um desktop
 
-Este é o marco atual; suas quatro etapas estão concluídas no desktop com RX 9060 XT, e a etapa 1 ainda não tem uma segunda máquina. A beta mostrou onde estava o custo: o Compust repintava a tela inteira a cada evento de dano, pedia ao servidor a árvore completa de janelas a cada evento relacionado a empilhamento e repetia o desfoque para cada janela translúcida. As etapas 2 e 3 eliminaram os dois primeiros, e a etapa 4 guarda cada desfoque até que algo abaixo dele mude e pula o que janelas opacas escondem. Nas máquinas registradas, uma janela com 60 atualizações por segundo custa ao Compust menos de 2% de um núcleo e ao servidor X de 3% a 9%, e o desfoque em pirâmide acrescenta ao servidor entre um décimo de ponto e um ponto. Os [primeiros registros de benchmark](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina; nenhum registro cobre uma tela 4K, muitas janelas ou uma GPU lenta.
+As quatro etapas deste marco estão concluídas no desktop com RX 9060 XT. A etapa 1 ainda não tem uma segunda máquina, que a [etapa de desempenho da 1.0](#3-desempenho-diante-do-picom) registra. A beta mostrou onde estava o custo: o Compust repintava a tela inteira a cada evento de dano, pedia ao servidor a árvore completa de janelas a cada evento relacionado a empilhamento e repetia o desfoque para cada janela translúcida. As etapas 2 e 3 eliminaram os dois primeiros, e a etapa 4 guarda cada desfoque até que algo abaixo dele mude e pula o que janelas opacas escondem. Nas máquinas registradas, uma janela com 60 atualizações por segundo custa ao Compust menos de 2% de um núcleo e ao servidor X de 3% a 9%, e o desfoque em pirâmide acrescenta ao servidor entre um décimo de ponto e um ponto. Os [primeiros registros de benchmark](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina; nenhum registro cobre uma tela 4K, muitas janelas ou uma GPU lenta.
 
 O marco tem quatro etapas, em ordem. As etapas 3 e 4 só começam se a etapa 1 mostrar que elas importam.
 
@@ -319,6 +319,79 @@ Janelas escondidas atrás de janelas opacas são puladas. Uma janela sem canal a
 
 A etapa 3 manteve o único buffer do Present: fora da região de atualização, seu conteúdo já corresponde à tela. Múltiplos buffers de apresentação com controle explícito de propriedade continuam como avaliação em aberto para a latência. Medir a latência entre entrada e exibição exige equipamento que este projeto não tem; não a informe a partir de tempos medidos por software.
 
+## 1.0: versão estável
+
+**Objetivo:** uma versão para a qual um usuário do picom, em hardware comum com Xorg ou XLibre, possa migrar no uso diário, cuja configuração continue válida em toda a série 1.x e cujas alegações de suporte se apoiem em registros. Estável não significa que todo driver funcione: cada ambiente que a versão nomeia tem evidências, e os demais aparecem como não testados. Este é o marco atual. Ele vem depois do marco de renderização acima, e sua etapa 3 também dá àquele marco a segunda máquina que lhe falta. Não tem data.
+
+### O que a 1.0 promete
+
+- **Versões:** a partir da 1.0.0, as versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). Toda opção de configuração e de linha de comando aceita pela 1.0 continua funcionando, com o mesmo significado, em toda versão 1.x. Novas podem surgir; remover ou mudar uma espera a 2.0, depois de uma versão 1.x que avise sobre isso.
+- **Robustez:** o uso comum do desktop não para o compositor nem deixa janelas paradas ou invisíveis. Isso inclui janelas que somem entre requisições, propriedades malformadas, mudanças de monitores, suspensão e retomada e um Present recusado, cada caso com um teste de regressão ou uma sessão registrada.
+- **Renderizadores:** o XRender continua como padrão. O renderizador de GPU segue opcional, com retorno ao XRender, e só vira padrão quando sessões registradas em AMD, Intel e NVIDIA mostrarem que ele desenha os mesmos quadros sem gastar mais CPU.
+- **Alegações:** a versão nomeia cada ambiente qualificado com seus registros e diz claramente onde o Compust é mais lento que o picom.
+
+### Etapas
+
+| Etapa | Situação | Resultado exigido |
+| --- | --- | --- |
+| 1. Recursos de que usuários do picom dependem | Regras por janela prontas; o resto não iniciado | Sombras, suspensão da composição em tela cheia e regras que escolhem pelo foco, com testes de pixels nos dois pintores |
+| 2. Hardware e desktops | AMD/XLibre, Intel/Xorg e quatro gerenciadores de janelas registrados com builds anteriores; NVIDIA e Xorg com AMD pendentes | Uma versão candidata registrada em AMD, Intel e NVIDIA, no Xorg e no XLibre, sob seis gerenciadores de janelas e com aplicativos reais |
+| 3. Desempenho diante do picom | Uma máquina, registrada antes da repintura por regiões | Em uma máquina por fabricante de GPU, o Compust mantém a taxa de quadros do picom glx em toda cena de benchmark, com CPU total a no máximo um ponto de núcleo da dele |
+| 4. Uso prolongado | Não iniciada | 10.000 ciclos automáticos de janelas e uma semana de uso diário em duas máquinas, sem falhas nem recursos crescendo |
+| 5. Testes externos | Nenhum relato externo ainda | Três testadores além do mantenedor usam uma versão candidata, que depois passa duas semanas sem novo relato de falha, janela parada ou vazamento |
+| 6. Distribuição e documentação | Arquivos de versão com somas de verificação | Um pacote no Arch User Repository, páginas de manual, um guia de migração do picom, solução de problemas e uma configuração revisada |
+
+### 1. Recursos de que usuários do picom dependem
+
+- **Sombras:** uma sombra suave sob as janelas, com opções globais de raio, deslocamento e opacidade e uma opção `shadow` para as regras. Docks e janelas de desktop não recebem sombra por padrão, nem uma janela que desenha a própria, como o menu de um navegador ou uma janela GTK com decoração do lado do cliente. Uma sombra amplia a área que sua janela muda, nunca esconde o que está abaixo dela e acompanha o fade da janela.
+- **Suspensão da composição em tela cheia:** uma opção desativada por padrão. Enquanto uma janela opaca cobre a raiz inteira e nada translúcido está acima dela, o Compust para de compor: as janelas desenham direto na tela e o overlay fica oculto. A composição volta assim que isso muda. Um único overlay cobre todos os monitores; por isso, uma janela que ocupa um entre vários monitores continua composta, e a documentação diz isso.
+- **Regras pelo foco:** um seletor `focused`, a partir de `_NET_ACTIVE_WINDOW` na raiz, para que regras deixem janelas inativas translúcidas, como faz o `inactive-opacity` do picom. A documentação lista os gerenciadores de janelas que não definem essa propriedade.
+
+**Aceitação:** testes de pixels cobrem cada recurso, nos dois pintores quando ele desenha, comparando quadros com os de um renderizador novo: extensão, deslocamento e formato da sombra; sombras de janelas que se movem, fazem fade, ficam cobertas ou são excluídas; a suspensão iniciada e encerrada ao mapear, desmapear e redimensionar a janela em tela cheia e ao empilhar uma janela translúcida acima dela, com pixels corretos depois; e o foco passando entre janelas. Os testes de repintura por regiões, reaproveitamento do desfoque e oclusão continuam passando. Cada opção nova é documentada nos dois idiomas.
+
+### 2. Hardware e desktops
+
+Com uma versão candidata, registrar os cenários do probe, mudanças de monitores e as atividades abaixo em:
+
+- AMD no Xorg e no XLibre, Intel no Xorg e o driver proprietário da NVIDIA no Xorg;
+- um e dois monitores, com hotplug físico em pelo menos duas dessas máquinas e dois monitores com taxas de atualização diferentes em uma;
+- seis gerenciadores de janelas: Xmonad, Openbox, i3 e dwm, registrados até agora com builds anteriores, além de bspwm e Xfwm4 com o próprio compositor desligado;
+- aplicativos reais: um Firefox e um navegador baseado no Chromium com seus menus, um terminal, o mpv em janela e em tela cheia, um jogo ou demonstração OpenGL em tela cheia, um aplicativo GTK com decoração do lado do cliente e um aplicativo Electron;
+- trocas de área de trabalho, entrada e saída de tela cheia, arrastar e soltar, um bloqueador de tela, suspensão e retomada e encerramento da sessão.
+
+**Aceitação:** cada ambiente tem um registro com servidor, driver, gerenciador de janelas, configuração e o commit da versão candidata, e a matriz de compatibilidade só nomeia ambientes registrados. Cada falha encontrada é corrigida, com teste de regressão quando ele consegue distingui-la, ou listada como limite conhecido antes da versão. Registros de builds anteriores permanecem, mas não qualificam a 1.0.
+
+### 3. Desempenho diante do picom
+
+Rodar as cenas de benchmark com uma versão candidata em uma máquina por fabricante de GPU, contra a versão atual do picom com seus backends xrender e glx e [configurações equivalentes](../tools/bench/), como nos [primeiros registros](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03).
+
+**Aceitação:** em toda cena e em toda máquina, o Compust mantém a taxa de quadros que o picom glx mantém, e sua CPU total, a própria e a do servidor X, fica a no máximo um ponto de núcleo da do picom glx. Um desktop ocioso não apresenta quadros. As notas da versão informam, cena por cena, onde o Compust é mais lento e onde é mais rápido.
+
+### 4. Uso prolongado
+
+**Aceitação:** uma execução automática de 10.000 ciclos que abrem, redimensionam e fecham janelas, com recargas entre eles, termina com as contagens do XRes e os bytes de pixmaps próprios que tinha depois do aquecimento. Duas máquinas usam uma versão candidata como compositor diário por sete dias, amostrando a memória do Compust e os recursos do servidor X a cada dez minutos, sem falhas, sem tempos limite repetidos do Present e com a memória ociosa do último dia a até 5% da do primeiro dia após o aquecimento.
+
+### 5. Testes externos
+
+Publicar betas à medida que os recursos ficarem prontos, começando por tudo o que veio depois da 0.2.0-beta.3, e anunciar cada versão candidata onde usuários do X11 se reúnem.
+
+**Aceitação:** pelo menos três testadores além do mantenedor relatam, pelos modelos de issue, o uso de uma versão candidata, e essa versão passa depois duas semanas sem novo relato de falha, de janela parada ou invisível ou de vazamento. Todo relato é corrigido ou listado como limite conhecido com seu ambiente.
+
+### 6. Distribuição e documentação
+
+**Aceitação:** um pacote no Arch User Repository compila a tag da versão; os arquivos da versão mantêm somas de verificação e empacotamento reproduzível; páginas de manual cobrem o comando e sua configuração; um guia de migração relaciona as opções comuns do picom às do Compust e nomeia as que não têm equivalente; e um guia de solução de problemas cobre uma inicialização recusada, o retorno do Present, tearing, o retorno do renderizador de GPU e os logs. Antes da primeira versão candidata, toda opção de configuração e de linha de comando é revisada uma vez, já que a 1.0 as congela.
+
+### Caminho até a versão
+
+1. **0.3.0-beta.1:** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos comecem agora.
+2. **Outras betas 0.3** à medida que os recursos da etapa 1 ficarem prontos.
+3. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
+4. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
+
+### Fora da 1.0
+
+Cantos arredondados, o marco de [Animações de janelas](#animações-de-janelas-planejadas), múltiplos buffers do Present, sincronização explícita, gerenciamento de cores, HDR, VRR e mais de uma tela X por processo podem vir em versões 1.x que mantenham as promessas da 1.0. Compatibilidade com a configuração do picom e Wayland estão fora do escopo do projeto.
+
 ## Backend e expansão do protocolo
 
 Avalie um backend EGL/OpenGL ou Vulkan depois de especificar importação e sincronização. A integração moderna com X11 pode envolver DMA-BUF por DRI3, negociação de modificadores, agendamento por Present e sincronização explícita. Cada parte exige implementação real e testes de driver; consultas de versão não contam como suporte.
@@ -331,7 +404,7 @@ Gerenciamento de cores, HDR, VRR, extensões específicas do XLibre e agendament
 
 ## Uso cotidiano
 
-O uso da beta mostrou que mudar `fade_ms` exigia reiniciar o compositor e que uma configuração só era lida quando `--config` a indicava; a [descoberta e a recarga de configuração](#uso-cotidiano-descoberta-e-recarga-de-configuração) resolvem os dois pontos. Adicione diagnóstico mais claro e empacotamento para distribuições. [Regras por janela](#uso-cotidiano-regras-por-janela-e-desfoque-ponderado) já definem opacidade, desfoque e duração do fade por classe, tipo ou título; o marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e permitiria que as regras escolhessem animações também. Reutilize esse modelo de regras em efeitos futuros. Considere sombras e cantos arredondados com tratamento correto de formato e dano.
+O uso da beta mostrou que mudar `fade_ms` exigia reiniciar o compositor e que uma configuração só era lida quando `--config` a indicava; a [descoberta e a recarga de configuração](#uso-cotidiano-descoberta-e-recarga-de-configuração) resolvem os dois pontos. A [1.0](#10-versão-estável) exige diagnóstico mais claro e empacotamento para distribuições. [Regras por janela](#uso-cotidiano-regras-por-janela-e-desfoque-ponderado) já definem opacidade, desfoque e duração do fade por classe, tipo ou título; o marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e permitiria que as regras escolhessem animações também. Reutilize esse modelo de regras em efeitos futuros. Sombras fazem parte da 1.0; cantos arredondados podem vir depois dela, com tratamento correto de formato e dano.
 
 **Aceitação:** o comportamento é configurável, documentado nos dois idiomas e testável, sem anunciar implicitamente compatibilidade com a configuração ou a linguagem de animação do picom.
 
