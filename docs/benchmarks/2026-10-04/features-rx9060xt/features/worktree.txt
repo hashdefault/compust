@@ -1,0 +1,12 @@
+ M .github/workflows/ci.yml
+ M docs/DESKTOP_TESTING.md
+ M docs/DESKTOP_TESTING.pt-BR.md
+ M docs/ROADMAP.md
+ M docs/ROADMAP.pt-BR.md
+ M examples/desktop/pixels.rs
+ M examples/desktop_probe.rs
+ M tools/hardware-session.sh
+?? examples/desktop/features.rs
+?? examples/desktop/features/
+?? tools/desktop/compust-features.toml
+?? tools/features-check.sh

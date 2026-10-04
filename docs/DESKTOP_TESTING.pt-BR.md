@@ -40,6 +40,33 @@ env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hard
 
 Escolha um número de display livre e o nome de uma saída exibida pelo `xrandr`; sem `SESSION_OUTPUT`, é usada a primeira saída conectada. O script para se a saída indicada não estiver conectada: o `xrandr` ignora um nome que não conhece, e todas as saídas seriam desligadas. O script deixa somente essa saída ativa no modo preferido, desativa o apagamento da tela e mantém um cliente conectado para que o servidor não seja reiniciado entre as execuções. Ele registra saídas, provedores e GPU e depois executa `present`, `direct` e `effects` no novo servidor, continuando após um modo com falha. `WINDOW_MANAGER` também seleciona o gerenciador de janelas aqui. Por fim, copia o log do servidor quando ele pode ser lido e encerra, terminando a sessão. Não use teclado nem mouse até aparecer `Hardware session finished`; depois faça logout e volte à sua sessão habitual. Revise `xorg.log` antes de compartilhá-lo: ele inclui números de série dos monitores e a linha de comando do kernel.
 
+## Verificar sombras, foco e suspensão em tela cheia
+
+[`tools/features-check.sh`](../tools/features-check.sh) executa `desktop_probe --features` em um display isolado sem gerenciador de janelas. A [configuração](../tools/desktop/compust-features.toml) desativa fades e desfoque, liga sombras de raio 12 com opacidade máxima e deslocamentos de 4 e 6 pixels, liga a suspensão em tela cheia e deixa as janelas inativas do teste de foco a 50% de opacidade. Compile os dois binários de release juntos e ensaie no Xvfb:
+
+```sh
+cargo build --release --locked --bin compust --example desktop_probe
+mkdir -p artifacts
+SECONDS_PER_PHASE=1 tools/features-check.sh artifacts/features-xvfb xrender
+```
+
+Cada diretório de relatório precisa ser novo. Esse ensaio inicia o Xvfb automaticamente e testa somente o XRender: o Xvfb não tem DRI3 e não pode validar o pintor de GPU. A seleção padrão, `both`, executa XRender seguido de GL no mesmo servidor dedicado e compara pixel a pixel as imagens de sombras e foco. Ela falha se o GL não abriu o pintor de GPU ou voltou ao XRender. `DESKTOP_DISPLAY` e `SERVER_PID` selecionam um servidor dedicado existente, que o runner nunca encerra; `XVFB` seleciona outro executável do Xvfb.
+
+Para testar no hardware, faça login em um console de texto, por exemplo Ctrl+Alt+F3, e execute:
+
+```sh
+cd ~/compust
+env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/features-hardware --features -- :20
+```
+
+Escolha uma saída conectada e um número de display livre, como no procedimento de desktop acima. Omitir `SESSION_OUTPUT` seleciona a primeira saída conectada. Nenhum gerenciador de janelas específico é necessário. Deixe essa sessão em primeiro plano até aparecer `Hardware session finished`; ela volta ao console, e você pode retornar ao desktop habitual.
+
+O probe confere cada pixel da cena de sombras contra uma referência independente dos filtros de caixa, incluindo o interior intacto da janela, as quatro bordas da sombra, os cantos e o fundo branco. Os testes e as comparações entre pintores admitem dois níveis por canal RGB por arredondamento. Escrever `_NET_ACTIVE_WINDOW` testa as duas direções do foco, `NONE` e o comportamento após remover a propriedade. As cenas esperam notificações X11 com prazo máximo.
+
+A mesma janela opaca de tela cheia alterna vermelho e azul a uma frequência solicitada de 60 atualizações por segundo nas fases `composed` e `suspended`. Um diálogo pequeno por cima mantém a composição ativa; removê-lo precisa desmapear o overlay, interromper conclusões Present e Damage do overlay e deixar o desenho chegar diretamente à raiz. Cada estado tem dois segundos de aquecimento e `SECONDS_PER_PHASE` segundos de medição (1–30, padrão 10). Abrir outro diálogo precisa recapturar o conteúdo desenhado durante a suspensão; remover a janela de tela cheia precisa restaurar o fundo. A CPU é registrada separadamente para Compust, servidor e probe, sem exigir uma economia mínima em execuções curtas ou por software.
+
+O relatório de cada pintor inclui `shadows.csv`, imagens PPM de sombras e foco, `fullscreen-resumed.ppm`, `fullscreen.csv`, `processes.csv`, `frames.csv`, topologia e recursos XRes, configuração exata, logs e evidência de encerramento via SIGTERM. O GL grava um CSV de comparação para cada imagem de sombras e foco. A raiz reúne patches e hashes dos fontes, hashes dos binários, commit base e alterações locais, dados de CPU/servidor e horários. Um ensaio ou uma volta ao XRender não constitui validação em hardware. A [sessão registrada na RX 9060 XT](#sombras-foco-e-suspensão-em-tela-cheia-registrados-2026-10-04) cobre essas cenas nos dois pintores em uma tela AMD/XLibre.
+
 ## Preservar a identificação das evidências
 
 O relatório inclui extensões do servidor, geometria das saídas, modelo de CPU, kernel, versões de Rust e do gerenciador, configuração exata, medições dos processos, capturas das cenas, logs e hashes dos executáveis. `commit.txt` identifica a revisão base; `worktree.txt`, `source.patch` e `source-sha256.txt` registram alterações locais. Uma execução com mudanças deve ser descrita como aquela revisão mais essas mudanças, sem atribuir o resultado ao commit limpo.
@@ -576,6 +603,24 @@ O bspwm 0.9.12 às vezes mantém o espaço de uma janela que não existe mais: u
 Uma primeira sessão com o Xmonad foi iniciada com `SESSION_OUTPUT=DP=2`. O `xrandr` ignorou o nome desconhecido e o script desligou as duas saídas, de modo que a sessão rodou em uma raiz de 320×200 sem nenhum CRTC ativo. Mesmo assim todos os cenários passaram: o Present concluía uma vez por segundo, e o Compust registrou sua recuperação de um segundo, "Present did not finish a submission; replacing its buffers", duas vezes na execução com Present e três na de efeitos. Os [registros](benchmarks/2026-10-04/desktop-rx9060xt/outputs-off/) guardam essa sessão como a única com todas as saídas desligadas, e o script agora para quando a saída indicada não está conectada.
 
 Essas sessões usam as janelas sintéticas do probe, um monitor e fases de dez segundos. O dwm, usado na sessão do próprio desktop, não tem configuração privada no script, e hotplug físico, suspensão e retomada e o renderizador de GPU não fizeram parte delas. Com a mesma compilação em uma sessão comum deste desktop, o halo fosco em volta dos menus de contexto do Brave desapareceu, como pretende o [desfoque ponderado](ROADMAP.pt-BR.md#uso-cotidiano-regras-por-janela-e-desfoque-ponderado); essa conferência foi visual e não tem registro.
+
+## Sombras, foco e suspensão em tela cheia registrados (2026-10-04)
+
+O probe dedicado de recursos passou em XRender e GL no desktop AMD Ryzen 5 5600X / Radeon RX 9060 XT, com XLibre 25.1.9, Linux 7.2.8-arch1-1, modesetting com glamor e TearFree e radeonsi. Somente DP-2 estava habilitada, a 1920×1080 e 60 Hz, profundidade 24; HDMI-1 estava conectada, mas desabilitada. Não havia gerenciador de janelas: o próprio probe controlava `_NET_ACTIVE_WINDOW`. O [arquivo de registros](benchmarks/2026-10-04/features-rx9060xt/README.md) identifica a configuração, a base `1969270257af37c092bad5d440d86ea74e680c01` mais as alterações locais registradas, hashes dos fontes e dos executáveis, logs e capturas. Esses hashes coincidiram com os arquivos locais testados ao coletar o registro.
+
+Todos os 2.073.600 pixels de cada cena de sombras passaram contra a referência independente com diferença de até um nível RGB, abaixo da tolerância de dois. O XRender diferiu em 40 pixels e o GL em 25. A [comparação entre pintores](benchmarks/2026-10-04/features-rx9060xt/features/gl/shadows-comparison.csv) encontrou 45 pixels diferentes, também a no máximo um nível. As duas imagens de foco foram idênticas entre pintores; passaram o foco nas duas direções, `NONE` e o comportamento sem a propriedade. O [log do compositor GL](benchmarks/2026-10-04/features-rx9060xt/features/gl/compust.log) confirma o pintor de GPU da RX 9060 XT sem volta ao XRender. As capturas PNG arquivadas preservam cada pixel RGB dos PPMs originais e foram inspecionadas visualmente.
+
+Cada fase medida durou dez segundos após dois segundos de aquecimento e solicitou 600 redesenhos da janela inteira a 60 por segundo. As duas fases compostas registraram 600 conclusões Present e 600 eventos Damage do overlay; as duas suspensas registraram zero. O popup retomou a composição, a nova captura mostrou o que foi desenhado durante a suspensão e remover a janela que cobria a tela restaurou o fundo. Os dois processos do compositor encerraram com sucesso após SIGTERM.
+
+| Pintor | Estado | CPU do Compust | CPU do servidor X | RSS do Compust antes/depois |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-04/features-rx9060xt/features/xrender/processes.csv) | Composto | 0,3% | 1,9% | 4.236 / 4.236 KiB |
+| XRender | Suspenso | 0,0% | 1,0% | 4.236 / 4.236 KiB |
+| [GL](benchmarks/2026-10-04/features-rx9060xt/features/gl/processes.csv) | Composto | 0,6% | 1,4% | 71.112 / 71.112 KiB |
+| GL | Suspenso | 0,0% | 1,1% | 71.112 / 71.112 KiB |
+
+As porcentagens de CPU usam um núcleo. Com 100 ticks de contabilização por segundo, um tick em dez segundos é 0,1 ponto percentual; zero significa que o Compust não acumulou ticks naquele intervalo. A RSS ficou igual durante cada fase medida. Esse registro cobre cenas sintéticas curtas em uma tela. Ainda faltam registros de aplicativos reais em tela cheia, comportamento de foco de gerenciadores de janelas, outros drivers e servidores, vários monitores ativos, desempenho das sombras e estabilidade dos recursos em uso prolongado.
+
 
 ## Concluir os critérios de hardware
 

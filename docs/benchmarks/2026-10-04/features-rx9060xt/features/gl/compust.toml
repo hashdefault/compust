@@ -1,0 +1,21 @@
+backend = "gl"
+opacity = 100
+fade_ms = 0
+blur_radius = 0
+max_fps = 120
+vsync = true
+shadow_radius = 12
+shadow_offset_x = 4
+shadow_offset_y = 6
+shadow_opacity = 100
+unredirect_fullscreen = true
+
+[[rules]]
+wm_class = "CompustFeatureFocus"
+focused = false
+opacity = 50
+shadow = false
+
+[[rules]]
+wm_class = "CompustFeatureFocus"
+shadow = false

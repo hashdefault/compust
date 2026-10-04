@@ -40,6 +40,33 @@ env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/hard
 
 Choose a free display number and an output name from `xrandr`; without `SESSION_OUTPUT`, the first connected output is used. The script stops if the named output is not connected: `xrandr` ignores a name it does not know, and every output would be turned off. The script leaves only that output enabled at its preferred mode, disables screen blanking, and keeps one client connected so the server does not reset between runs. It records the outputs, providers, and GPU, then runs `present`, `direct`, and `effects` against the new server, continuing after a failed mode. `WINDOW_MANAGER` selects the window manager here too. Finally it copies the server log when readable and exits, which ends the session. Do not use the keyboard or mouse until it prints `Hardware session finished`; then log out and return to your usual session. Review `xorg.log` before sharing it: it includes monitor serial numbers and the kernel command line.
 
+## Check shadows, focus, and fullscreen suspension
+
+[`tools/features-check.sh`](../tools/features-check.sh) runs `desktop_probe --features` on an isolated display without a window manager. The [configuration](../tools/desktop/compust-features.toml) disables fades and blur, enables radius-12 shadows at full opacity with offsets of 4 and 6 pixels, enables fullscreen unredirection, and makes the probe's inactive focus windows 50% opaque. Build both release binaries together, then rehearse on Xvfb:
+
+```sh
+cargo build --release --locked --bin compust --example desktop_probe
+mkdir -p artifacts
+SECONDS_PER_PHASE=1 tools/features-check.sh artifacts/features-xvfb xrender
+```
+
+Each report directory must be new. This rehearsal starts Xvfb automatically and tests XRender only: Xvfb has no DRI3 and cannot qualify the GPU painter. The default selection, `both`, runs XRender followed by GL on the same dedicated server and compares their shadow and focus images pixel by pixel. It fails if GL never opened the GPU painter or fell back to XRender. `DESKTOP_DISPLAY` and `SERVER_PID` select an existing dedicated server, which the runner never stops; `XVFB` selects another Xvfb executable.
+
+For hardware, log into a text console such as Ctrl+Alt+F3 and run:
+
+```sh
+cd ~/compust
+env SESSION_OUTPUT=HDMI-1 startx "$PWD/tools/hardware-session.sh" artifacts/features-hardware --features -- :20
+```
+
+Choose a connected output and an unused display number as in the desktop procedure above. Omitting `SESSION_OUTPUT` selects the first connected output. No particular window manager is needed. Leave this session in the foreground until `Hardware session finished` appears; it returns to the console, and you can return to the usual desktop.
+
+The probe checks every shadow-scene pixel against an independent box-filter reference, including the window's unchanged interior, all four shadow edges, corners, and the white background. Checks and renderer comparisons allow two levels per RGB channel for rounding. Writing `_NET_ACTIVE_WINDOW` tests both focus directions, `NONE`, and the fallback after removing the property. Scene readiness follows X11 notifications with deadlines.
+
+The same full-screen opaque window alternates red and blue at a requested 60 updates per second in `composed` and `suspended`. A small dialog above it keeps composition active; removing it must unmap the overlay, stop Present completions and overlay Damage, and let drawing reach the root directly. Each state has two seconds of warmup and `SECONDS_PER_PHASE` seconds of measurement (1–30, default 10). Opening another dialog must recapture the content drawn during suspension; removing the full-screen window must restore the background. CPU is recorded separately for Compust, the server, and the probe, without a required saving threshold on short or software runs.
+
+Each painter's report includes `shadows.csv`, the shadow and focus PPM images, `fullscreen-resumed.ppm`, `fullscreen.csv`, `processes.csv`, `frames.csv`, topology and XRes snapshots, the exact configuration, logs, and successful SIGTERM shutdown evidence. GL writes a comparison CSV for each shadow and focus image. The root contains source patches and hashes, binary hashes, base commit and dirty state, CPU/server details, and timestamps. A rehearsal or fallback does not qualify hardware. The [recorded RX 9060 XT session](#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04) covers these fixtures with both painters on one AMD/XLibre display.
+
 ## Keep evidence attributable
 
 The report includes server extensions, output geometry, CPU model, kernel, Rust and window-manager versions, the exact configuration, process measurements, scene captures, logs, and executable hashes. `commit.txt` identifies the base revision; `worktree.txt`, `source.patch`, and `source-sha256.txt` record local changes. A dirty run must be described as that revision plus those changes, not as a clean test of the commit.
@@ -576,6 +603,24 @@ bspwm 0.9.12 sometimes keeps the tile of a window that no longer exists: one of 
 A first Xmonad session was started with `SESSION_OUTPUT=DP=2`. `xrandr` ignored the unknown name, and the script turned both outputs off, so the session ran on a 320×200 root with no active CRTC. Every scenario still passed there: Present completed once per second, and Compust logged its one-second recovery, "Present did not finish a submission; replacing its buffers", twice in the Present run and three times in the effects run. The [records](benchmarks/2026-10-04/desktop-rx9060xt/outputs-off/) keep that session as the only one with every output off, and the script now stops when the named output is not connected.
 
 These sessions use the probe's synthetic windows, one monitor, and ten-second phases. dwm, which this desktop's own session uses, has no private configuration in the runner, and physical hotplug, suspend and resume, and the GPU renderer were not part of them. With the same build in an ordinary session on this desktop, the frosted halo around Brave's right-click menus was gone, as the [weighted blur](ROADMAP.md#everyday-usability-per-window-rules-and-weighted-blur) intends; that check was by eye and has no record.
+
+## Recorded shadows, focus, and fullscreen suspension (2026-10-04)
+
+The dedicated feature probe passed in XRender and GL on the AMD Ryzen 5 5600X / Radeon RX 9060 XT desktop, with XLibre 25.1.9, Linux 7.2.8-arch1-1, modesetting with glamor and TearFree, and radeonsi. DP-2 alone was enabled at 1920×1080 and 60 Hz, depth 24; HDMI-1 was connected but disabled. There was no window manager: the probe controlled `_NET_ACTIVE_WINDOW` itself. The [archive](benchmarks/2026-10-04/features-rx9060xt/README.md) identifies the configuration, base `1969270257af37c092bad5d440d86ea74e680c01` plus recorded local changes, source and executable hashes, logs, and captures. The hashes matched the tested local files when the record was collected.
+
+All 2,073,600 pixels in each shadow scene passed the independent reference within one RGB level, below the tolerance of two. XRender differed in 40 pixels and GL in 25. The [comparison between painters](benchmarks/2026-10-04/features-rx9060xt/features/gl/shadows-comparison.csv) found 45 differing pixels, also by at most one level. Both focus images were identical between painters; focus in both directions, `NONE`, and the absent-property fallback passed. The GL [compositor log](benchmarks/2026-10-04/features-rx9060xt/features/gl/compust.log) confirms the RX 9060 XT GPU painter without XRender fallback. The archived PNG captures preserve every RGB pixel of the original PPMs and were inspected visually.
+
+Each measured phase lasted ten seconds after two seconds of warmup and requested 600 full-window redraws at 60 per second. Both composed phases recorded 600 Present completions and 600 overlay Damage events; both suspended phases recorded zero. The popup resumed composition, the new capture showed what was drawn while suspended, and removing the cover restored the background. Both compositor processes exited successfully after SIGTERM.
+
+| Painter | State | Compust CPU | X server CPU | Compust RSS before/after |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-04/features-rx9060xt/features/xrender/processes.csv) | Composed | 0.3% | 1.9% | 4,236 / 4,236 KiB |
+| XRender | Suspended | 0.0% | 1.0% | 4,236 / 4,236 KiB |
+| [GL](benchmarks/2026-10-04/features-rx9060xt/features/gl/processes.csv) | Composed | 0.6% | 1.4% | 71,112 / 71,112 KiB |
+| GL | Suspended | 0.0% | 1.1% | 71,112 / 71,112 KiB |
+
+CPU percentages use one core. At 100 accounting ticks per second, one tick over ten seconds is 0.1 percentage point; zero means no accumulated Compust ticks in that interval. RSS was unchanged during each measured phase. This record covers short synthetic fixtures on one display. Real fullscreen applications, window-manager focus behavior, other drivers and servers, multiple active monitors, shadow performance, and long-duration resource stability still require their own records.
+
 
 ## Complete the hardware gates
 

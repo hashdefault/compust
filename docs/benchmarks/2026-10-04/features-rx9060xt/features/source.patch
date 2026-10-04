@@ -1,0 +1,881 @@
+diff --git a/examples/desktop/pixels.rs b/examples/desktop/pixels.rs
+index c644837..bf2b73c 100644
+--- a/examples/desktop/pixels.rs
++++ b/examples/desktop/pixels.rs
+@@ -12,11 +12,19 @@ use x11rb::{
+ 
+ impl Surface {
+     pub(in super::super) fn pixel(&self, point: (i16, i16)) -> Result<u32> {
++        self.pixel_of(self.overlay, point)
++    }
++
++    pub(in super::super) fn screen_pixel(&self, point: (i16, i16)) -> Result<u32> {
++        self.pixel_of(self.root, point)
++    }
++
++    fn pixel_of(&self, drawable: u32, point: (i16, i16)) -> Result<u32> {
+         let image = self
+             .conn
+             .get_image(
+                 ImageFormat::Z_PIXMAP,
+-                self.overlay,
++                drawable,
+                 point.0,
+                 point.1,
+                 1,
+diff --git a/examples/desktop_probe.rs b/examples/desktop_probe.rs
+index b9e6f17..56bd0ea 100644
+--- a/examples/desktop_probe.rs
++++ b/examples/desktop_probe.rs
+@@ -1,5 +1,7 @@
+ #[path = "desktop/bench.rs"]
+ mod bench;
++#[path = "desktop/features.rs"]
++mod features;
+ #[path = "desktop/hotplug.rs"]
+ mod hotplug;
+ #[path = "desktop/metrics.rs"]
+@@ -76,6 +78,8 @@ struct Args {
+     /// screen to this PPM file, to compare renderers. It needs no window manager.
+     #[arg(long, conflicts_with = "bench")]
+     snapshot: Option<PathBuf>,
++    #[command(flatten)]
++    features: features::Options,
+ }
+ 
+ #[derive(Clone, Copy, ValueEnum)]
+@@ -88,7 +92,7 @@ fn main() -> Result<()> {
+     let args = Args::parse();
+     let surface = Surface::connect(
+         &args.display,
+-        args.bench.is_none() && args.snapshot.is_none(),
++        args.bench.is_none() && args.snapshot.is_none() && !args.features.enabled,
+     )?;
+     println!(
+         "vendor={} release={} geometry={}x{} depth=24",
+@@ -99,6 +103,9 @@ fn main() -> Result<()> {
+     );
+     let mut processes = args.process.clone();
+     processes.push(Process::probe());
++    if args.features.enabled {
++        return features::run(&surface, &args, &processes);
++    }
+     if let Some(scene) = args.bench {
+         return bench::run(&surface, &args, scene, &processes);
+     }
+diff --git a/tools/hardware-session.sh b/tools/hardware-session.sh
+index 86bb88f..70db2ec 100755
+--- a/tools/hardware-session.sh
++++ b/tools/hardware-session.sh
+@@ -1,14 +1,15 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+-usage="Usage: startx \"\$PWD/tools/hardware-session.sh\" NEW_REPORT_ROOT -- :1"
++usage="Usage: startx \"\$PWD/tools/hardware-session.sh\" NEW_REPORT_ROOT [--features] -- :1"
+ if [[ ${1:-} == --help ]]; then
+     printf '%s\n' "$usage"
+     printf 'Run the present, direct, and effects desktop checks as the client of a dedicated\n'
+     printf 'X session. SESSION_OUTPUT selects the one output left enabled. Build release binaries first.\n'
++    printf 'With --features, check shadows, focus, and fullscreen suspension in XRender and GL instead.\n'
+     exit 0
+ fi
+-if (( $# != 1 )); then
++if (( $# < 1 || $# > 2 )) || { (( $# == 2 )) && [[ $2 != --features ]]; }; then
+     printf '%s\n' "$usage" >&2
+     exit 2
+ fi
+@@ -54,14 +55,20 @@ fi
+ xset s off s noblank -dpms
+ 
+ status=0
+-for mode in present direct effects; do
+-    if DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/desktop-check.sh "$root/$mode" "$mode"; then
+-        printf '%s: passed\n' "$mode"
+-    else
+-        printf '%s: failed\n' "$mode"
++if [[ ${2:-} == --features ]]; then
++    if ! DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/features-check.sh "$root/features" both; then
+         status=1
+     fi
+-done
++else
++    for mode in present direct effects; do
++        if DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/desktop-check.sh "$root/$mode" "$mode"; then
++            printf '%s: passed\n' "$mode"
++        else
++            printf '%s: failed\n' "$mode"
++            status=1
++        fi
++    done
++fi
+ number=${DISPLAY#*:}
+ number=${number%%.*}
+ for log in "$HOME/.local/share/xorg/Xorg.$number.log" "/var/log/Xorg.$number.log"; do
+diff --git a/examples/desktop/features.rs b/examples/desktop/features.rs
+new file mode 100644
+index 0000000..aecf1bb
+--- /dev/null
++++ b/examples/desktop/features.rs
+@@ -0,0 +1,131 @@
++#[path = "features/fullscreen.rs"]
++mod fullscreen;
++#[path = "features/scene.rs"]
++mod scene;
++#[path = "features/shadows.rs"]
++mod shadows;
++
++use crate::{Args, metrics::Process, surface::Surface, topology};
++use anyhow::{Result, ensure};
++use scene::{RED, WHITE, activate, create, typed};
++use x11rb::{
++    NONE,
++    protocol::xproto::{
++        AtomEnum, ChangeWindowAttributesAux, ConnectionExt as _, EventMask, PropMode, Rectangle,
++    },
++    wrapper::ConnectionExt as _,
++};
++
++#[derive(clap::Args)]
++pub(super) struct Options {
++    /// Check shadows, focus rules, and fullscreen suspension without a window manager.
++    /// Use tools/desktop/compust-features.toml and label the compositor 'compust'.
++    #[arg(long = "features", conflicts_with_all = ["bench", "snapshot", "hotplug"])]
++    pub(super) enabled: bool,
++    /// Compare the feature scene images with a previous renderer's report directory.
++    #[arg(long, requires = "enabled")]
++    pub(super) reference: Option<std::path::PathBuf>,
++}
++
++pub(super) fn run(surface: &Surface, args: &Args, processes: &[Process]) -> Result<()> {
++    ensure!(
++        surface.width >= 320 && surface.height >= 240,
++        "feature scenes require at least 320x240"
++    );
++    ensure!(
++        surface
++            .property(surface.root, "_NET_SUPPORTING_WM_CHECK")?
++            .is_none(),
++        "feature scenes require an isolated display without a window manager"
++    );
++    surface
++        .conn
++        .change_window_attributes(
++            surface.overlay,
++            &ChangeWindowAttributesAux::new().event_mask(EventMask::STRUCTURE_NOTIFY),
++        )?
++        .check()?;
++    surface
++        .conn
++        .delete_property(surface.root, surface.atom("_NET_ACTIVE_WINDOW")?)?
++        .check()?;
++    topology::capture(surface, &args.output)?;
++    let paper = create(
++        surface,
++        Rectangle {
++            x: 0,
++            y: 0,
++            width: surface.width,
++            height: surface.height,
++        },
++        WHITE,
++    )?;
++    typed(surface, paper, "_NET_WM_WINDOW_TYPE_DESKTOP")?;
++    surface.conn.map_window(paper)?.check()?;
++    shadows::check(surface, args)?;
++    focus(surface, args)?;
++    fullscreen::check(surface, args, processes)?;
++    topology::resources(surface, &args.output, true)?;
++    println!("PASS: shadow pixels, focus rules, fullscreen suspension and resume");
++    Ok(())
++}
++
++fn focus(surface: &Surface, args: &Args) -> Result<()> {
++    let mut windows = Vec::with_capacity(2);
++    for x in [20, 160] {
++        let window = create(
++            surface,
++            Rectangle {
++                x,
++                y: 20,
++                width: 100,
++                height: 100,
++            },
++            RED,
++        )?;
++        surface
++            .conn
++            .change_property8(
++                PropMode::REPLACE,
++                window,
++                AtomEnum::WM_CLASS,
++                AtomEnum::STRING,
++                b"compust-feature\0CompustFeatureFocus\0",
++            )?
++            .check()?;
++        surface.conn.map_window(window)?.check()?;
++        windows.push(window);
++    }
++    let check = |left, right| {
++        surface.until("focus rule pixels", || {
++            Ok(scene::near(surface.pixel((70, 70))?, left)
++                && scene::near(surface.pixel((210, 70))?, right))
++        })
++    };
++    check(RED, RED)?;
++    for (index, name, colors) in [
++        (0, "focus-left", (RED, 0x00ff_7f7f)),
++        (1, "focus-right", (0x00ff_7f7f, RED)),
++    ] {
++        activate(
++            surface,
++            *windows
++                .get(index)
++                .ok_or_else(|| anyhow::anyhow!("missing focus window"))?,
++        )?;
++        check(colors.0, colors.1)?;
++        shadows::snapshot(surface, args, name)?;
++    }
++    activate(surface, NONE)?;
++    check(0x00ff_7f7f, 0x00ff_7f7f)?;
++    surface
++        .conn
++        .delete_property(surface.root, surface.atom("_NET_ACTIVE_WINDOW")?)?
++        .check()?;
++    check(RED, RED)?;
++    for window in windows {
++        surface.conn.destroy_window(window)?.check()?;
++    }
++    println!("PASS: focus switches, no active window, absent active-window property");
++    Ok(())
++}
+diff --git a/examples/desktop/features/fullscreen.rs b/examples/desktop/features/fullscreen.rs
+new file mode 100644
+index 0000000..5868fb8
+--- /dev/null
++++ b/examples/desktop/features/fullscreen.rs
+@@ -0,0 +1,217 @@
++use super::scene::{BLUE, GREEN, WHITE, activate, create, suspended, typed, wait_state};
++use crate::{
++    Args, Presentation,
++    metrics::{Process, Snapshot},
++    run_phase,
++    surface::Surface,
++};
++use anyhow::{Result, ensure};
++use std::{
++    fs::File,
++    io::{BufWriter, Write},
++    time::{Duration, Instant},
++};
++use x11rb::{
++    NONE,
++    protocol::{
++        Event,
++        present::CompleteKind,
++        xproto::{ConnectionExt as _, Rectangle},
++    },
++};
++
++pub(super) fn check(surface: &Surface, args: &Args, processes: &[Process]) -> Result<()> {
++    let full = create(
++        surface,
++        Rectangle {
++            x: 0,
++            y: 0,
++            width: surface.width,
++            height: surface.height,
++        },
++        BLUE,
++    )?;
++    activate(surface, full)?;
++    surface.conn.map_window(full)?.check()?;
++    wait_state(surface, true)?;
++    ensure!(
++        surface.screen_pixel((160, 120))? == BLUE,
++        "fullscreen window is not visible directly"
++    );
++    let popup = create(
++        surface,
++        Rectangle {
++            x: 20,
++            y: 20,
++            width: 60,
++            height: 40,
++        },
++        GREEN,
++    )?;
++    typed(surface, popup, "_NET_WM_WINDOW_TYPE_DIALOG")?;
++    surface.conn.map_window(popup)?.check()?;
++    wait_state(surface, false)?;
++    surface.until("popup restores compositing", || {
++        Ok(surface.pixel((40, 40))? == GREEN && surface.pixel((160, 120))? == BLUE)
++    })?;
++    let mut frames = BufWriter::new(File::create(args.output.join("frames.csv"))?);
++    writeln!(frames, "phase,serial,ust_us,msc,mode")?;
++    let mut cpu = BufWriter::new(File::create(args.output.join("processes.csv"))?);
++    writeln!(
++        cpu,
++        "phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib"
++    )?;
++    let mut phases = File::create(args.output.join("fullscreen.csv"))?;
++    writeln!(
++        phases,
++        "phase,seconds,updates,present_completions,overlay_damage,suspended"
++    )?;
++    let scene = Fullscreen {
++        surface,
++        window: full,
++        args,
++        processes,
++    };
++    let mut records = Records {
++        frames,
++        cpu,
++        phases,
++    };
++    for state in [false, true] {
++        if state {
++            surface.conn.destroy_window(popup)?.check()?;
++            wait_state(surface, true)?;
++        }
++        scene.measure(state, &mut records)?;
++    }
++    surface.paint(full, GREEN)?;
++    ensure!(
++        surface.screen_pixel((160, 120))? == GREEN,
++        "unredirected redraw did not reach the root"
++    );
++    let popup = create(
++        surface,
++        Rectangle {
++            x: 20,
++            y: 20,
++            width: 60,
++            height: 40,
++        },
++        BLUE,
++    )?;
++    typed(surface, popup, "_NET_WM_WINDOW_TYPE_DIALOG")?;
++    surface.conn.map_window(popup)?.check()?;
++    wait_state(surface, false)?;
++    surface.until("recapture after suspension", || {
++        Ok(surface.pixel((160, 120))? == GREEN && surface.pixel((40, 40))? == BLUE)
++    })?;
++    surface.screenshot(&args.output.join("fullscreen-resumed.ppm"))?;
++    surface.conn.destroy_window(full)?.check()?;
++    surface.until("fullscreen removal", || {
++        Ok(surface.pixel((160, 120))? == WHITE)
++    })?;
++    surface.conn.destroy_window(popup)?.check()?;
++    activate(surface, NONE)?;
++    wait_state(surface, true)?;
++    records.frames.flush()?;
++    records.cpu.flush()?;
++    println!("PASS: fullscreen suspension, popup resume, fresh recapture, cover removal");
++    Ok(())
++}
++
++struct Records {
++    frames: BufWriter<File>,
++    cpu: BufWriter<File>,
++    phases: File,
++}
++
++struct Fullscreen<'a> {
++    surface: &'a Surface,
++    window: u32,
++    args: &'a Args,
++    processes: &'a [Process],
++}
++
++impl Fullscreen<'_> {
++    fn measure(&self, state: bool, records: &mut Records) -> Result<()> {
++        let Self {
++            surface,
++            window,
++            args,
++            processes,
++        } = *self;
++        run_phase(surface, window, Duration::from_secs(2), |_| Ok(()))?;
++        ensure!(
++            suspended(surface)? == state,
++            "overlay state changed during warmup"
++        );
++        while surface.poll_event()?.is_some() {}
++        let before = Snapshot::read(processes)?;
++        let started = Instant::now();
++        let mut completions = 0_u32;
++        let mut damage = 0_u32;
++        let phase = if state { "suspended" } else { "composed" };
++        let updates = run_phase(
++            surface,
++            window,
++            Duration::from_secs(u64::from(args.seconds)),
++            |event| {
++                match event {
++                    Event::PresentCompleteNotify(event)
++                        if event.event == surface.present && event.kind == CompleteKind::PIXMAP =>
++                    {
++                        completions += 1;
++                        writeln!(
++                            records.frames,
++                            "{phase},{},{},{},{:?}",
++                            event.serial, event.ust, event.msc, event.mode
++                        )?;
++                    }
++                    Event::DamageNotify(event) if event.drawable == surface.overlay => damage += 1,
++                    Event::MapNotify(event) if state && event.window == surface.overlay => {
++                        anyhow::bail!("overlay mapped during suspension")
++                    }
++                    Event::UnmapNotify(event) if !state && event.window == surface.overlay => {
++                        anyhow::bail!("overlay unmapped during compositing")
++                    }
++                    _ => {}
++                }
++                Ok(())
++            },
++        )?;
++        let elapsed = started.elapsed();
++        before.write_delta(
++            &Snapshot::read(processes)?,
++            phase,
++            elapsed,
++            &mut records.cpu,
++        )?;
++        ensure!(
++            suspended(surface)? == state,
++            "overlay changed state during {phase}"
++        );
++        if state {
++            ensure!(
++                completions == 0 && damage == 0,
++                "compositor kept rendering while suspended"
++            );
++        } else {
++            match args.presentation {
++                Presentation::Present => {
++                    ensure!(completions > 1, "no usable Present samples while composed");
++                }
++                Presentation::Direct => ensure!(
++                    completions == 0 && damage > 1,
++                    "direct copying lacks redraws or used Present"
++                ),
++            }
++        }
++        writeln!(
++            records.phases,
++            "{phase},{:.6},{updates},{completions},{damage},{state}",
++            elapsed.as_secs_f64()
++        )?;
++        println!("phase={phase} updates={updates} completions={completions} damage={damage}");
++        Ok(())
++    }
++}
+diff --git a/examples/desktop/features/scene.rs b/examples/desktop/features/scene.rs
+new file mode 100644
+index 0000000..ce3f681
+--- /dev/null
++++ b/examples/desktop/features/scene.rs
+@@ -0,0 +1,93 @@
++use crate::surface::Surface;
++use anyhow::Result;
++use x11rb::{
++    COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT,
++    connection::Connection as _,
++    protocol::xproto::{
++        AtomEnum, ConnectionExt as _, CreateWindowAux, MapState, PropMode, Rectangle, WindowClass,
++    },
++    wrapper::ConnectionExt as _,
++};
++
++pub(super) const WHITE: u32 = 0x00ff_ffff;
++pub(super) const RED: u32 = 0x00ff_0000;
++pub(super) const BLUE: u32 = 0x0000_00ff;
++pub(super) const GREEN: u32 = 0x0000_ff00;
++
++pub(super) fn create(surface: &Surface, area: Rectangle, color: u32) -> Result<u32> {
++    let window = surface.conn.generate_id()?;
++    surface
++        .conn
++        .create_window(
++            COPY_DEPTH_FROM_PARENT,
++            window,
++            surface.root,
++            area.x,
++            area.y,
++            area.width,
++            area.height,
++            0,
++            WindowClass::INPUT_OUTPUT,
++            COPY_FROM_PARENT,
++            &CreateWindowAux::new()
++                .background_pixel(color)
++                .override_redirect(1),
++        )?
++        .check()?;
++    typed(surface, window, "_NET_WM_WINDOW_TYPE_NORMAL")?;
++    Ok(window)
++}
++
++pub(super) fn typed(surface: &Surface, window: u32, name: &str) -> Result<()> {
++    surface
++        .conn
++        .change_property32(
++            PropMode::REPLACE,
++            window,
++            surface.atom("_NET_WM_WINDOW_TYPE")?,
++            AtomEnum::ATOM,
++            &[surface.atom(name)?],
++        )?
++        .check()?;
++    Ok(())
++}
++
++pub(super) fn activate(surface: &Surface, window: u32) -> Result<()> {
++    surface
++        .conn
++        .change_property32(
++            PropMode::REPLACE,
++            surface.root,
++            surface.atom("_NET_ACTIVE_WINDOW")?,
++            AtomEnum::WINDOW,
++            &[window],
++        )?
++        .check()?;
++    Ok(())
++}
++
++pub(super) fn suspended(surface: &Surface) -> Result<bool> {
++    Ok(surface
++        .conn
++        .get_window_attributes(surface.overlay)?
++        .reply()?
++        .map_state
++        == MapState::UNMAPPED)
++}
++
++pub(super) fn wait_state(surface: &Surface, state: bool) -> Result<()> {
++    surface.until(
++        if state {
++            "fullscreen suspension"
++        } else {
++            "compositing resumed"
++        },
++        || Ok(suspended(surface)? == state),
++    )
++}
++
++pub(super) fn near(pixel: u32, expected: u32) -> bool {
++    [16, 8, 0]
++        .into_iter()
++        .all(|shift| ((pixel >> shift) & 255).abs_diff((expected >> shift) & 255) <= 2)
++}
+diff --git a/examples/desktop/features/shadows.rs b/examples/desktop/features/shadows.rs
+new file mode 100644
+index 0000000..6e71da3
+--- /dev/null
++++ b/examples/desktop/features/shadows.rs
+@@ -0,0 +1,153 @@
++use super::scene::{RED, create, near, wait_state};
++use crate::{Args, surface::Surface};
++use anyhow::{Context, Result, ensure};
++use std::{fs::File, io::Write, path::Path};
++use x11rb::protocol::xproto::{ConnectionExt as _, Rectangle};
++
++// Golden cumulative coverage of three width-9 box filters, normalized by 9^3. The
++// radius-12 shadow uses this ramp at each edge of a 100-pixel rectangle. This is
++// independent of the compositor's profile implementation and its renderer.
++const EDGE: [u8; 25] = [
++    0, 1, 3, 7, 12, 20, 29, 42, 58, 76, 96, 117, 138, 159, 179, 197, 213, 226, 235, 243, 248, 252,
++    254, 255, 255,
++];
++
++pub(super) fn check(surface: &Surface, args: &Args) -> Result<()> {
++    let window = create(
++        surface,
++        Rectangle {
++            x: 100,
++            y: 60,
++            width: 100,
++            height: 100,
++        },
++        RED,
++    )?;
++    surface.conn.map_window(window)?.check()?;
++    wait_state(surface, false)?;
++    surface.until("shadow fixture", || {
++        Ok(surface.pixel((150, 110))? == RED && near(surface.pixel((203, 110))?, 0x0075_7575))
++    })?;
++    snapshot(surface, args, "shadows")?;
++    let bytes = image(&args.output.join("shadows.ppm"), surface)?;
++    let mut maximum = 0_u8;
++    let mut differing = 0_u64;
++    for (index, actual) in bytes.chunks_exact(3).enumerate() {
++        let x = i32::try_from(index % usize::from(surface.width))?;
++        let y = i32::try_from(index / usize::from(surface.width))?;
++        let expected = expected(x, y)?;
++        let delta = actual
++            .iter()
++            .zip(expected)
++            .map(|(a, e)| a.abs_diff(e))
++            .max()
++            .unwrap_or(0);
++        ensure!(
++            delta <= 2,
++            "shadow pixel ({x},{y}) is {actual:?}, expected {expected:?}"
++        );
++        maximum = maximum.max(delta);
++        differing += u64::from(delta != 0);
++    }
++    let mut report = File::create(args.output.join("shadows.csv"))?;
++    writeln!(
++        report,
++        "pixels_checked,differing_pixels,max_channel_delta,tolerance"
++    )?;
++    writeln!(report, "{},{differing},{maximum},2", bytes.len() / 3)?;
++    surface.conn.destroy_window(window)?.check()?;
++    println!(
++        "PASS: {} shadow scene pixels, max channel delta={maximum}",
++        bytes.len() / 3
++    );
++    Ok(())
++}
++
++fn coverage(position: i32) -> Result<u8> {
++    if !(0..124).contains(&position) {
++        return Ok(0);
++    }
++    let edge = position.min(123 - position);
++    Ok(EDGE.get(usize::try_from(edge)?).copied().unwrap_or(255))
++}
++
++fn expected(x: i32, y: i32) -> Result<[u8; 3]> {
++    if (100..200).contains(&x) && (60..160).contains(&y) {
++        return Ok([255, 0, 0]);
++    }
++    let alpha = (u32::from(coverage(x - 92)?) * u32::from(coverage(y - 54)?) + 127) / 255;
++    Ok([u8::try_from(255 - alpha)?; 3])
++}
++
++pub(super) fn snapshot(surface: &Surface, args: &Args, name: &str) -> Result<()> {
++    let path = args.output.join(format!("{name}.ppm"));
++    surface.screenshot(&path)?;
++    if let Some(reference) = &args.features.reference {
++        let reference = image(&reference.join(format!("{name}.ppm")), surface)?;
++        let actual = image(&path, surface)?;
++        let mut differing = 0_u64;
++        let mut maximum = 0_u8;
++        for (index, (actual, reference)) in actual
++            .chunks_exact(3)
++            .zip(reference.chunks_exact(3))
++            .enumerate()
++        {
++            let delta = actual
++                .iter()
++                .zip(reference)
++                .map(|(a, b)| a.abs_diff(*b))
++                .max()
++                .unwrap_or(0);
++            maximum = maximum.max(delta);
++            differing += u64::from(delta != 0);
++            ensure!(
++                delta <= 2,
++                "renderer difference in {name} at pixel {index}: {actual:?} vs {reference:?}"
++            );
++        }
++        let mut report = File::create(args.output.join(format!("{name}-comparison.csv")))?;
++        writeln!(
++            report,
++            "pixels_compared,differing_pixels,max_channel_delta,tolerance"
++        )?;
++        writeln!(report, "{},{differing},{maximum},2", actual.len() / 3)?;
++        println!("PASS: {name} renderer comparison, max channel delta={maximum}");
++    }
++    Ok(())
++}
++
++fn image(path: &Path, surface: &Surface) -> Result<Vec<u8>> {
++    let header = format!("P6\n{} {}\n255\n", surface.width, surface.height);
++    let image = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
++    let pixels = image
++        .strip_prefix(header.as_bytes())
++        .context("reference PPM geometry or format differs")?;
++    ensure!(
++        pixels.len() == usize::from(surface.width) * usize::from(surface.height) * 3,
++        "invalid PPM length"
++    );
++    Ok(pixels.to_vec())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn fixture_has_red_interior_and_offset_shadow_edges() -> Result<()> {
++        // Given the fixed red rectangle and white background, sample known edge values.
++        // When evaluating pixels beside its moved rectangle, the shadow follows both axes.
++        for (point, value) in [
++            ((200, 110), 58),
++            ((203, 110), 117),
++            ((150, 160), 29),
++            ((205, 165), 203),
++            ((216, 110), 255),
++        ] {
++            // Then the independent golden samples match the mathematical box-filter result.
++            assert_eq!(expected(point.0, point.1)?, [value; 3]);
++        }
++        assert_eq!(expected(150, 110)?, [255, 0, 0]);
++        Ok(())
++    }
++}
+diff --git a/tools/desktop/compust-features.toml b/tools/desktop/compust-features.toml
+new file mode 100644
+index 0000000..56da7bf
+--- /dev/null
++++ b/tools/desktop/compust-features.toml
+@@ -0,0 +1,20 @@
++opacity = 100
++fade_ms = 0
++blur_radius = 0
++max_fps = 120
++vsync = true
++shadow_radius = 12
++shadow_offset_x = 4
++shadow_offset_y = 6
++shadow_opacity = 100
++unredirect_fullscreen = true
++
++[[rules]]
++wm_class = "CompustFeatureFocus"
++focused = false
++opacity = 50
++shadow = false
++
++[[rules]]
++wm_class = "CompustFeatureFocus"
++shadow = false
+diff --git a/tools/features-check.sh b/tools/features-check.sh
+new file mode 100755
+index 0000000..4c781d2
+--- /dev/null
++++ b/tools/features-check.sh
+@@ -0,0 +1,117 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++usage='Usage: tools/features-check.sh NEW_REPORT_ROOT [both|xrender]'
++if [[ ${1:-} == --help ]]; then
++    printf '%s\n' "$usage"
++    printf 'Check shadow pixels, focus rules, and fullscreen suspension without a window manager.\n'
++    printf 'Build release binaries first. Both renderers are required by default.\n'
++    printf 'Use xrender for an Xvfb rehearsal; Xvfb cannot provide DRI3 for the GPU painter.\n'
++    printf 'DESKTOP_DISPLAY and SERVER_PID select an existing dedicated X server.\n'
++    exit 0
++fi
++if (( $# < 1 || $# > 2 )); then
++    printf '%s\n' "$usage" >&2
++    exit 2
++fi
++case ${2:-both} in
++    both) backends=(xrender gl) ;;
++    xrender) backends=(xrender) ;;
++    *) printf 'Unknown renderer selection: %s\n' "$2" >&2; exit 2 ;;
++esac
++if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
++    printf 'SERVER_PID must identify the X server of DESKTOP_DISPLAY.\n' >&2
++    exit 2
++fi
++root=$(realpath -m -- "$1")
++cd -- "$(dirname -- "$(realpath -- "$0")")/.."
++mkdir -- "$root"
++work=$(mktemp -d /tmp/compust-features.XXXXXX)
++pids=()
++cleanup() {
++    local pid
++    for pid in "${pids[@]}"; do
++        if kill -0 "$pid" 2>/dev/null; then
++            kill -TERM "$pid" || true
++        fi
++        wait "$pid" || true
++    done
++}
++trap cleanup EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
++
++if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
++    export DISPLAY=$DESKTOP_DISPLAY
++    server_pid=$SERVER_PID
++    servers=()
++else
++    mkfifo "$work/display"
++    exec {server_ready}<>"$work/display"
++    "${XVFB:-Xvfb}" -displayfd 3 -screen 0 1280x800x24 -nolisten tcp -noreset \
++        3>&"$server_ready" >"$root/xvfb.log" 2>&1 &
++    server_pid=$!
++    pids=("$server_pid")
++    IFS= read -r -t 10 -u "$server_ready" server_display
++    exec {server_ready}>&-
++    export DISPLAY=":$server_display"
++    servers=("$(command -v "${XVFB:-Xvfb}")")
++fi
++xdpyinfo >"$root/server.txt"
++xrandr --current >"$root/outputs.txt"
++xrandr --listproviders >"$root/providers.txt"
++ps -o pid=,args= -p "$server_pid" >"$root/server-process.txt"
++sources=(src crates examples tools Cargo.toml Cargo.lock rust-toolchain.toml)
++git rev-parse HEAD >"$root/commit.txt"
++git status --short >"$root/worktree.txt"
++{
++    git diff HEAD -- "${sources[@]}"
++    while IFS= read -r -d '' file; do
++        git diff --no-index -- /dev/null "$file" || [[ $? == 1 ]]
++    done < <(git ls-files -z --others --exclude-standard -- "${sources[@]}")
++} >"$root/source.patch"
++git ls-files -z --cached --others --exclude-standard -- "${sources[@]}" \
++    | xargs -0 sha256sum >"$root/source-sha256.txt"
++sha256sum target/release/compust target/release/examples/desktop_probe "${servers[@]}" >"$root/binaries.txt"
++uname -srmo >"$root/kernel.txt"
++date -Is >"$root/started.txt"
++lscpu >"$root/cpu.txt"
++rustc --version >"$root/rust-version.txt"
++
++for backend in "${backends[@]}"; do
++    report="$root/$backend"
++    mkdir -- "$report"
++    {
++        printf 'backend = "%s"\n' "$backend"
++        cat tools/desktop/compust-features.toml
++    } >"$report/compust.toml"
++    RUST_LOG=compust=info target/release/compust --display "$DISPLAY" --config "$report/compust.toml" \
++        >"$report/compust.log" 2>&1 &
++    compositor_pid=$!
++    pids=("$compositor_pid" "${pids[@]}")
++    reference=()
++    if [[ $backend == gl ]]; then
++        reference=(--reference "$root/xrender")
++    fi
++    if timeout 180s target/release/examples/desktop_probe --display "$DISPLAY" --features \
++        --process "compust:$compositor_pid" --process "server:$server_pid" \
++        --seconds "${SECONDS_PER_PHASE:-10}" --output "$report" "${reference[@]}" \
++        >"$report/probe.log" 2>&1; then
++        if [[ $backend == gl ]] && { ! grep -Fq 'drawing with the GPU' "$report/compust.log" \
++            || grep -Eq 'drawing with XRender|continuing with XRender' "$report/compust.log"; }; then
++            printf 'GPU check failed: Compust used XRender. See %s/compust.log\n' "$report" >&2
++            exit 1
++        fi
++    else
++        printf 'Feature checks failed: %s\n' "$report" >&2
++        tail -n 20 "$report/probe.log" >&2
++        exit 1
++    fi
++    kill -TERM "$compositor_pid"
++    wait "$compositor_pid"
++    pids=("${pids[@]:1}")
++    printf 'Compositor exited successfully after SIGTERM.\n' >"$report/shutdown.txt"
++    printf '%s: feature checks passed\n' "$backend"
++done
++date -Is >"$root/finished.txt"
++printf 'Feature checks passed: %s\n' "$root"
