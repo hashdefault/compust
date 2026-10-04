@@ -84,6 +84,54 @@ fn fills_and_composites_at_an_opacity_from_the_top_left() -> Result<()> {
 }
 
 #[test]
+fn shadows_darken_by_the_product_of_two_profiles() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    shades(&gpu)
+}
+
+#[test]
+fn a_render_node_draws_shadows_as_the_software_device_does() -> Result<()> {
+    let Some(gpu) = hardware()? else {
+        return Ok(());
+    };
+    shades(&gpu)
+}
+
+/// Given a white target and a shadow three pixels wide and two high at (2, 1), each pixel
+/// darkens by its column's value times its row's times the strength, and only in the clip.
+fn shades(gpu: &Gpu) -> Result<()> {
+    let target = painted(gpu, (6, 5), &[([1.0; 4], rect(0, 0, 6, 5))])?;
+    let across = gpu.alpha(3, 1, &[255, 128, 0])?;
+    let down = gpu.alpha(1, 2, &[255, 64])?;
+    gpu.frame(&target)?
+        .shade((&across, &down), (2, 1), 0.5, &[rect(2, 1, 3, 2)])?;
+    gpu.flush()?;
+    let pixels = gpu.read(&target, rect(0, 0, 6, 5))?;
+    for (point, expected) in [
+        ((2, 1), 127..=128),
+        ((3, 1), 190..=192),
+        ((4, 1), 255..=255),
+        ((2, 2), 222..=224),
+        ((3, 2), 238..=240),
+        ((1, 1), 255..=255),
+        ((2, 0), 255..=255),
+        ((2, 3), 255..=255),
+        ((5, 2), 255..=255),
+    ] {
+        let [r, g, b, a] = pixel(&pixels, 6, point)?;
+        assert!(
+            expected.contains(&r) && r == g && g == b,
+            "{point:?}: {r} {g} {b}"
+        );
+        assert_eq!(a, 255, "{point:?}");
+    }
+    assert!(gpu.alpha(3, 2, &[0; 5]).is_err());
+    Ok(())
+}
+
+#[test]
 fn scaled_draws_sample_between_texels_as_the_blur_pyramid_does() -> Result<()> {
     let Some(gpu) = software()? else {
         return Ok(());
@@ -265,8 +313,8 @@ fn imported_dma_bufs_show_their_buffer() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn a_render_node_opens_its_gpu() -> Result<()> {
+/// The GPU behind this machine's first DRM render node, or `None` with a note without one.
+fn hardware() -> Result<Option<Gpu>> {
     use std::os::unix::fs::MetadataExt as _;
     let Some(node) = std::fs::read_dir("/dev/dri")
         .into_iter()
@@ -275,12 +323,20 @@ fn a_render_node_opens_its_gpu() -> Result<()> {
         .find(|entry| entry.file_name().to_string_lossy().starts_with("renderD"))
     else {
         eprintln!("skipping: no DRM render node");
-        return Ok(());
+        return Ok(None);
     };
     let number = node.metadata()?.rdev();
     let gpu = Gpu::open(Device::Drm(number))
         .with_context(|| format!("opening {}", node.path().display()))?;
     eprintln!("{}: {}", node.path().display(), gpu.renderer()?);
+    Ok(Some(gpu))
+}
+
+#[test]
+fn a_render_node_opens_its_gpu() -> Result<()> {
+    let Some(gpu) = hardware()? else {
+        return Ok(());
+    };
     let target = painted(&gpu, (2, 2), &[([0.0, 1.0, 0.0, 1.0], rect(0, 0, 2, 2))])?;
     gpu.flush()?;
     let pixels = gpu.read(&target, rect(0, 0, 2, 2))?;

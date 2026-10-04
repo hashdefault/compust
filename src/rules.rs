@@ -15,6 +15,7 @@ pub(crate) struct Rule {
     opacity: Option<u8>,
     blur: Option<bool>,
     fade_ms: Option<u16>,
+    shadow: Option<bool>,
 }
 
 /// The EWMH window types, named after their `_NET_WM_WINDOW_TYPE_` suffixes.
@@ -55,6 +56,16 @@ impl WindowType {
         (Self::Dnd, "_NET_WM_WINDOW_TYPE_DND"),
         (Self::Normal, "_NET_WM_WINDOW_TYPE_NORMAL"),
     ];
+
+    /// Whether windows of this type cast a shadow unless a rule says otherwise: those that
+    /// stand on the desktop as windows do. Desktops and docks are part of it, and menus,
+    /// tooltips, and the like are drawn by toolkits that often shade them themselves.
+    pub(crate) fn casts_shadow(self) -> bool {
+        matches!(
+            self,
+            Self::Normal | Self::Dialog | Self::Utility | Self::Splash | Self::Toolbar
+        )
+    }
 }
 
 /// What rules match on, read from a window's client. A missing or malformed class or title
@@ -67,6 +78,9 @@ pub(crate) struct Identity {
     /// window, and `normal` otherwise.
     pub(crate) window_type: WindowType,
     pub(crate) name: Option<String>,
+    /// Whether the window casts a shadow unless a rule says otherwise: its type does, and
+    /// the client draws none itself.
+    pub(crate) shadow: bool,
 }
 
 /// The settings rules give one window; `None` keeps the global value.
@@ -75,6 +89,7 @@ pub(crate) struct Overrides {
     pub(crate) opacity: Option<u8>,
     pub(crate) blur: Option<bool>,
     pub(crate) fade_ms: Option<u16>,
+    pub(crate) shadow: Option<bool>,
 }
 
 impl Rule {
@@ -86,8 +101,11 @@ impl Rule {
             "rule {number} needs wm_class, window_type, or name"
         );
         ensure!(
-            self.opacity.is_some() || self.blur.is_some() || self.fade_ms.is_some(),
-            "rule {number} needs opacity, blur, or fade_ms"
+            self.opacity.is_some()
+                || self.blur.is_some()
+                || self.fade_ms.is_some()
+                || self.shadow.is_some(),
+            "rule {number} needs opacity, blur, fade_ms, or shadow"
         );
         ensure!(
             self.opacity.is_none_or(|opacity| opacity <= 100),
@@ -118,6 +136,7 @@ pub(crate) fn overrides(rules: &[Rule], identity: &Identity) -> Overrides {
         overrides.opacity = overrides.opacity.or(rule.opacity);
         overrides.blur = overrides.blur.or(rule.blur);
         overrides.fade_ms = overrides.fade_ms.or(rule.fade_ms);
+        overrides.shadow = overrides.shadow.or(rule.shadow);
     }
     overrides
 }
@@ -150,6 +169,7 @@ mod tests {
             class: class.map(str::to_owned),
             window_type,
             name: name.map(str::to_owned),
+            shadow: window_type.casts_shadow(),
         }
     }
 
@@ -160,6 +180,7 @@ mod tests {
             ("opacity = 50", "rule 1 needs wm_class"),
             ("wm_class = \"a\"", "rule 1 needs opacity"),
             ("wm_class = \"a\"\nopacity = 101", "opacity must be"),
+            ("shadow = true", "rule 1 needs wm_class"),
         ] {
             let error = rule(text).and_then(|rule| rule.validate(1));
             assert!(
@@ -169,6 +190,11 @@ mod tests {
         }
         assert!(rule("window_type = \"menuu\"\nblur = false").is_err());
         assert!(rule("class = \"a\"\nblur = false").is_err());
+        assert!(
+            rule("window_type = \"dock\"\nshadow = true")
+                .and_then(|rule| rule.validate(1))
+                .is_ok()
+        );
         assert!(
             rule("window_type = \"dropdown_menu\"\nblur = false")
                 .and_then(|rule| rule.validate(1))
@@ -185,6 +211,7 @@ mod tests {
             opacity: Some(80),
             blur: None,
             fade_ms: None,
+            shadow: None,
         };
         assert!(rule.matches(&identity(Some("Brave"), WindowType::Menu, None)));
         assert!(!rule.matches(&identity(Some("brave"), WindowType::Menu, None)));
@@ -200,9 +227,10 @@ mod tests {
             rule("name = \"Other\"\nopacity = 10").ok(),
             rule("wm_class = \"Term\"\nname = \"Notes\"\nblur = true").ok(),
             rule("wm_class = \"Term\"\nblur = false\nopacity = 90\nfade_ms = 0").ok(),
+            rule("window_type = \"normal\"\nshadow = false").ok(),
         ];
         let rules: Vec<_> = rules.into_iter().flatten().collect();
-        assert_eq!(rules.len(), 3);
+        assert_eq!(rules.len(), 4);
         assert_eq!(
             overrides(
                 &rules,
@@ -212,12 +240,13 @@ mod tests {
                 opacity: Some(90),
                 blur: Some(true),
                 fade_ms: Some(0),
+                shadow: Some(false),
             }
         );
         assert_eq!(
             overrides(
                 &rules,
-                &identity(Some("Editor"), WindowType::Normal, Some("Notes"))
+                &identity(Some("Editor"), WindowType::Dialog, Some("Notes"))
             ),
             Overrides::default()
         );

@@ -10,6 +10,12 @@ pub(crate) struct Config {
     pub(crate) opacity: u8,
     pub(crate) fade_ms: u16,
     pub(crate) blur_radius: u8,
+    /// How far a shadow spreads beyond its window, in pixels; zero draws none.
+    pub(crate) shadow_radius: u8,
+    pub(crate) shadow_offset_x: i8,
+    pub(crate) shadow_offset_y: i8,
+    /// How dark a shadow is where it is darkest, as a percentage.
+    pub(crate) shadow_opacity: u8,
     pub(crate) max_fps: u16,
     pub(crate) vsync: bool,
     pub(crate) backend: Backend,
@@ -35,6 +41,10 @@ impl Default for Config {
             opacity: 100,
             fade_ms: 180,
             blur_radius: 4,
+            shadow_radius: 0,
+            shadow_offset_x: 0,
+            shadow_offset_y: 0,
+            shadow_opacity: 50,
             max_fps: 120,
             vsync: true,
             backend: Backend::Xrender,
@@ -119,6 +129,23 @@ impl Config {
             "blur_radius must be between 0 and 16"
         );
         ensure!(
+            config.shadow_radius <= 64,
+            "shadow_radius must be between 0 and 64"
+        );
+        for (name, offset) in [
+            ("shadow_offset_x", config.shadow_offset_x),
+            ("shadow_offset_y", config.shadow_offset_y),
+        ] {
+            ensure!(
+                (-64..=64).contains(&offset),
+                "{name} must be between -64 and 64"
+            );
+        }
+        ensure!(
+            config.shadow_opacity <= 100,
+            "shadow_opacity must be between 0 and 100"
+        );
+        ensure!(
             (1..=1000).contains(&config.max_fps),
             "max_fps must be between 1 and 1000"
         );
@@ -148,6 +175,11 @@ mod tests {
             "opacity = 101",
             "opacity = -1",
             "blur_radius = 17",
+            "shadow_radius = 65",
+            "shadow_radius = -1",
+            "shadow_offset_x = 65",
+            "shadow_offset_y = -65",
+            "shadow_opacity = 101",
             "max_fps = 0",
             "max_fps = 1001",
             "fade_ms = -1",
@@ -212,6 +244,8 @@ mod tests {
         let config = Config::parse("opacity = 73").unwrap();
         assert_eq!(config.opacity, 73);
         assert_eq!(config.fade_ms, 180);
+        assert_eq!(config.shadow_radius, 0);
+        assert_eq!(config.shadow_opacity, 50);
         assert!(config.vsync);
         assert_eq!(config.backend, Backend::Xrender);
         assert_eq!(
@@ -228,6 +262,18 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.rules.len(), 2);
+        let shadows = Config::parse(
+            "shadow_radius = 64\nshadow_offset_x = -64\nshadow_offset_y = 64\nshadow_opacity = 0\n",
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                shadows.shadow_radius,
+                shadows.shadow_offset_x,
+                shadows.shadow_offset_y
+            ),
+            (64, -64, 64)
+        );
         let error = Config::parse("[[rules]]\nblur = false\n").unwrap_err();
         assert!(
             format!("{error:#}").contains("rule 1 needs wm_class"),

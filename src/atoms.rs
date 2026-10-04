@@ -16,6 +16,8 @@ pub(crate) struct Atoms {
     pub(crate) net_wm_name: Atom,
     pub(crate) utf8_string: Atom,
     pub(crate) window_type: Atom,
+    /// The margins a client-side-decorated window keeps for the shadow it draws itself.
+    pub(crate) frame_extents: Atom,
     /// Each `_NET_WM_WINDOW_TYPE_` atom with the type it names.
     pub(crate) window_types: Vec<(Atom, WindowType)>,
 }
@@ -34,6 +36,7 @@ impl Atoms {
             net_wm_name: intern(b"_NET_WM_NAME")?,
             utf8_string: intern(b"UTF8_STRING")?,
             window_type: intern(b"_NET_WM_WINDOW_TYPE")?,
+            frame_extents: intern(b"_GTK_FRAME_EXTENTS")?,
             window_types: {
                 let cookies = WindowType::ALL
                     .iter()
@@ -47,7 +50,8 @@ impl Atoms {
         })
     }
 
-    /// The properties rules match on, whose changes refresh a window's identity.
+    /// The properties rules match on or shadows depend on, whose changes refresh a window's
+    /// identity.
     pub(crate) fn identifies(&self, atom: Atom) -> bool {
         [
             AtomEnum::WM_CLASS,
@@ -58,6 +62,7 @@ impl Atoms {
         .any(|known| atom == u32::from(known))
             || atom == self.net_wm_name
             || atom == self.window_type
+            || atom == self.frame_extents
     }
 }
 

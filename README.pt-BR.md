@@ -21,11 +21,11 @@ Cada linha leva ao seu registro.
 | [Recarga de configuração e regras](docs/ROADMAP.pt-BR.md#uso-cotidiano) | Publicado na 0.3.0-beta.1 | Descoberta da configuração, recarga com SIGUSR1, regras por janela e desfoque ponderado pela opacidade de cada pixel |
 | [Trabalho de renderização](docs/ROADMAP.pt-BR.md#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) | Publicado na 0.3.0-beta.1; medido em um desktop | Cenas de benchmark comparadas com o picom, empilhamento acompanhado sem consultas à árvore, repintura por regiões, reaproveitamento do desfoque e oclusão |
 | [Renderizador de GPU](docs/ROADMAP.pt-BR.md#backend-e-expansão-do-protocolo) | Opcional desde a 0.3.0-beta.1; registrado em um desktop | OpenGL ES por DRI3, desenhando os mesmos quadros que o XRender com diferença de até dois níveis de cor; o XRender continua como padrão e como retorno |
-| [Versão estável 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) | Marco atual | Sombras, suspensão da composição em tela cheia, regras pelo foco, NVIDIA e mais desktops, uma comparação com o picom por fabricante de GPU, testes de uso prolongado, testadores externos e empacotamento |
+| [Versão estável 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) | Marco atual; [sombras](docs/ROADMAP.pt-BR.md#etapa-1-da-10-sombras) prontas no `main` | Suspensão da composição em tela cheia, regras pelo foco, NVIDIA e mais desktops, uma comparação com o picom por fabricante de GPU, testes de uso prolongado, testadores externos e empacotamento |
 
 | Ambiente | O que foi registrado |
 | --- | --- |
-| Xvfb na CI, a cada push | 94 testes X11 que rodam um processo real do Compust em um servidor real e conferem pixels e protocolo, além de 33 testes unitários, 6 de linha de comando e os 7 testes do crate de GPU no dispositivo de software do Mesa |
+| Xvfb na CI, a cada push | 106 testes X11 que rodam um processo real do Compust em um servidor real e conferem pixels e protocolo, além de 35 testes unitários, 6 de linha de comando e os 9 testes do crate de GPU no dispositivo de software do Mesa |
 | Desktop AMD Ryzen 5 5600GT (Radeon Vega): XLibre 25.1.9, Xmonad 0.18.1, um e dois monitores 1920×1080 | [Cenários de desktop](docs/DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03) com fades, translucidez e [desfoque](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03); [mudanças de modo e de layout, e os dois cabos desconectados e reconectados](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03) |
 | Laptop Intel Core i3-1005G1 (Iris Plus): Xorg 21.1.11, com Xmonad 0.17.2, Openbox 3.6.1 e i3 4.23 | Cenários de desktop com [Xmonad](docs/DESKTOP_TESTING.pt-BR.md#sessões-registradas-em-intelxorg-2026-10-03), [Openbox](docs/DESKTOP_TESTING.pt-BR.md#sessões-registradas-com-openbox-2026-10-03) e [i3](docs/DESKTOP_TESTING.pt-BR.md#sessões-registradas-com-i3-2026-10-03); um [monitor externo desconectado e reconectado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-hotplug-em-intelxorg-2026-10-03); [suspensão e retomada](docs/DESKTOP_TESTING.pt-BR.md#suspensão-e-retomada-registradas-2026-10-03) |
 | AMD Ryzen 5 5600X com Radeon RX 9060 XT: XLibre 25.1.9, com Xmonad 0.18.1, Openbox 3.6.1, i3 4.25.1, bspwm 0.9.12 e dwm 6.8, um e dois monitores 1920×1080 | [Cenários de desktop](docs/DESKTOP_TESTING.pt-BR.md#sessões-de-desktop-registradas-na-rx-9060-xt-2026-10-04) com o código da 0.3.0-beta.1 em Xmonad, Openbox, i3 e bspwm, com fades, translucidez e desfoque. Com o dwm: [recargas de configuração](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-recarga-2026-10-03); [cenas de benchmark comparadas com o picom v13](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03); [repintura por regiões](docs/DESKTOP_TESTING.pt-BR.md#repintura-por-regiões-registrada-2026-10-04), [reaproveitamento do desfoque](docs/DESKTOP_TESTING.pt-BR.md#reaproveitamento-do-desfoque-registrado-2026-10-04), [oclusão](docs/DESKTOP_TESTING.pt-BR.md#oclusão-registrada-2026-10-04) e o [renderizador de GPU](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04) |
@@ -35,7 +35,7 @@ A maioria das sessões em hardware usa as janelas sintéticas do probe em vez de
 
 ## O que já funciona
 
-A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas. O desfoque reduz repetidamente pela metade a área atrás da janela com amostragem bilinear e depois a amplia de volta, operações que servidores com aceleração por GPU mantêm na GPU. [Regras por janela](#regras-por-janela) definem a opacidade, o desfoque e a duração do fade das janelas escolhidas por classe, tipo ou título.
+A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas. O desfoque reduz repetidamente pela metade a área atrás da janela com amostragem bilinear e depois a amplia de volta, operações que servidores com aceleração por GPU mantêm na GPU. As janelas podem projetar [sombras](#sombras) suaves, que ficam desligadas até que `shadow_radius` seja definido. [Regras por janela](#regras-por-janela) definem a opacidade, o desfoque, a duração do fade e a sombra das janelas escolhidas por classe, tipo ou título.
 
 O Compust acompanha empilhamento, movimento, redimensionamento, formato das janelas, atualizações de conteúdo e pixmaps de papel de parede. Os pixmaps nomeados são preservados durante a animação de fechamento. A janela de composição tem região de entrada vazia, permitindo que os cliques cheguem aos aplicativos. Um compositor existente nunca é substituído automaticamente.
 
@@ -47,7 +47,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | XFixes 2.0+ e Shape 1.1+ | Obrigatórias: passagem de entrada e janelas com formatos não retangulares |
 | Present | Opcional: apresentação por cópia, aguardando conclusão e liberação do buffer |
 | RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre e em um laptop Intel/Xorg |
-| EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade, descoberta do cliente por `WM_STATE` e regras que comparam `WM_CLASS`, `_NET_WM_WINDOW_TYPE` (com `WM_TRANSIENT_FOR` para o tipo padrão) e `_NET_WM_NAME` ou `WM_NAME` |
+| EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade, descoberta do cliente por `WM_STATE` e regras que comparam `WM_CLASS`, `_NET_WM_WINDOW_TYPE` (com `WM_TRANSIENT_FOR` para o tipo padrão) e `_NET_WM_NAME` ou `WM_NAME`; `_GTK_FRAME_EXTENTS` indica janelas que desenham a própria sombra |
 | Papel de parede | `_XROOTPMAP_ID`, depois `ESETROOT_PMAP_ID`; fundo escuro quando nenhum é utilizável |
 | DRI3 1.2 e Sync 3.1 | Opcionais: o renderizador de GPU compartilha o buffer de fundo e os pixmaps das janelas e do papel de parede por DRI3, e uma fence do Sync faz o servidor enviar seu trabalho de GPU antes de cada quadro; sem sincronização explícita |
 
@@ -85,12 +85,16 @@ Escolha um número de display livre. O exemplo desativa a autenticação apenas 
 
 O arquivo de exemplo contém todas as opções. Sem `--config`, o Compust lê o primeiro `compust/compust.toml` que encontrar em `$XDG_CONFIG_HOME` (por padrão `~/.config`) e depois em cada diretório de `$XDG_CONFIG_DIRS` (por padrão `/etc/xdg`); se não houver arquivo, valem os padrões internos. Campos desconhecidos e valores fora do intervalo geram erro antes da conexão com o X11.
 
-Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity`, `max_fps` e a opacidade e o desfoque dados por regras valem a partir do próximo quadro, também para janelas já abertas. Um novo `fade_ms`, global ou em uma regra, vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius`, `vsync` ou `backend` substitui o renderizador assim que o quadro em apresentação termina.
+Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity`, `max_fps`, as opções de sombra e a opacidade, o desfoque e a sombra dados por regras valem a partir do próximo quadro, também para janelas já abertas. Um novo `fade_ms`, global ou em uma regra, vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius`, `vsync` ou `backend` substitui o renderizador assim que o quadro em apresentação termina.
 
 ```toml
 opacity = 100
 fade_ms = 180
 blur_radius = 4
+shadow_radius = 0
+shadow_offset_x = 0
+shadow_offset_y = 0
+shadow_opacity = 50
 max_fps = 120
 vsync = true
 backend = "xrender"
@@ -101,11 +105,22 @@ backend = "xrender"
 | `opacity` | Opacidade global de 0 a 100%, multiplicada pela opacidade do aplicativo |
 | `fade_ms` | Duração da abertura e do fechamento em milissegundos, de 0 a 65535; zero desativa a animação |
 | `blur_radius` | Raio aproximado do desfoque em pixels, de 0 a 16, arredondado para 2, 4, 8 ou 16; zero desativa o desfoque |
+| `shadow_radius` | Até onde a sombra se espalha além da janela, em pixels, de 0 a 64; zero, o padrão, não desenha sombras |
+| `shadow_offset_x`, `shadow_offset_y` | Onde a sombra fica em relação à janela, em pixels, de −64 a 64: para a direita e para baixo ou, com valores negativos, para a esquerda e para cima |
+| `shadow_opacity` | Quão escura a sombra é no ponto mais escuro, em porcentagem, de 0 a 100, multiplicada pela opacidade da janela |
 | `max_fps` | Limite de redesenho, de 1 a 1000; não garante essa taxa de quadros |
 | `vsync` | Usa Present quando disponível; `false` seleciona cópia direta com XRender |
 | `backend` | `"xrender"` desenha pelo servidor X; `"gl"` desenha com OpenGL ES na GPU do servidor e volta ao XRender com um aviso onde não puder |
 
 O desfoque é aplicado atrás de janelas translúcidas ou ARGB, com a força com que cada pixel da janela é opaco: a margem transparente de sombra em volta do menu de um navegador quase não recebe desfoque, e o desfoque surge e some com a janela. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
+
+### Sombras
+
+As sombras estão no `main` e entram na próxima beta; a 0.3.0-beta.1 rejeita essas opções. Com `shadow_radius` acima de zero, as janelas projetam uma sombra preta: o retângulo da janela, deslocado pelo offset e desfocado até sumir ao longo do raio. A sombra fica em volta da janela, nunca embaixo dela, de modo que uma janela translúcida não escurece por causa da própria sombra, e ela surge e some com a janela.
+
+Uma janela projeta sombra quando seu tipo é `normal`, `dialog`, `utility`, `splash` ou `toolbar`. Desktops, docks, menus, dicas de ferramenta, notificações, caixas de combinação e ícones de arrastar não projetam. Também não projeta a janela que não declara tipo e que o gerenciador de janelas não controla, como uma barra de status ou o menu de um toolkit antigo, nem a que declara em `_GTK_FRAME_EXTENTS` margens para uma sombra própria, como fazem as janelas GTK com decoração do lado do cliente. `shadow` em uma [regra](#regras-por-janela) decide para as janelas que ela escolhe, nos dois sentidos. Uma janela com formato não retangular nunca projeta sombra, porque a sombra seria a do seu retângulo envolvente.
+
+Em um gerenciador de janelas tiling, a sombra de cada janela cai sobre as vizinhas. Uma regra com `window_type = "normal"` e `shadow = false` deixa as sombras para diálogos e outras janelas flutuantes que declaram seu tipo.
 
 ### Regras por janela
 
@@ -122,6 +137,11 @@ opacity = 90
 window_type = "tooltip"
 blur = false
 fade_ms = 0
+
+# Notificações com sombra, que o tipo delas deixaria de fora.
+[[rules]]
+window_type = "notification"
+shadow = true
 ```
 
 | Campo | Significado |
@@ -132,8 +152,9 @@ fade_ms = 0
 | `opacity` | Porcentagem de opacidade, de 0 a 100, usada no lugar da `opacity` global e multiplicada pela opacidade do aplicativo |
 | `blur` | `false` mantém nítido o conteúdo atrás da janela; `true` o desfoca como por padrão, enquanto `blur_radius` for maior que zero |
 | `fade_ms` | Duração da abertura e do fechamento em milissegundos, de 0 a 65535, usada no lugar do `fade_ms` global |
+| `shadow` | `false` deixa a janela sem sombra; `true` dá a ela uma sombra, seja qual for seu tipo ou suas margens, enquanto `shadow_radius` for maior que zero |
 
-Uma regra precisa de ao menos um dos três primeiros campos, que escolhem janelas, e de ao menos um dos três últimos, que ela define. O texto precisa ser idêntico, inclusive em maiúsculas e minúsculas, e a janela precisa corresponder a todos os campos pelos quais a regra escolhe. Cada opção vem da primeira regra correspondente que a define, então regras específicas vêm antes das amplas; assim, `true` em uma regra mantém o desfoque de janelas para as quais uma regra posterior o desliga. Rode `xprop` e clique em uma janela para ver seus `WM_CLASS`, `_NET_WM_WINDOW_TYPE` e `_NET_WM_NAME`.
+Uma regra precisa de ao menos um dos três primeiros campos, que escolhem janelas, e de ao menos um dos quatro últimos, que ela define. O texto precisa ser idêntico, inclusive em maiúsculas e minúsculas, e a janela precisa corresponder a todos os campos pelos quais a regra escolhe. Cada opção vem da primeira regra correspondente que a define, então regras específicas vêm antes das amplas; assim, `true` em uma regra mantém o desfoque de janelas para as quais uma regra posterior o desliga. Rode `xprop` e clique em uma janela para ver seus `WM_CLASS`, `_NET_WM_WINDOW_TYPE` e `_NET_WM_NAME`.
 
 O Compust lê essas propriedades da janela do aplicativo, dentro da moldura do gerenciador de janelas, e as lê de novo quando mudam, como quando um título muda. Uma janela que não declara nenhum tipo conhecido pelo Compust é `dialog` quando é transitória para outra janela e o gerenciador de janelas a controla, e `normal` nos demais casos, como determina a EWMH. Uma propriedade ausente ou malformada não corresponde a nenhum texto. Uma janela em fechamento mantém as regras que tinha enquanto o fade termina.
 
@@ -159,7 +180,7 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 ## Limitações atuais
 
-O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. O renderizador de GPU opcional ([registrado em um desktop](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04)) desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, com CPU total parecida ali, maior quando janelas são redimensionadas, e cerca de 62 MiB a mais de memória para o driver GL. O [marco de renderização](docs/ROADMAP.pt-BR.md#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) mediu esses custos; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina, antes das mudanças na repintura. Não há sombras, cantos arredondados, animações de movimento ou escala, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom; o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) acrescenta sombras e a suspensão da composição em tela cheia.
+O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. O renderizador de GPU opcional ([registrado em um desktop](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04)) desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, com CPU total parecida ali, maior quando janelas são redimensionadas, e cerca de 62 MiB a mais de memória para o driver GL. O [marco de renderização](docs/ROADMAP.pt-BR.md#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) mediu esses custos; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina, antes das mudanças na repintura. As sombras são pretas e retangulares, e janelas com formato não projetam nenhuma; elas têm testes de pixels com XRender no Xvfb e um teste do seu desenho na GPU, mas nenhuma sessão em hardware as registrou ainda. Não há cantos arredondados, animações de movimento ou escala, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom; o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) acrescenta a suspensão da composição em tela cheia.
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide e curvas, escolhidos por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 

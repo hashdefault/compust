@@ -87,6 +87,18 @@ void main() {
 }
 ";
 
+const SHADED: &str = "
+uniform sampler2D source;
+uniform sampler2D mask;
+uniform float opacity;
+varying vec2 texcoord;
+varying vec2 maskcoord;
+void main() {
+    float weight = texture2D(source, texcoord).a * texture2D(mask, maskcoord).a * opacity;
+    gl_FragColor = vec4(0.0, 0.0, 0.0, weight);
+}
+";
+
 struct Program {
     id: glow::Program,
     viewport: Option<Location>,
@@ -102,6 +114,7 @@ pub(crate) struct Programs {
     textured: Program,
     solid: Program,
     masked: Program,
+    shaded: Program,
     vertices: glow::Buffer,
 }
 
@@ -110,6 +123,7 @@ impl Programs {
         let textured = program(inner, TEXTURED)?;
         let solid = program(inner, SOLID)?;
         let masked = program(inner, MASKED)?;
+        let shaded = program(inner, SHADED)?;
         let gl = inner.gl()?;
         // SAFETY: `gl` made the context current.
         let vertices = unsafe { gl.create_buffer() }.map_err(anyhow::Error::msg)?;
@@ -118,6 +132,7 @@ impl Programs {
             textured,
             solid,
             masked,
+            shaded,
             vertices,
         })
     }
@@ -132,6 +147,7 @@ impl Drop for Programs {
                 gl.delete_program(self.textured.id);
                 gl.delete_program(self.solid.id);
                 gl.delete_program(self.masked.id);
+                gl.delete_program(self.shaded.id);
                 gl.delete_buffer(self.vertices);
             }
         }
@@ -326,6 +342,42 @@ impl Frame<'_> {
             gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
             gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
             gl.uniform_1_f32(program.opacity.as_ref(), opacity);
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
+        }
+        self.quads(program, clip)
+    }
+
+    /// Darken `clip` toward black as a shadow does: at each pixel by the alpha of `across`
+    /// times that of `down` times `strength`. `across` holds one row, which every row of the
+    /// shadow repeats, and `down` one column; their first values lie on target pixel `at`.
+    pub fn shade(
+        &mut self,
+        (across, down): (&Texture, &Texture),
+        at: (i32, i32),
+        strength: f32,
+        clip: &[Rect],
+    ) -> Result<()> {
+        let programs = &self.gpu.programs;
+        let program = &programs.shaded;
+        let gl = self.gpu.inner.gl()?;
+        // Clamped at their edges, a single row or column reaches every pixel beside it.
+        let (mask_mapping, _) = mapping(down, Placement::At(at.0, at.1))?;
+        let (mapping, _) = mapping(across, Placement::At(at.0, at.1))?;
+        // SAFETY: `gl` made the context current; the program, its uniforms, and both textures
+        // belong to it.
+        unsafe {
+            gl.use_program(Some(program.id));
+            for (unit, texture) in [(glow::TEXTURE1, down), (glow::TEXTURE0, across)] {
+                gl.active_texture(unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture.id));
+                for parameter in [glow::TEXTURE_MIN_FILTER, glow::TEXTURE_MAG_FILTER] {
+                    gl.tex_parameter_i32(glow::TEXTURE_2D, parameter, glow::NEAREST.cast_signed());
+                }
+            }
+            gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
+            gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_1_f32(program.opacity.as_ref(), strength);
             gl.enable(glow::BLEND);
             gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
         }

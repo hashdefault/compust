@@ -47,6 +47,9 @@ mod backend;
 
 #[path = "cases/rules.rs"]
 mod rules;
+
+#[path = "cases/shadows.rs"]
+mod shadows;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

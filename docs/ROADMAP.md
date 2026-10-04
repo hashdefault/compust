@@ -53,6 +53,14 @@ Version 0.2.0-beta.1 completed these four acceptance gates for its declared scop
 
 ## Progress and verification
 
+### 1.0 step 1: shadows
+
+Windows cast a shadow once `shadow_radius` is above zero: a black copy of the window's rectangle, moved by `shadow_offset_x` and `shadow_offset_y`, blurred over the radius, and as dark as `shadow_opacity` times the window's opacity. Shadows are off by default, so an upgrade changes no desktop. A window casts one when its type is normal, dialog, utility, splash, or toolbar. A window that names no type and that the window manager leaves alone casts none, nor does one whose `_GTK_FRAME_EXTENTS` declares margins for a shadow of its own, and `shadow` in a rule decides either way. Shaped windows never cast one: a shadow that follows a shape waits for rounded corners, after 1.0.
+
+Blurring a rectangle separates into one profile along each axis, so each painter keeps two strips per window and multiplies them at every pixel, which costs XRender two small composites and the GPU painter one draw. The XRender strips have room to spare, so a resize uploads new profiles without allocating. Three box filters computed with integers give the profiles, the same in both painters. A shadow lies around its window and never beneath it, is painted after the window's own blur has read the scene, and is part of what a frame showed of the window: moves, fades, and reloads repaint both, while the window's own content leaves the shadow alone. A window hidden whole behind an opaque one still shows the part of its shadow that reaches past it.
+
+Twelve X11 tests in [shadows.rs](../tests/cases/shadows.rs) check the shadow's extent, offset, and profile pixel by pixel, also where it starts off the screen; that a translucent window stays as bright as without shadows; which types, margins, shapes, and rules cast one, and that each of those changes an open window's shadow; fades, reloads, and resizes without leaked buffers, and without a new buffer for a small step; shadows around a hidden window and a hidden blur; and, after every kind of change to a scene with a blurred window, a frame equal to one from a fresh renderer, with Present and with XRender. Each of 21 changes to the implementation, made one at a time and reverted, failed at least one of them. The GPU crate's test draws a shadow from two profiles on Mesa's software device and, where a render node exists, on that GPU, where it passed with radeonsi. No automated test runs the GPU painter itself, and no hardware session has recorded shadows: how they look and what they cost under glamor and under the GPU renderer remain to be recorded. With Xorg's Xvfb, all 106 X11 tests, 35 unit tests, and 6 CLI tests pass, as do the GPU crate's 9 tests, with formatting and strict Clippy.
+
 ### Everyday usability: configuration discovery and reload
 
 Beta use showed that changing `fade_ms` required a restart and that a configuration was read only when `--config` named it. Without `--config`, Compust now reads the first `compust/compust.toml` in `$XDG_CONFIG_HOME` (default `~/.config`), then in `$XDG_CONFIG_DIRS` (default `/etc/xdg`), and `--check-config` names the file it found. SIGUSR1 reloads the configuration a restart would read. A file that cannot be read or is invalid is logged, and the running configuration stays. A reloaded `fade_ms` applies to every transition that starts afterward, and a blur or vsync change replaces the renderer once Present has released its buffer. A rejected Present submission now marks the extension unavailable for the session instead of turning off `vsync`, so a reload cannot bring back a path the server refused.
@@ -344,7 +352,7 @@ Step 3 kept the single Present buffer: outside the update region its contents al
 
 | Step | Status | Required result |
 | --- | --- | --- |
-| 1. Features picom users rely on | Per-window rules done; the rest not started | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
+| 1. Features picom users rely on | Per-window rules and [shadows](#10-step-1-shadows) done; fullscreen unredirection and rules by focus not started | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
 | 2. Hardware and desktops | One AMD/XLibre desktop recorded with 0.3.0-beta.1 under five window managers; another AMD/XLibre desktop and Intel/Xorg recorded with earlier builds; NVIDIA and Xorg on AMD pending | A release candidate recorded on AMD, Intel, and NVIDIA, on Xorg and XLibre, under six window managers with real applications |
 | 3. Performance against picom | One machine, recorded before region repaint | On one machine per GPU vendor, Compust keeps picom glx's frame rate in every benchmark scene, within one point of a core of its total CPU |
 | 4. Endurance | Not started | 10,000 automated window cycles, and a week of daily use on two machines, without a crash or growing resources |
@@ -353,7 +361,7 @@ Step 3 kept the single Present buffer: outside the update region its contents al
 
 ### 1. Features picom users rely on
 
-- **Shadows:** a soft shadow beneath windows, with global settings for its radius, offset, and opacity and a `shadow` setting for rules. Docks and desktop windows get none by default, and neither does a window that draws its own, such as a browser menu or a client-side-decorated GTK window. A shadow widens the area its window changes, never hides what lies beneath it, and fades with its window.
+- **Shadows, [done](#10-step-1-shadows):** a soft shadow beneath windows, with global settings for its radius, offset, and opacity and a `shadow` setting for rules. Docks and desktop windows get none by default, and neither does a window that draws its own, such as a browser menu or a client-side-decorated GTK window. A shadow widens the area its window changes, never hides what lies beneath it, and fades with its window.
 - **Fullscreen unredirection:** an opt-in setting. While one opaque window covers the whole root and nothing above it is translucent, Compust stops compositing: windows draw to the screen directly and the overlay is hidden. Compositing resumes as soon as that changes. One overlay covers every monitor, so a window that fills one of several monitors stays composited, and the documentation says so.
 - **Rules by focus:** a `focused` selector, from the root's `_NET_ACTIVE_WINDOW`, so that rules can make inactive windows translucent, as picom's `inactive-opacity` does. The documentation lists window managers that do not set the property.
 

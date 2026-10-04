@@ -212,20 +212,35 @@ impl Surface {
         self.refresh_opacity(atoms)
     }
 
+    /// Whether the surface casts a shadow where shadows are on: as its rule says, or else as
+    /// its client's type and decorations suggest. A shaped window casts none, because its
+    /// shadow would be that of its bounding rectangle.
+    pub(crate) fn casts_shadow(&self) -> bool {
+        let whole = matches!(
+            self.shape.as_slice(),
+            [only] if (only.x, only.y) == (0, 0)
+                && (only.width, only.height) == (self.size.width, self.size.height)
+        );
+        self.overrides.shadow.unwrap_or(self.identity.shadow) && whole
+    }
+
     /// Whether the identity comes from `window`.
     pub(crate) fn identified_by(&self, window: Window) -> bool {
         self.identified == window
     }
 
     /// Read the identity again from the window it came from, unless that window is gone; reports
-    /// whether the rules now give the surface other settings.
+    /// whether the surface now shows differently: the rules give it other settings, or it
+    /// starts or stops casting a shadow.
     pub(crate) fn refresh_identity(&mut self, atoms: &Atoms, config: &Config) -> Result<bool> {
+        let shadow = self.identity.shadow;
         if let Some(identity) =
             identity(&self.conn, self.identified, atoms, self.override_redirect)?
         {
             self.identity = identity;
         }
-        Ok(self.apply(config))
+        let ruled = self.apply(config);
+        Ok(ruled || self.identity.shadow != shadow)
     }
 
     /// Resolve the rules of `config` for this surface again, as after a reload; reports
@@ -278,8 +293,8 @@ fn new_client(identified: Window, client: Window, frame: Window) -> bool {
     client != identified && client != frame
 }
 
-/// The identity of `client`, from its class, type, and title, read in one round trip; `None`
-/// when the client is gone.
+/// The identity of `client`, from its class, type, title, and frame extents, read in one round
+/// trip; `None` when the client is gone.
 fn identity(
     conn: &RustConnection,
     client: Window,
@@ -292,16 +307,22 @@ fn identity(
         (AtomEnum::WM_TRANSIENT_FOR.into(), AtomEnum::ANY.into(), 0),
         (atoms.net_wm_name, atoms.utf8_string, 1024),
         (AtomEnum::WM_NAME.into(), AtomEnum::ANY.into(), 1024),
+        (atoms.frame_extents, AtomEnum::CARDINAL.into(), 4),
     ];
     let cookies = requests
         .map(|(property, kind, words)| conn.get_property(false, client, property, kind, 0, words));
     // Every reply is read before any error returns: the error of a reply left unread would
     // arrive later as an event.
     let replies = cookies.map(|cookie| -> Result<GetPropertyReply> { Ok(cookie?.reply()?) });
-    let [class, types, transient, utf8, legacy] = match replies {
-        [Ok(class), Ok(types), Ok(transient), Ok(utf8), Ok(legacy)] => {
-            [class, types, transient, utf8, legacy]
-        }
+    let [class, types, transient, utf8, legacy, extents] = match replies {
+        [
+            Ok(class),
+            Ok(types),
+            Ok(transient),
+            Ok(utf8),
+            Ok(legacy),
+            Ok(extents),
+        ] => [class, types, transient, utf8, legacy, extents],
         replies => {
             return match replies.into_iter().find_map(Result::err) {
                 Some(error) if !window_gone(&error) => Err(error),
@@ -341,10 +362,20 @@ fn identity(
     } else {
         None
     };
+    // A client that keeps margins around its window draws its own shadow in them. A window
+    // that names no type casts one only when the window manager handles it: bars, menus, and
+    // tooltips of older toolkits are override-redirect windows without a type.
+    let shades_itself = extents.type_ == u32::from(AtomEnum::CARDINAL)
+        && extents.bytes_after == 0
+        && extents
+            .value32()
+            .is_some_and(|mut margins| margins.any(|margin| margin > 0));
+    let shadow = !shades_itself && named.map_or(!override_redirect, WindowType::casts_shadow);
     Ok(Some(Identity {
         class,
         window_type,
         name,
+        shadow,
     }))
 }
 

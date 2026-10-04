@@ -233,6 +233,45 @@ impl Gpu {
         self.framebuffer(texture)
     }
 
+    /// A texture of `width` by `height` alpha values, row by row from the top, such as the
+    /// profiles a shadow is drawn from.
+    pub fn alpha(&self, width: u32, height: u32, values: &[u8]) -> Result<Texture> {
+        let pixels = usize::try_from(width)?
+            .checked_mul(usize::try_from(height)?)
+            .context("alpha texture too large")?;
+        ensure!(
+            pixels == values.len(),
+            "an alpha texture needs one value per pixel"
+        );
+        let texture = Texture {
+            inner: Rc::clone(&self.inner),
+            id: self.new_texture()?,
+            image: None,
+            width,
+            height,
+        };
+        let gl = self.inner.gl()?;
+        // SAFETY: `gl` made the context current and `new_texture` bound the texture. With an
+        // unpack alignment of 1, the upload reads exactly `width * height` bytes, which
+        // `values` holds; the alignment then returns to its default.
+        unsafe {
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+            gl.tex_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                i32::try_from(glow::ALPHA)?,
+                i32::try_from(width)?,
+                i32::try_from(height)?,
+                0,
+                glow::ALPHA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelUnpackData::Slice(Some(values)),
+            );
+            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 4);
+        }
+        Ok(texture)
+    }
+
     /// A texture name bound to `TEXTURE_2D`, clamped at its edges.
     fn new_texture(&self) -> Result<glow::Texture> {
         let gl = self.inner.gl()?;

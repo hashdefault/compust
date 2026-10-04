@@ -78,7 +78,8 @@ impl Rect {
             .collect()
     }
 
-    fn hull(self, other: Self) -> Self {
+    /// The smallest rectangle holding both.
+    pub(crate) fn hull(self, other: Self) -> Self {
         Self {
             left: self.left.min(other.left),
             top: self.top.min(other.top),

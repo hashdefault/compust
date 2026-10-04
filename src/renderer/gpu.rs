@@ -1,6 +1,7 @@
 use super::{
     blur,
     paint::{Beneath, Plan},
+    shadow::{self, Shadow},
 };
 use crate::{capabilities, picture::Size, region::Rect, session::Session};
 use anyhow::{Context as _, Result, bail, ensure};
@@ -39,6 +40,19 @@ pub(super) struct Painter {
     /// One texture per surface capture.
     textures: Vec<(Window, PictureId, Texture)>,
     backdrops: Vec<Backdrop>,
+    shadows: Vec<Shade>,
+}
+
+/// The textures one surface's shadow is drawn from, as `shadow::Strips` keeps them for the
+/// `XRender` painter.
+struct Shade {
+    window: Window,
+    size: Size,
+    radius: u8,
+    /// The profile along the x axis, one row.
+    across: Texture,
+    /// The profile along the y axis, one column.
+    down: Texture,
 }
 
 /// A surface's blurred backdrop, as `blur::Backdrop` keeps it for the `XRender` painter.
@@ -94,6 +108,7 @@ impl Painter {
             wallpaper: None,
             textures: Vec::new(),
             backdrops: Vec::new(),
+            shadows: Vec::new(),
         })
     }
 
@@ -134,6 +149,11 @@ impl Painter {
                 frame.draw(texture, Placement::At(0, 0), Mode::Replace, &background)?;
             }
         }
+        self.shadows.retain(|kept| {
+            plan.parts
+                .iter()
+                .any(|part| part.shadow.is_some() && part.surface.window == kept.window)
+        });
         for part in &plan.parts {
             let window = part.surface.window;
             // A backdrop due to blur again is refreshed even where none of it shows, so that a
@@ -141,6 +161,12 @@ impl Painter {
             if let Beneath::Fresh { bounds, footprint } = part.beneath {
                 self.keep(window, bounds)?;
                 self.blur(window, footprint)?;
+            }
+            // The shadow follows the blur, which reads the scene beneath the surface without it.
+            if let Some((shadow, around)) = &part.shadow
+                && !around.is_empty()
+            {
+                self.shade(window, *shadow, around)?;
             }
             if part.clip.is_empty() {
                 continue;
@@ -205,6 +231,39 @@ impl Painter {
             }
         }
         Ok(())
+    }
+
+    /// Draw `shadow`, which `window`'s surface casts, within `around`, from the profiles the
+    /// `XRender` painter uses.
+    fn shade(&mut self, window: Window, shadow: Shadow, around: &[Rect]) -> Result<()> {
+        let kept = |kept: &&Shade| {
+            kept.window == window && kept.size == shadow.size && kept.radius == shadow.radius
+        };
+        if !self.shadows.iter().any(|shade| kept(&shade)) {
+            let across = shadow::profile(shadow.size.width, shadow.radius);
+            let down = shadow::profile(shadow.size.height, shadow.radius);
+            let shade = Shade {
+                window,
+                size: shadow.size,
+                radius: shadow.radius,
+                across: self.gpu.alpha(u32::try_from(across.len())?, 1, &across)?,
+                down: self.gpu.alpha(1, u32::try_from(down.len())?, &down)?,
+            };
+            self.shadows.retain(|kept| kept.window != window);
+            self.shadows.push(shade);
+        }
+        let shade = self
+            .shadows
+            .iter()
+            .find(kept)
+            .context("a shadow has no textures")?;
+        let strength = f32::from(shadow.strength) / f32::from(u16::MAX);
+        self.gpu.frame(&self.back)?.shade(
+            (&shade.across, &shade.down),
+            (shadow.rect.left, shadow.rect.top),
+            strength,
+            &areas(around)?,
+        )
     }
 
     /// Make the backdrop of `window` hold `area`, as `Renderer::keep` does for `XRender`.

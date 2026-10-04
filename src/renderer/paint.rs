@@ -2,6 +2,7 @@ use super::{
     Renderer, Source, blur,
     cover::{self, Layer},
     damage::{self, Blurred, Change, OUTPUT, Shown},
+    shadow::Shadow,
 };
 use crate::{
     animation::multiply_alpha,
@@ -40,13 +41,24 @@ pub(super) struct Part<'a> {
     /// Where it shows in the repaint area; empty where it shows nowhere.
     pub(super) clip: Vec<Rect>,
     pub(super) beneath: Beneath,
+    /// Its shadow, with where that shows in the repaint area: around the surface, never
+    /// beneath it.
+    pub(super) shadow: Option<(Shadow, Vec<Rect>)>,
+}
+
+/// A surface a frame shows, with its opacity and the shadow it casts.
+#[derive(Clone, Copy)]
+struct Seen<'a> {
+    surface: &'a Surface,
+    opacity: u16,
+    shadow: Option<Shadow>,
 }
 
 /// What a frame paints, which either painter carries out.
 pub(super) struct Plan<'a> {
     /// Where the background shows in the repaint area.
     pub(super) background: Vec<Rect>,
-    /// The surfaces, bottom to top, without those hidden whole.
+    /// The surfaces, bottom to top, without those hidden whole along with their shadows.
     pub(super) parts: Vec<Part<'a>>,
 }
 
@@ -82,7 +94,7 @@ impl Renderer {
 
     /// Find what changed and plan the frame that shows it, with the area it repaints; `None`
     /// when nothing changed.
-    fn plan<'a>(&mut self, visible: &[(&'a Surface, u16)]) -> Option<(Region, Plan<'a>)> {
+    fn plan<'a>(&mut self, visible: &[Seen<'a>]) -> Option<(Region, Plan<'a>)> {
         let mut changes = self.changes(visible);
         let mut area = Region::default();
         for change in changes.iter().filter(|change| change.shown) {
@@ -101,8 +113,9 @@ impl Renderer {
         }
         let beneath: Vec<_> = visible
             .iter()
-            .map(|(surface, _)| {
-                let index = windows.iter().position(|window| *window == surface.window);
+            .map(|seen| {
+                let window = seen.surface.window;
+                let index = windows.iter().position(|kept| *kept == window);
                 match index.and_then(|index| Some((blurred.get(index)?, *fresh.get(index)?))) {
                     Some((blurred, true)) => Beneath::Fresh {
                         bounds: blurred.bounds,
@@ -116,8 +129,8 @@ impl Renderer {
         let layers: Vec<_> = visible
             .iter()
             .zip(&beneath)
-            .map(|(&(surface, opacity), beneath)| Layer {
-                opaque: self.opaque(surface, opacity),
+            .map(|(seen, beneath)| Layer {
+                opaque: self.opaque(seen.surface, seen.opacity),
                 blur: match *beneath {
                     Beneath::Fresh { bounds, footprint } => Some((bounds, footprint)),
                     _ => None,
@@ -126,25 +139,47 @@ impl Renderer {
             .collect();
         let covers = cover::covers(&layers);
         let mut parts = Vec::with_capacity(visible.len());
-        for (index, (&(surface, opacity), beneath)) in visible.iter().zip(beneath).enumerate() {
+        for (index, (seen, beneath)) in visible.iter().zip(beneath).enumerate() {
+            let Seen {
+                surface, opacity, ..
+            } = *seen;
+            let in_sight = |clip: Vec<Rect>| match covers.above.get(index) {
+                Some(cover) => cover.visible(clip),
+                None => clip,
+            };
+            // A shadow lies around its surface, so what hides the surface can leave it in sight.
+            let shadow = seen.shadow.map(|shadow| {
+                let body = surface.bounds();
+                let around = area
+                    .clip(std::iter::once(shadow.rect))
+                    .into_iter()
+                    .flat_map(|rect| rect.minus(body))
+                    .collect();
+                (shadow, in_sight(around))
+            });
             if covers.hidden.get(index) == Some(&true) {
                 // Hidden whole, it need not blur, and its backdrop would go stale.
                 self.backdrops.retain(|kept| kept.window != surface.window);
                 if let Some(gpu) = self.gpu.as_mut() {
                     gpu.forget(surface.window);
                 }
+                if shadow.as_ref().is_some_and(|(_, clip)| !clip.is_empty()) {
+                    parts.push(Part {
+                        surface,
+                        opacity,
+                        clip: Vec::new(),
+                        beneath: Beneath::Scene,
+                        shadow,
+                    });
+                }
                 continue;
             }
-            let clip = area.clip(shape(surface));
-            let clip = match covers.above.get(index) {
-                Some(cover) => cover.visible(clip),
-                None => clip,
-            };
             parts.push(Part {
                 surface,
                 opacity,
-                clip,
+                clip: in_sight(area.clip(shape(surface))),
                 beneath,
+                shadow,
             });
         }
         let background = covers.background.visible(area.rects().to_vec());
@@ -153,13 +188,13 @@ impl Renderer {
 
     fn paint_xrender(&mut self, session: &Session, plan: &Plan<'_>) -> Result<()> {
         self.paint_background(session, &plan.background)?;
+        self.shadows.retain(|kept| {
+            plan.parts
+                .iter()
+                .any(|part| part.shadow.is_some() && part.surface.window == kept.window)
+        });
         for part in &plan.parts {
-            self.paint_surface(
-                session,
-                (part.surface, part.opacity),
-                &part.clip,
-                part.beneath,
-            )?;
+            self.paint_surface(session, part)?;
         }
         session.conn.render_set_picture_clip_rectangles(
             self.back.id,
@@ -172,10 +207,13 @@ impl Renderer {
 
     /// What changed since the last frame, which `visible` replaces: the surfaces' own changes
     /// and those reported since, at the layer each belongs to.
-    fn changes(&mut self, visible: &[(&Surface, u16)]) -> Vec<Change> {
+    fn changes(&mut self, visible: &[Seen<'_>]) -> Vec<Change> {
         let shown: Vec<_> = visible
             .iter()
-            .map(|&(surface, opacity)| Shown::new(surface, opacity, self.blurs(surface, opacity)))
+            .map(|seen| {
+                let blur = self.blurs(seen.surface, seen.opacity);
+                Shown::new(seen.surface, seen.opacity, blur, seen.shadow)
+            })
             .collect();
         let mut changes = damage::changes(&self.shown, &shown);
         self.shown = shown;
@@ -184,7 +222,7 @@ impl Renderer {
                 Source::Background => Some(0),
                 Source::Window(window) => visible
                     .iter()
-                    .position(|(surface, _)| surface.window == window)
+                    .position(|seen| seen.surface.window == window)
                     .map(|index| index + 1),
                 Source::Output => Some(OUTPUT),
             };
@@ -200,12 +238,13 @@ impl Renderer {
     }
 
     /// The blurred surfaces among `visible` and their windows, bottom to top.
-    fn blurred(&self, visible: &[(&Surface, u16)]) -> (Vec<Window>, Vec<Blurred>) {
+    fn blurred(&self, visible: &[Seen<'_>]) -> (Vec<Window>, Vec<Blurred>) {
         visible
             .iter()
             .enumerate()
-            .filter(|&(_, &(surface, opacity))| self.blurs(surface, opacity))
-            .filter_map(|(index, (surface, _))| {
+            .filter(|(_, seen)| self.blurs(seen.surface, seen.opacity))
+            .filter_map(|(index, seen)| {
+                let surface = seen.surface;
                 let bounds = surface.bounds().intersect(self.screen())?;
                 let kept = match &self.gpu {
                     Some(gpu) => gpu.kept(surface.window, bounds),
@@ -282,19 +321,27 @@ impl Renderer {
         Ok(())
     }
 
-    /// Paint `surface` at its opacity within `clip`, over what `beneath` says it shows.
-    fn paint_surface(
-        &mut self,
-        session: &Session,
-        (surface, opacity): (&Surface, u16),
-        clip: &[Rect],
-        beneath: Beneath,
-    ) -> Result<()> {
+    /// Paint `part`: its surface at its opacity within its clip, over what it shows beneath
+    /// it, and around it the shadow it casts.
+    fn paint_surface(&mut self, session: &Session, part: &Part<'_>) -> Result<()> {
+        let (surface, opacity, beneath) = (part.surface, part.opacity, part.beneath);
+        let clip = &part.clip;
         let conn = &session.conn;
         // A backdrop due to blur again is refreshed even where none of it shows, so that a
         // later frame never reuses a stale one.
         if let Beneath::Fresh { bounds, .. } = beneath {
             self.keep(surface.window, bounds)?;
+            let kept = self
+                .backdrops
+                .iter()
+                .find(|kept| kept.window == surface.window && kept.area == bounds);
+            if let Some(backdrop) = kept {
+                self.blur(session, surface, backdrop)?;
+            }
+        }
+        // The shadow follows the blur, which reads the scene beneath the surface without it.
+        if let Some((shadow, around)) = &part.shadow {
+            self.paint_shadow(session, surface.window, *shadow, around)?;
         }
         let backdrop = match beneath {
             Beneath::Scene => None,
@@ -303,9 +350,6 @@ impl Renderer {
                 .iter()
                 .find(|kept| kept.window == surface.window && kept.area == bounds),
         };
-        if let (Some(backdrop), Beneath::Fresh { .. }) = (backdrop, beneath) {
-            self.blur(session, surface, backdrop)?;
-        }
         if clip.is_empty() {
             return Ok(());
         }
@@ -399,8 +443,8 @@ impl Renderer {
 }
 
 /// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
-/// rule's or else the global one, times their fade.
-fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<(&'a Surface, u16)>> {
+/// rule's or else the global one, times their fade. Each casts the shadow `config` gives it.
+fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
     let now = Instant::now();
     let mut visible = Vec::with_capacity(scene.windows.len());
     for surface in &scene.windows {
@@ -411,7 +455,11 @@ fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<(&'a Surface, u1
             surface.fade.sample(now),
         );
         if opacity > 0 {
-            visible.push((surface, opacity));
+            visible.push(Seen {
+                surface,
+                opacity,
+                shadow: Shadow::cast(surface, opacity, config),
+            });
         }
     }
     Ok(visible)

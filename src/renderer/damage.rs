@@ -1,3 +1,4 @@
+use super::shadow::Shadow;
 use crate::{
     region::{Rect, Region},
     surface::Surface,
@@ -30,8 +31,8 @@ pub(super) struct Change {
 }
 
 /// A surface as a frame showed it. Comparing the last frame's surfaces with the next one's
-/// finds moves, resizes, recaptures, shape and opacity changes, fades, blur turned on or off,
-/// and restacks.
+/// finds moves, resizes, recaptures, shape and opacity changes, fades, blur or a shadow turned
+/// on or off, and restacks.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Shown {
     window: Window,
@@ -40,10 +41,11 @@ pub(super) struct Shown {
     shape: Vec<Rect>,
     opacity: u16,
     blur: bool,
+    shadow: Option<Shadow>,
 }
 
 impl Shown {
-    pub(super) fn new(surface: &Surface, opacity: u16, blur: bool) -> Self {
+    pub(super) fn new(surface: &Surface, opacity: u16, blur: bool, shadow: Option<Shadow>) -> Self {
         Self {
             window: surface.window,
             picture: surface.picture.id,
@@ -55,14 +57,22 @@ impl Shown {
                 .collect(),
             opacity,
             blur,
+            shadow,
         }
+    }
+
+    /// The screen area the surface changes when it does: its bounds and its shadow.
+    fn extent(&self) -> Rect {
+        self.shadow
+            .map_or(self.bounds, |shadow| self.bounds.hull(shadow.rect))
     }
 }
 
 /// What differs between two frames, each listing its surfaces bottom to top. A surface that
 /// appeared, changed, left, or changed places changes the scene of every surface above it in
-/// either frame, across its old and new bounds. The output changes where a surface appeared,
-/// changed, or left, and where two surfaces that swapped places overlap.
+/// either frame, across its old and new extent, which takes in its shadow. The output changes
+/// where a surface appeared, changed, or left, and where two surfaces that swapped places
+/// overlap.
 pub(super) fn changes(before: &[Shown], after: &[Shown]) -> Vec<Change> {
     let mut changes = Vec::new();
     // Where each current surface was in the previous frame.
@@ -79,7 +89,7 @@ pub(super) fn changes(before: &[Shown], after: &[Shown]) -> Vec<Change> {
     for (index, old) in before.iter().enumerate() {
         if !after.iter().any(|new| new.window == old.window) {
             changes.push(Change {
-                area: old.bounds,
+                area: old.extent(),
                 layer: under_former(index),
                 shown: true,
             });
@@ -101,13 +111,13 @@ pub(super) fn changes(before: &[Shown], after: &[Shown]) -> Vec<Change> {
                 let shown = old != new;
                 if shown || reordered(current, index) {
                     let layer = layer.min(under_former(index));
-                    for area in [old.bounds, new.bounds] {
+                    for area in [old.extent(), new.extent()] {
                         changes.push(Change { area, layer, shown });
                     }
                 }
             }
             None => changes.push(Change {
-                area: new.bounds,
+                area: new.extent(),
                 layer,
                 shown: true,
             }),
@@ -117,7 +127,7 @@ pub(super) fn changes(before: &[Shown], after: &[Shown]) -> Vec<Change> {
         let kept: Vec<_> = after
             .iter()
             .zip(&was)
-            .filter_map(|(new, was)| Some(((*was)?, new.bounds)))
+            .filter_map(|(new, was)| Some(((*was)?, new.extent())))
             .collect();
         for (lower, (was, bounds)) in kept.iter().enumerate() {
             for (was_above, above) in kept.iter().skip(lower + 1) {
@@ -194,6 +204,7 @@ mod tests {
             shape: vec![Rect::new(0, 0, 10, 10)],
             opacity,
             blur: false,
+            shadow: None,
         }
     }
 

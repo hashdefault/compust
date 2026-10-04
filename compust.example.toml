@@ -6,6 +6,14 @@ opacity = 100
 fade_ms = 180
 # Blur radius in pixels, 0..16, rounded to 2, 4, 8, or 16. Zero disables blur.
 blur_radius = 4
+# How far a shadow spreads beyond its window in pixels, 0..64. Zero draws no shadows.
+shadow_radius = 0
+# Where a shadow lies from its window in pixels, -64..64: right and down, or left and up when
+# negative.
+shadow_offset_x = 0
+shadow_offset_y = 0
+# How dark a shadow is where it is darkest, in percent.
+shadow_opacity = 50
 # Maximum repaint rate; idle desktops do not repaint.
 max_fps = 120
 # Use Present when supported; the XRender fallback is not synchronized to vblank.
@@ -17,7 +25,8 @@ backend = "xrender"
 # Per-window rules go after the settings above. Each chooses windows by `wm_class` (the second
 # WM_CLASS string), `window_type` (an EWMH type such as "normal", "dialog", "menu", "popup_menu",
 # "tooltip", or "dock"), or `name` (the title), matching the exact text, and sets `opacity`,
-# `blur`, or `fade_ms` for them. Each setting comes from the first matching rule that sets it.
+# `blur`, `fade_ms`, or `shadow` for them. Each setting comes from the first matching rule that
+# sets it.
 # `xprop` shows a window's class, type, and title.
 #
 # [[rules]]

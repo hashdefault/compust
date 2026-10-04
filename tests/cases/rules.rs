@@ -23,12 +23,12 @@ const DIM: &str = "[[rules]]\nwm_class = \"Dim\"\nopacity = 50\n";
 const RED: [u8; 3] = [255, 0, 0];
 const BACKGROUND: [u8; 3] = [24, 24, 32];
 
-fn atom(desktop: &Desktop, name: &[u8]) -> Result<Atom> {
+pub(crate) fn atom(desktop: &Desktop, name: &[u8]) -> Result<Atom> {
     Ok(desktop.conn.intern_atom(false, name)?.reply()?.atom)
 }
 
 /// A red window whose `WM_CLASS` names `class`.
-fn classed(desktop: &Desktop, rect: Rectangle, class: &str) -> Result<Window> {
+pub(crate) fn classed(desktop: &Desktop, rect: Rectangle, class: &str) -> Result<Window> {
     let window = desktop.window(rect, 0x00ff_0000)?;
     desktop
         .conn
@@ -43,7 +43,7 @@ fn classed(desktop: &Desktop, rect: Rectangle, class: &str) -> Result<Window> {
     Ok(window)
 }
 
-fn set_types(desktop: &Desktop, window: Window, types: &[Atom]) -> Result<()> {
+pub(crate) fn set_types(desktop: &Desktop, window: Window, types: &[Atom]) -> Result<()> {
     let property = atom(desktop, b"_NET_WM_WINDOW_TYPE")?;
     desktop
         .conn

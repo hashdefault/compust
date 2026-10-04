@@ -13,6 +13,7 @@ mod damage;
 mod gpu;
 mod paint;
 mod present;
+mod shadow;
 mod wallpaper;
 pub(crate) use damage::Source;
 use x11rb::{
@@ -59,8 +60,12 @@ pub(crate) struct Renderer {
     shown: Vec<damage::Shown>,
     /// Blurred backdrops kept from earlier frames, one per blurred surface.
     backdrops: Vec<blur::Backdrop>,
+    /// The strips each shadow is drawn from, one set per surface that casts one.
+    shadows: Vec<shadow::Strips>,
     /// The root's depth and picture format, for buffers.
     layout: Format,
+    /// The format of alpha-only buffers.
+    a8: Format,
     /// `XFixes` region naming the area each Present submission updates.
     update: u32,
 }
@@ -158,7 +163,9 @@ impl Renderer {
             pending: Vec::new(),
             shown: Vec::new(),
             backdrops: Vec::new(),
+            shadows: Vec::new(),
             layout,
+            a8,
             update,
         };
         renderer.invalidate();
