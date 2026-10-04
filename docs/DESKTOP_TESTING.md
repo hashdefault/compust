@@ -480,6 +480,37 @@ GPU load in the eight-window blur scene fell from 8.6% to 6.5% on two monitors a
 
 Kept backdrops are server pixmaps. In the full-screen blur scene, the pixmap bytes XRes attributes to Compust grew from 71.5 MB to 96.4 MB: one backdrop for the 3840×1080 translucent window and a 1920×1080 one for the desktop's Alacritty window, which has an alpha channel and lay under the benchmark's opaque backdrop. In the eight-window scene they grew from 60.5 MB to 75.1 MB.
 
+## Recorded occlusion: 2026-10-04
+
+After [occlusion in step 4 of the rendering milestone](ROADMAP.md#4-occlusion-and-blur-reuse), the runner measured every scene, including the new `covered` scene, on the same desktop with the commit that added that scene, `dc34c3b4e071a66fed23bc27ea35914b12bf446c`, whose compositor binary is identical to the new build of the [blur reuse record](#recorded-blur-reuse-2026-10-04), and the occlusion commit `899dfb64c3905095eb5a666a68a2d7ce89fbafef`. The builds alternated, twice with both monitors and twice with DP-2 alone; both had clean sources and used the same probe binary. Cells read as in the region record. The [records](benchmarks/2026-10-04/occlusion-amd-dwm/) include the [sequence](benchmarks/2026-10-04/occlusion-amd-dwm/sequence.sh).
+
+| Scene | Monitors | Before | After | GPU before | GPU after |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Idle | Two | 0.00 + 5.62% | 0.00 + 5.30% | 0.0% | 0.0% |
+| Idle | One | 0.00 + 5.32% | 0.00 + 5.35% | 0.0% | 0.0% |
+| Small window updating | Two | 0.25 + 7.35% | 0.25 + 7.22% | 6.2% | 6.0% |
+| Small window updating | One | 0.25 + 7.30% | 0.23 + 7.18% | 7.0% | 6.9% |
+| Full-screen translucent | Two | 0.30 + 7.90% | 0.25 + 7.70% | 8.6% | 7.8% |
+| Full-screen translucent | One | 0.28 + 7.35% | 0.25 + 7.22% | 7.7% | 7.2% |
+| Full-screen translucent, blur | Two | 0.35 + 8.10% | 0.28 + 7.90% | 5.4% | 4.9% |
+| Full-screen translucent, blur | One | 0.32 + 7.43% | 0.25 + 7.28% | 8.0% | 7.5% |
+| Eight translucent | Two | 0.40 + 7.68% | 0.38 + 7.55% | 6.5% | 6.6% |
+| Eight translucent | One | 0.38 + 7.72% | 0.38 + 7.62% | 7.5% | 7.3% |
+| Eight translucent, blur | Two | 0.47 + 8.07% | 0.45 + 8.18% | 6.5% | 7.1% |
+| Eight translucent, blur | One | 0.45 + 8.00% | 0.45 + 7.78% | 7.5% | 7.5% |
+| Covered | Two | 0.45 + 8.45% | 0.25 + 7.82% | 8.8% | 4.2% |
+| Covered | One | 0.43 + 7.95% | 0.23 + 7.18% | 8.1% | 6.9% |
+| Covered, blur | Two | 0.50 + 8.85% | 0.25 + 7.80% | 5.5% | 4.2% |
+| Covered, blur | One | 0.47 + 8.12% | 0.25 + 7.20% | 8.3% | 6.9% |
+| Move and resize | Two | 0.95 + 8.30% | 0.95 + 8.20% | 6.2% | 6.0% |
+| Move and resize | One | 0.95 + 8.28% | 0.95 + 8.20% | 7.0% | 7.0% |
+| Open and close | Two | 0.45 + 8.70% | 0.30 + 8.40% | 6.5% | 6.2% |
+| Open and close | One | 0.45 + 8.70% | 0.30 + 8.55% | 7.0% | 7.2% |
+
+Skipping hidden windows helps where an opaque window covers others. With eight translucent windows under an opaque full-screen window that changes every frame, Compust's CPU fell from 0.43–0.50% to 0.23–0.25%, and the X server worked 0.6–0.8 points less without blur and 0.9–1.05 with it; on two monitors, GPU load in that scene fell from 8.8% to 4.2%. The covered scene now costs the same with blur as without, because the hidden blurred windows no longer blur. They also drop their backdrops, which freed 14.6 MB of server pixmaps on two monitors.
+
+In every other scene, the benchmark's opaque backdrop now hides the desktop's own windows and the root background. That saved the X server up to 0.2 points and freed the 8.3 MB backdrop that the blur reuse record found kept for the hidden Alacritty window. Eight blurred windows cost the X server 0.1 points more on two monitors in both runs and 0.2 less on one, although that scene now skips work it painted before; open and close differs by one tick at most. Every scene held 60 frames per second and none skipped a vblank. The old build's first idle run, again the first scene of the sequence, presented frames at its start.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

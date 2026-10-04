@@ -480,6 +480,37 @@ A carga da GPU na cena de oito janelas com desfoque caiu de 8,6% para 6,5% com d
 
 Os fundos guardados são pixmaps do servidor. Na cena de tela cheia com desfoque, os bytes de pixmaps que o XRes atribui ao Compust passaram de 71,5 MB para 96,4 MB: um fundo para a janela translúcida de 3840×1080 e outro, de 1920×1080, para a janela do Alacritty no desktop, que tem canal alfa e ficava sob o fundo opaco do benchmark. Na cena de oito janelas, passaram de 60,5 MB para 75,1 MB.
 
+## Oclusão registrada: 2026-10-04
+
+Depois da [oclusão na etapa 4 do marco de renderização](ROADMAP.pt-BR.md#4-oclusão-e-reaproveitamento-do-desfoque), o executor mediu todas as cenas, incluindo a nova cena `covered`, no mesmo desktop com o commit que acrescentou essa cena, `dc34c3b4e071a66fed23bc27ea35914b12bf446c`, cujo binário do compositor é idêntico à versão nova do [registro do reaproveitamento do desfoque](#reaproveitamento-do-desfoque-registrado-2026-10-04), e o commit da oclusão `899dfb64c3905095eb5a666a68a2d7ce89fbafef`. As versões se alternaram, duas vezes com os dois monitores e duas com somente DP-2; as duas tinham o código limpo e usaram o mesmo binário da sonda. As células se leem como no registro de regiões. Os [registros](benchmarks/2026-10-04/occlusion-amd-dwm/) incluem a [sequência](benchmarks/2026-10-04/occlusion-amd-dwm/sequence.sh).
+
+| Cena | Monitores | Antes | Depois | GPU antes | GPU depois |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Ociosa | Dois | 0,00 + 5,62% | 0,00 + 5,30% | 0,0% | 0,0% |
+| Ociosa | Um | 0,00 + 5,32% | 0,00 + 5,35% | 0,0% | 0,0% |
+| Janela pequena atualizando | Dois | 0,25 + 7,35% | 0,25 + 7,22% | 6,2% | 6,0% |
+| Janela pequena atualizando | Um | 0,25 + 7,30% | 0,23 + 7,18% | 7,0% | 6,9% |
+| Translúcida em tela cheia | Dois | 0,30 + 7,90% | 0,25 + 7,70% | 8,6% | 7,8% |
+| Translúcida em tela cheia | Um | 0,28 + 7,35% | 0,25 + 7,22% | 7,7% | 7,2% |
+| Translúcida em tela cheia, desfoque | Dois | 0,35 + 8,10% | 0,28 + 7,90% | 5,4% | 4,9% |
+| Translúcida em tela cheia, desfoque | Um | 0,32 + 7,43% | 0,25 + 7,28% | 8,0% | 7,5% |
+| Oito translúcidas | Dois | 0,40 + 7,68% | 0,38 + 7,55% | 6,5% | 6,6% |
+| Oito translúcidas | Um | 0,38 + 7,72% | 0,38 + 7,62% | 7,5% | 7,3% |
+| Oito translúcidas, desfoque | Dois | 0,47 + 8,07% | 0,45 + 8,18% | 6,5% | 7,1% |
+| Oito translúcidas, desfoque | Um | 0,45 + 8,00% | 0,45 + 7,78% | 7,5% | 7,5% |
+| Coberta | Dois | 0,45 + 8,45% | 0,25 + 7,82% | 8,8% | 4,2% |
+| Coberta | Um | 0,43 + 7,95% | 0,23 + 7,18% | 8,1% | 6,9% |
+| Coberta, desfoque | Dois | 0,50 + 8,85% | 0,25 + 7,80% | 5,5% | 4,2% |
+| Coberta, desfoque | Um | 0,47 + 8,12% | 0,25 + 7,20% | 8,3% | 6,9% |
+| Mover e redimensionar | Dois | 0,95 + 8,30% | 0,95 + 8,20% | 6,2% | 6,0% |
+| Mover e redimensionar | Um | 0,95 + 8,28% | 0,95 + 8,20% | 7,0% | 7,0% |
+| Abrir e fechar | Dois | 0,45 + 8,70% | 0,30 + 8,40% | 6,5% | 6,2% |
+| Abrir e fechar | Um | 0,45 + 8,70% | 0,30 + 8,55% | 7,0% | 7,2% |
+
+Pular janelas escondidas ajuda onde uma janela opaca cobre outras. Com oito janelas translúcidas sob uma janela opaca em tela cheia que muda a cada quadro, a CPU do Compust caiu de 0,43–0,50% para 0,23–0,25%, e o servidor X trabalhou 0,6–0,8 ponto a menos sem desfoque e 0,9–1,05 com ele; com dois monitores, a carga da GPU nessa cena caiu de 8,8% para 4,2%. A cena coberta agora custa o mesmo com desfoque e sem ele, porque as janelas desfocadas escondidas deixaram de ser desfocadas. Elas também descartam seus fundos, o que liberou 14,6 MB de pixmaps do servidor com dois monitores.
+
+Em todas as outras cenas, o fundo opaco do benchmark agora esconde as janelas do próprio desktop e o fundo da raiz. Isso economizou até 0,2 ponto do servidor X e liberou o fundo de 8,3 MB que o registro do reaproveitamento encontrou guardado para a janela escondida do Alacritty. Oito janelas desfocadas custaram ao servidor X 0,1 ponto a mais com dois monitores nas duas execuções e 0,2 a menos com um, embora essa cena agora pule trabalho que antes pintava; abrir e fechar difere no máximo um tick. Todas as cenas mantiveram 60 quadros por segundo e nenhuma perdeu vblank. A primeira execução ociosa da versão antiga, de novo a primeira cena da sequência, apresentou quadros no início.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

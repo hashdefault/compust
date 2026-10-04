@@ -1,0 +1,3 @@
+2026-10-04T04:47:51.761261Z  INFO configuration loaded path=<reports>/single-1-after/configs/compust-blur.toml
+2026-10-04T04:47:51.763596Z  INFO compositor started present=true windows=3
+2026-10-04T04:48:13.792656Z  INFO compositor stopped
