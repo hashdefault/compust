@@ -1,0 +1,7 @@
+3840x1080 pixels; largest channel difference 2
+pixels differing by more than 0: 76896
+pixels differing by more than 1: 12
+pixels differing by more than 2: 0
+pixels differing by more than 4: 0
+pixels differing by more than 8: 0
+pixels differing by more than 16: 0

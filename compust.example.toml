@@ -4,9 +4,12 @@
 opacity = 100
 # Fade in/out duration. Zero disables animations.
 fade_ms = 180
-# Separable box blur radius, 0..16. Zero disables blur.
+# Blur radius in pixels, 0..16, rounded to 2, 4, 8, or 16. Zero disables blur.
 blur_radius = 4
 # Maximum repaint rate; idle desktops do not repaint.
 max_fps = 120
 # Use Present when supported; the XRender fallback is not synchronized to vblank.
 vsync = true
+# "xrender" draws through the X server. "gl" draws with OpenGL ES on the server's GPU through
+# DRI3 1.2 and falls back to XRender, with a warning, where it cannot.
+backend = "xrender"

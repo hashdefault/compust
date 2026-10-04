@@ -50,6 +50,16 @@ With Present, a single output buffer is submitted in COPY mode with the repaint 
 
 A `BadMatch` on the exact outstanding PresentPixmap request can fall back to XRender after checked geometry queries confirm that the original back pixmap and output still exist on the same screen with matching depth and expected buffer dimensions. The rejected request does not own the buffer, so the idle/completion wait is cleared. The session then marks Present unavailable, so the fallback survives a root resize or a configuration reload that recreates the renderer. A warning records the rejected request. Invalid resources and unrelated errors are not covered by this recovery.
 
+### GPU renderer
+
+The renderer plans each frame once: the repaint area, which backdrops blur again, what opaque surfaces hide, and the clip of each surface. `renderer/paint.rs` hands that plan to one of two painters. The XRender painter carries it out as described above. The GPU painter in `renderer/gpu.rs`, chosen with `backend = "gl"`, carries it out with OpenGL ES on the X server's own GPU and keeps its backdrops and blur pyramid as GPU textures.
+
+DRI3 Open names the server's DRM device, and the GPU painter opens the EGL device behind the same node, so a machine with several GPUs uses the one the server renders with. The back buffer stays the pixmap the server allocated: the painter imports it through DRI3 BuffersFromPixmap as its render target, so Present shows its frames exactly as it shows the XRender painter's, and no buffer format or modifier needs negotiating. Window and wallpaper pixmaps are imported the same way, once per capture, and sampled without copying. The kernel orders the GPU's reads and writes of shared buffers only after each side has sent its work. The painter flushes its draws before the frame is presented. glamor holds back its own commands until the server idles or a fence triggers, so before each frame the painter triggers a SYNC fence and waits for its answer: a busy server could otherwise let a newly painted window be read before its contents arrive.
+
+The painter needs DRI3 1.2. Without it, or when the GPU painter cannot open, Compust warns and keeps to XRender. A frame that fails, including a GL error reported at flush, also switches the session to XRender, which repaints everything; later renderers do not try the GPU again. Xvfb lacks DRI3, and Xwayland refuses to share pixmaps, so on both the GL backend falls back.
+
+All of the compositor's unsafe code lives in `crates/gl`, the `compust-gl` crate: libEGL loaded at run time, device selection, a surfaceless OpenGL ES context, dma-buf imports, and one draw that samples a source at `(target pixel + offset) × scale`, which covers composition and the pyramid's passes. Every unsafe block states why it is sound. EGL gives every user of a device the same display, so the crate never terminates it, and every GL call first makes its own context current, so a renderer and the one replacing it keep their objects apart.
+
 ## Source map
 
 | Area | Files |
@@ -60,9 +70,10 @@ A `BadMatch` on the exact outstanding PresentPixmap request can fall back to XRe
 | Client/frame association | `surface/client.rs` |
 | Scene and events | `scene.rs`, `events.rs`, `compositor.rs` |
 | Effects and presentation | `animation.rs`, `region.rs`, `renderer.rs`, `renderer/{paint,damage,cover,blur,present,wallpaper}.rs` |
-| Real-server verification | `tests/x11.rs`, `tests/cases/`, `tests/support/` |
+| GPU renderer | `renderer/gpu.rs`, and `crates/gl/src/` for EGL, OpenGL ES, and dma-buf textures |
+| Real-server verification | `tests/x11.rs`, `tests/cases/`, `tests/support/`, and `tests/gpu.rs` against a server with DRI3 |
 
-All source paths above are relative to `src/` except the test paths. The crate uses `unsafe_code = "forbid"`; that restriction covers this crate, not the internals of its dependencies. Rust prevents several memory errors, but protocol races, rendering mistakes, and resource leaks still require tests.
+All source paths above are relative to `src/` except the test paths and `crates/gl`. The compositor crate uses `unsafe_code = "forbid"`; that restriction covers this crate, not `compust-gl` or the internals of other dependencies. Rust prevents several memory errors, but protocol races, rendering mistakes, and resource leaks still require tests.
 
 ## Capture verification
 
@@ -72,6 +83,6 @@ The same transport supports presentation tests by substituting a request field b
 
 ## Where to extend it
 
-A GPU backend should preserve the scene and resource-lifetime contracts while replacing the rendering path. Do not add a generic backend abstraction until its actual import, synchronization, and presentation requirements are understood. DRI3 and Sync version probes currently provide diagnostics only.
+A painter carries out a frame's plan; a new one, such as Vulkan, should keep the plan and the resource-lifetime contracts and say how it imports, synchronizes, and presents. Explicit synchronization through DRI3 1.4 and buffers the GPU painter allocates itself remain open.
 
 The next optimization should be driven by profiles. Every saved repaint adds state that a missed change leaves stale, so each needs a test that makes that change and compares the frame with one from a fresh renderer. Measure the X server as well as Compust because XRender delegates rendering work to it. The [roadmap](ROADMAP.md) defines acceptance criteria for these changes.

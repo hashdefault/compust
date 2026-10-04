@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+move-resize,compositor,20.000335,19,100,0.9500,4048,4048
+move-resize,server,20.000335,164,100,8.1999,98728,98728
+move-resize,wm,20.000335,2,100,0.1000,14896,14896
+move-resize,probe,20.000335,24,100,1.2000,3468,3492

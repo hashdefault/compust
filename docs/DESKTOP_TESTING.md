@@ -511,6 +511,41 @@ Skipping hidden windows helps where an opaque window covers others. With eight t
 
 In every other scene, the benchmark's opaque backdrop now hides the desktop's own windows and the root background. That saved the X server up to 0.2 points and freed the 8.3 MB backdrop that the blur reuse record found kept for the hidden Alacritty window. Eight blurred windows cost the X server 0.1 points more on two monitors in both runs and 0.2 less on one, although that scene now skips work it painted before; open and close differs by one tick at most. Every scene held 60 frames per second and none skipped a vblank. The old build's first idle run, again the first scene of the sequence, presented frames at its start.
 
+## Recorded GPU renderer: 2026-10-04
+
+The [GPU renderer](ARCHITECTURE.md#gpu-renderer) ran on the same desktop at the clean commit `ab665d31`, with the benchmark runner's `compust` and `compust-gl` entries side by side in each run, twice with both monitors and twice with DP-2 alone. Its log named the device it drew with: "AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64)". The [records](benchmarks/2026-10-04/gl-amd-dwm/) include the [sequence](benchmarks/2026-10-04/gl-amd-dwm/sequence.sh).
+
+The probe's snapshot mode first showed the same scene of three translucent windows and an opaque one over one-pixel stripes, with blur, under each renderer. The two 3840×1080 captures differ by at most 2 levels in any channel: 76,896 pixels, 1.9% of the screen, differ by 1, and 12 by 2. Both [captures](benchmarks/2026-10-04/gl-amd-dwm/compust-gl-blur.ppm.gz) are in the records.
+
+Each cell is Compust's CPU plus the X server's, as a mean of two runs. Every scene held 60 frames per second under both renderers without a skipped vblank. In the open-and-close scene, now 20 seconds long, each of the 2,400 windows the GPU renderer opened appeared one frame after its map request, within 17.0 ms, as under XRender.
+
+| Scene | Monitors | XRender | GPU |
+| --- | --- | ---: | ---: |
+| Idle | Two | 0.00 + 5.40% | 0.00 + 5.35% |
+| Idle | One | 0.00 + 5.38% | 0.00 + 5.40% |
+| Small window updating | Two | 0.25 + 7.28% | 0.65 + 6.97% |
+| Small window updating | One | 0.23 + 7.22% | 0.68 + 7.00% |
+| Full-screen translucent | Two | 0.30 + 7.82% | 0.75 + 7.32% |
+| Full-screen translucent | One | 0.25 + 7.32% | 0.78 + 7.00% |
+| Full-screen translucent, blur | Two | 0.28 + 7.85% | 0.78 + 7.35% |
+| Full-screen translucent, blur | One | 0.28 + 7.40% | 0.75 + 6.97% |
+| Eight translucent | Two | 0.32 + 7.72% | 0.90 + 6.97% |
+| Eight translucent | One | 0.35 + 7.68% | 0.90 + 7.00% |
+| Eight translucent, blur | Two | 0.45 + 8.22% | 1.12 + 7.40% |
+| Eight translucent, blur | One | 0.47 + 7.85% | 1.10 + 6.97% |
+| Covered | Two | 0.25 + 7.65% | 0.72 + 7.38% |
+| Covered | One | 0.25 + 7.22% | 0.62 + 6.95% |
+| Covered, blur | Two | 0.25 + 7.75% | 0.70 + 7.35% |
+| Covered, blur | One | 0.25 + 7.25% | 0.68 + 6.97% |
+| Move and resize | Two | 0.95 + 8.28% | 2.02 + 9.15% |
+| Move and resize | One | 0.95 + 8.22% | 1.98 + 9.07% |
+| Open and close | Two | 0.60 + 7.84% | 1.42 + 8.12% |
+| Open and close | One | 0.57 + 8.59% | 1.38 + 8.87% |
+
+The GPU renderer moves work from the X server to Compust. Compust's own CPU rose from 0.23–0.47% to 0.62–1.12% in the scenes that compose windows, and the X server's fell by 0.22–0.88 points; their sum stayed within 0.25 points of XRender's. Moving and resizing cost 1.9 points more in total, and opening and closing 1.1 more: each new window pixmap, one per resize, is shared through DRI3, which costs round trips and, in glamor, can mean copying the pixmap into a buffer it can share. Compust's RSS rose from about 4 MiB to 66 MiB, almost all of it the GL driver. On this desktop the GPU renderer therefore saves nothing; a slower or busier X server, where XRender's work in the server dominates, is where it could.
+
+A first run, at `a137a7db`, failed once: in its second two-monitor run, a window that the GPU renderer opened stayed black until the probe gave up. glamor holds back its GPU commands until the server idles or a fence triggers, so on a busy server the GPU could read a newly painted window, or the copy that sharing it needed, before those commands were sent, and no later damage repainted it. The fix triggers a SYNC fence before each frame; the opt-in [`tests/gpu.rs`](../tests/gpu.rs) reproduces the race with another client keeping the server busy, which left 4–14 of 100 shared pixmaps stale without the fence and none with it. The [failing run's records](benchmarks/2026-10-04/gl-first-amd-dwm/) are kept.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

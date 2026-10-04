@@ -26,7 +26,7 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 | RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop and one Intel/Xorg laptop |
 | EWMH / ICCCM | Compositor selection, manager announcement, opacity, and client discovery through `WM_STATE` |
 | Root wallpaper | `_XROOTPMAP_ID`, then `ESETROOT_PMAP_ID`; dark fallback when neither is usable |
-| DRI3 / Sync | Version diagnostics only; no DMA-BUF import or explicit-sync rendering backend |
+| DRI3 1.2 and Sync 3.1 | Optional: the GPU renderer shares the back buffer, window, and wallpaper pixmaps through DRI3, and a Sync fence makes the server send its GPU work before each frame; no explicit synchronization |
 
 “Modern X11 support” is an incremental compatibility goal, not a promise to implement every extension. Present availability does not establish tear-free behavior on every driver. The XRender fallback is not synchronized to vblank.
 
@@ -62,7 +62,7 @@ Choose an unused display number. This example disables X authentication only for
 
 The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11.
 
-Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity` and `max_fps` apply from the next frame. A new `fade_ms` applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius` or `vsync` replaces the render buffers once the frame being presented is done.
+Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity` and `max_fps` apply from the next frame. A new `fade_ms` applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
 
 ```toml
 opacity = 100
@@ -70,6 +70,7 @@ fade_ms = 180
 blur_radius = 4
 max_fps = 120
 vsync = true
+backend = "xrender"
 ```
 
 | Setting | Meaning |
@@ -79,6 +80,7 @@ vsync = true
 | `blur_radius` | Approximate blur radius in pixels, 0–16, rounded to 2, 4, 8, or 16; zero disables blur |
 | `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
+| `backend` | `"xrender"` draws through the X server; `"gl"` draws with OpenGL ES on the server's GPU, and falls back to XRender with a warning where it cannot |
 
 Blur applies behind translucent or ARGB windows. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
 
@@ -94,17 +96,17 @@ Install Xvfb (`xvfb` on Debian/Ubuntu, `xorg-server-xvfb` on Arch), then run:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace
 ```
 
-Each integration scenario starts its own Xvfb and a real Compust process. Tests observe rendered pixels and protocol behavior rather than mocking the server. Set `XVFB=/path/to/Xvfb` to use a nonstandard binary. `COMPUST_ARTIFACTS=artifacts cargo test --test x11` saves selected scenes as PPM images for inspection.
+Each integration scenario starts its own Xvfb and a real Compust process. Tests observe rendered pixels and protocol behavior rather than mocking the server. Set `XVFB=/path/to/Xvfb` to use a nonstandard binary. `COMPUST_ARTIFACTS=artifacts cargo test --test x11` saves selected scenes as PPM images for inspection. The GPU crate's tests draw on Mesa's software EGL device and skip without one; `COMPUST_GPU_TESTS=1`, as in CI, makes that a failure. `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` checks DRI3 sharing against a real server's GPU with offscreen pixmaps only.
 
 Contributions in **English or Brazilian Portuguese** are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), the [architecture](docs/ARCHITECTURE.md), or the [roadmap](docs/ROADMAP.md). Driver reports, reproducible failures, documentation, and performance measurements are useful contributions too.
 
 ## Current limits
 
-This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. GPU backends remain open work. The [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with benchmarks; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine. It has no shadows, rounded corners, movement/scale animations, per-window rules, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with benchmarks; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine. It has no shadows, rounded corners, movement/scale animations, per-window rules, fullscreen unredirection, or picom configuration compatibility.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
 

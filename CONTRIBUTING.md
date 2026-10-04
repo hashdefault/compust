@@ -11,11 +11,11 @@ Install rustup, a C linker, Git, and Xvfb. The repository pins Rust 1.95.0. Fork
 ```sh
 cargo build --locked
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace
 ```
 
-`cargo test` starts isolated Xvfb instances with dynamically allocated displays, launches the actual binary, and checks pixels and X11 state. It needs neither your current `DISPLAY` nor a running desktop. Override the executable with `XVFB=/path/to/Xvfb`. The unit tests alone can be run with `cargo test --bin compust`.
+`cargo test` starts isolated Xvfb instances with dynamically allocated displays, launches the actual binary, and checks pixels and X11 state. It needs neither your current `DISPLAY` nor a running desktop. Override the executable with `XVFB=/path/to/Xvfb`. The unit tests alone can be run with `cargo test --bin compust`. The GPU crate's tests need Mesa's EGL and skip without its software device, unless `COMPUST_GPU_TESTS` is set; `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` also checks DRI3 sharing on your session's GPU, with offscreen pixmaps only.
 
 The tests wait for X11 events with deadlines. Preserve that approach: arbitrary delays make graphics tests flaky. Animation tests can observe time because animation is the behavior under test. Avoid assertions about log wording or private implementation details when the output pixels or protocol state can be checked.
 
@@ -37,7 +37,7 @@ The [desktop qualification guide](docs/DESKTOP_TESTING.md) runs Xmonad, Openbox,
 
 Keep each pull request focused on a behavior that can be explained and tested. Describe the trigger, the resulting behavior, how you verified it, and any known limits. Add a regression test for a reproducible defect when the test can distinguish it. Run formatting, Clippy, and the relevant tests before submitting; CI also builds the release binary.
 
-The crate forbids local `unsafe` code. Keep X11 resource lifetimes explicit, preserve cleanup on partial initialization, and handle windows that disappear between requests. Do not broaden ignored protocol errors to make a test pass. Keep pure animation calculations separate from server interaction, and avoid allocating per frame when a reusable buffer works.
+The compositor crate forbids `unsafe` code. The only unsafe code is in `crates/gl`, behind a safe API, with a `SAFETY` comment on every block that says why it is sound; keep it there and keep it small. Keep X11 resource lifetimes explicit, preserve cleanup on partial initialization, and handle windows that disappear between requests. Do not broaden ignored protocol errors to make a test pass. Keep pure animation calculations separate from server interaction, and avoid allocating per frame when a reusable buffer works.
 
 Update the English and pt-BR documentation together when behavior changes. If you cannot translate a passage confidently, say which counterpart needs help in the PR. No generated screenshots, `target/`, private desktop captures, or credentials belong in a commit. Selected test images can be generated with:
 

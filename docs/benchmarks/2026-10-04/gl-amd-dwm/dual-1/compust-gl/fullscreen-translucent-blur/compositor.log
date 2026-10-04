@@ -1,0 +1,4 @@
+2026-10-04T14:27:14.314364Z  INFO configuration loaded path=<reports>/dual-1/configs/compust-gl-blur.toml
+2026-10-04T14:27:14.342016Z  INFO drawing with the GPU renderer="AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)"
+2026-10-04T14:27:14.343217Z  INFO compositor started present=true windows=6
+2026-10-04T14:27:36.373336Z  INFO compositor stopped

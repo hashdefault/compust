@@ -11,11 +11,11 @@ Instale rustup, um linker C, Git e Xvfb. O repositório fixa Rust 1.95.0. Faça 
 ```sh
 cargo build --locked
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace
 ```
 
-`cargo test` inicia instâncias isoladas do Xvfb com displays escolhidos dinamicamente, executa o binário real e verifica pixels e estado do X11. Não depende do seu `DISPLAY` nem de uma sessão gráfica aberta. Use `XVFB=/caminho/para/Xvfb` para escolher o executável. Para rodar apenas os testes unitários, use `cargo test --bin compust`.
+`cargo test` inicia instâncias isoladas do Xvfb com displays escolhidos dinamicamente, executa o binário real e verifica pixels e estado do X11. Não depende do seu `DISPLAY` nem de uma sessão gráfica aberta. Use `XVFB=/caminho/para/Xvfb` para escolher o executável. Para rodar apenas os testes unitários, use `cargo test --bin compust`. Os testes do crate de GPU precisam do EGL do Mesa e são pulados sem o dispositivo de software, a menos que `COMPUST_GPU_TESTS` esteja definida; `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` também confere o compartilhamento por DRI3 na GPU da sua sessão, usando apenas pixmaps fora da tela.
 
 Os testes aguardam eventos X11 com prazos definidos. Preserve essa abordagem: pausas arbitrárias tornam testes gráficos instáveis. Os testes de animação podem observar o tempo porque a animação é o comportamento verificado. Prefira pixels ou estado do protocolo a verificações do texto de logs ou de detalhes internos.
 
@@ -37,7 +37,7 @@ O [guia de validação de desktops](docs/DESKTOP_TESTING.pt-BR.md) executa cená
 
 Mantenha cada pull request concentrado em um comportamento que possa ser explicado e testado. Descreva o que dispara a situação, o resultado, a verificação realizada e as limitações conhecidas. Acrescente um teste de regressão quando ele conseguir distinguir a falha. Rode formatação, Clippy e os testes pertinentes antes do envio; a CI também compila o binário de release.
 
-O crate proíbe código `unsafe` local. Explicite os tempos de vida dos recursos X11, preserve a limpeza quando a inicialização falhar e trate janelas que desaparecem entre requisições. Não amplie a lista de erros de protocolo ignorados apenas para passar um teste. Separe os cálculos de animação da interação com o servidor e reutilize buffers quando possível.
+O crate do compositor proíbe código `unsafe`. O único código unsafe fica em `crates/gl`, atrás de uma API segura, com um comentário `SAFETY` em cada bloco dizendo por que ele é correto; mantenha-o ali e pequeno. Explicite os tempos de vida dos recursos X11, preserve a limpeza quando a inicialização falhar e trate janelas que desaparecem entre requisições. Não amplie a lista de erros de protocolo ignorados apenas para passar um teste. Separe os cálculos de animação da interação com o servidor e reutilize buffers quando possível.
 
 Atualize as versões em inglês e pt-BR quando o comportamento mudar. Se não conseguir traduzir um trecho com segurança, indique no PR qual documento precisa de ajuda. Capturas geradas, `target/`, imagens privadas da área de trabalho e credenciais não devem entrar em commits. Para gerar algumas imagens dos testes:
 

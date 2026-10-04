@@ -1,0 +1,12 @@
+Composite: 0.4
+DAMAGE: 1.1
+RENDER: 0.11
+XFIXES: 5.0
+SHAPE: 1.1
+RANDR: 1.5
+Present: 1.2
+DRI3: 1.2
+SYNC: 3.1
+XRender bilinear blur: true
+GPU renderer: DRI3 1.2 shares pixmaps with the GPU renderer (backend = "gl")
+Sync is a diagnostic probe only; frames rely on implicit synchronization.

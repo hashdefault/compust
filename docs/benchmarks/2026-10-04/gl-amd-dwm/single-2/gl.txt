@@ -1,0 +1,41 @@
+name of display: :0
+display: :0  screen: 0
+direct rendering: Yes
+Extended renderer info (GLX_MESA_query_renderer):
+    Vendor: AMD (0x1002)
+    Device: AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1) (0x7590)
+    Version: 26.2.4
+    Accelerated: yes
+    Video memory: 16384MB
+    Unified memory: no
+    Preferred profile: core (0x1)
+    Max core profile version: 4.6
+    Max compat profile version: 4.6
+    Max GLES1 profile version: 1.1
+    Max GLES[23] profile version: 3.2
+Memory info (GL_ATI_meminfo):
+    VBO free memory - total: 16026 MB, largest block: 16026 MB
+    VBO free aux. memory - total: 7903 MB, largest block: 7903 MB
+    Texture free memory - total: 16026 MB, largest block: 16026 MB
+    Texture free aux. memory - total: 7903 MB, largest block: 7903 MB
+    Renderbuffer free memory - total: 16026 MB, largest block: 16026 MB
+    Renderbuffer free aux. memory - total: 7903 MB, largest block: 7903 MB
+Memory info (GL_NVX_gpu_memory_info):
+    Dedicated video memory: 16384 MB
+    Total available memory: 24337 MB
+    Currently available dedicated video memory: 16026 MB
+OpenGL vendor string: AMD
+OpenGL renderer string: AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)
+OpenGL core profile version string: 4.6 (Core Profile) Mesa 26.2.4-arch3.1
+OpenGL core profile shading language version string: 4.60
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+
+OpenGL version string: 4.6 (Compatibility Profile) Mesa 26.2.4-arch3.1
+OpenGL shading language version string: 4.60
+OpenGL context flags: (none)
+OpenGL profile mask: compatibility profile
+
+OpenGL ES profile version string: OpenGL ES 3.2 Mesa 26.2.4-arch3.1
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+

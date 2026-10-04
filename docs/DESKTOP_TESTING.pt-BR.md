@@ -511,6 +511,41 @@ Pular janelas escondidas ajuda onde uma janela opaca cobre outras. Com oito jane
 
 Em todas as outras cenas, o fundo opaco do benchmark agora esconde as janelas do próprio desktop e o fundo da raiz. Isso economizou até 0,2 ponto do servidor X e liberou o fundo de 8,3 MB que o registro do reaproveitamento encontrou guardado para a janela escondida do Alacritty. Oito janelas desfocadas custaram ao servidor X 0,1 ponto a mais com dois monitores nas duas execuções e 0,2 a menos com um, embora essa cena agora pule trabalho que antes pintava; abrir e fechar difere no máximo um tick. Todas as cenas mantiveram 60 quadros por segundo e nenhuma perdeu vblank. A primeira execução ociosa da versão antiga, de novo a primeira cena da sequência, apresentou quadros no início.
 
+## Renderizador de GPU registrado: 2026-10-04
+
+O [renderizador de GPU](ARCHITECTURE.pt-BR.md#renderizador-de-gpu) rodou no mesmo desktop no commit limpo `ab665d31`, com as entradas `compust` e `compust-gl` do executor de benchmarks lado a lado em cada execução, duas vezes com os dois monitores e duas com somente DP-2. O log dele nomeou o dispositivo usado: "AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64)". Os [registros](benchmarks/2026-10-04/gl-amd-dwm/) incluem a [sequência](benchmarks/2026-10-04/gl-amd-dwm/sequence.sh).
+
+O modo de captura da sonda mostrou antes a mesma cena de três janelas translúcidas e uma opaca sobre listras de um pixel, com desfoque, em cada renderizador. As duas capturas de 3840×1080 diferem no máximo 2 níveis em qualquer canal: 76.896 pixels, 1,9% da tela, diferem 1, e 12 diferem 2. As duas [capturas](benchmarks/2026-10-04/gl-amd-dwm/compust-gl-blur.ppm.gz) estão nos registros.
+
+Cada célula traz a CPU do Compust mais a do servidor X, como média de duas execuções. Todas as cenas mantiveram 60 quadros por segundo nos dois renderizadores, sem perder vblank. Na cena de abrir e fechar, agora com 20 segundos, cada uma das 2.400 janelas abertas pelo renderizador de GPU apareceu um quadro depois do pedido de mapeamento, em até 17,0 ms, como no XRender.
+
+| Cena | Monitores | XRender | GPU |
+| --- | --- | ---: | ---: |
+| Ociosa | Dois | 0,00 + 5,40% | 0,00 + 5,35% |
+| Ociosa | Um | 0,00 + 5,38% | 0,00 + 5,40% |
+| Janela pequena atualizando | Dois | 0,25 + 7,28% | 0,65 + 6,97% |
+| Janela pequena atualizando | Um | 0,23 + 7,22% | 0,68 + 7,00% |
+| Translúcida em tela cheia | Dois | 0,30 + 7,82% | 0,75 + 7,32% |
+| Translúcida em tela cheia | Um | 0,25 + 7,32% | 0,78 + 7,00% |
+| Translúcida em tela cheia, desfoque | Dois | 0,28 + 7,85% | 0,78 + 7,35% |
+| Translúcida em tela cheia, desfoque | Um | 0,28 + 7,40% | 0,75 + 6,97% |
+| Oito translúcidas | Dois | 0,32 + 7,72% | 0,90 + 6,97% |
+| Oito translúcidas | Um | 0,35 + 7,68% | 0,90 + 7,00% |
+| Oito translúcidas, desfoque | Dois | 0,45 + 8,22% | 1,12 + 7,40% |
+| Oito translúcidas, desfoque | Um | 0,47 + 7,85% | 1,10 + 6,97% |
+| Coberta | Dois | 0,25 + 7,65% | 0,72 + 7,38% |
+| Coberta | Um | 0,25 + 7,22% | 0,62 + 6,95% |
+| Coberta, desfoque | Dois | 0,25 + 7,75% | 0,70 + 7,35% |
+| Coberta, desfoque | Um | 0,25 + 7,25% | 0,68 + 6,97% |
+| Mover e redimensionar | Dois | 0,95 + 8,28% | 2,02 + 9,15% |
+| Mover e redimensionar | Um | 0,95 + 8,22% | 1,98 + 9,07% |
+| Abrir e fechar | Dois | 0,60 + 7,84% | 1,42 + 8,12% |
+| Abrir e fechar | Um | 0,57 + 8,59% | 1,38 + 8,87% |
+
+O renderizador de GPU transfere trabalho do servidor X para o Compust. A CPU do próprio Compust subiu de 0,23–0,47% para 0,62–1,12% nas cenas que compõem janelas, e a do servidor X caiu 0,22–0,88 ponto; a soma ficou a até 0,25 ponto da do XRender. Mover e redimensionar custou 1,9 ponto a mais no total, e abrir e fechar, 1,1 a mais: cada novo pixmap de janela, um por redimensionamento, é compartilhado por DRI3, o que custa idas e voltas e, no glamor, pode exigir copiar o pixmap para um buffer que ele consiga compartilhar. A RSS do Compust subiu de cerca de 4 MiB para 66 MiB, quase tudo do driver GL. Neste desktop, portanto, o renderizador de GPU não economiza nada; um servidor X mais lento ou mais ocupado, em que o trabalho do XRender no servidor pesa mais, é onde ele poderia economizar.
+
+Uma primeira execução, em `a137a7db`, falhou uma vez: na segunda execução com dois monitores, uma janela aberta pelo renderizador de GPU ficou preta até a sonda desistir. O glamor retém seus comandos de GPU até o servidor ficar ocioso ou uma fence ser acionada, então, com o servidor ocupado, a GPU podia ler uma janela recém-pintada, ou a cópia que compartilhá-la exigiu, antes de esses comandos serem enviados, e nenhum dano posterior a repintava. A correção aciona uma fence do SYNC antes de cada quadro; o teste opcional [`tests/gpu.rs`](../tests/gpu.rs) reproduz a corrida com outro cliente mantendo o servidor ocupado, o que deixou 4–14 de 100 pixmaps compartilhados desatualizados sem a fence e nenhum com ela. Os [registros da execução que falhou](benchmarks/2026-10-04/gl-first-amd-dwm/) foram mantidos.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

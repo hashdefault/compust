@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+covered,compositor,20.000250,5,100,0.2500,4012,4012
+covered,server,20.000250,152,100,7.5999,98216,98216
+covered,wm,20.000250,0,100,0.0000,14896,14896
+covered,probe,20.000250,20,100,1.0000,3468,3492

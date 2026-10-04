@@ -1,0 +1,21 @@
+compust idle: PASS scene=idle seconds=20.001 completions=0 damage_events=0
+compust small-update: PASS scene=small-update seconds=20.002 completions=1200 damage_events=1200
+compust fullscreen-translucent: PASS scene=fullscreen-translucent seconds=20.000 completions=1200 damage_events=1200
+compust fullscreen-translucent-blur: PASS scene=fullscreen-translucent seconds=20.001 completions=1200 damage_events=1200
+compust eight-translucent: PASS scene=eight-translucent seconds=20.000 completions=1200 damage_events=1200
+compust eight-translucent-blur: PASS scene=eight-translucent seconds=20.002 completions=1200 damage_events=1200
+compust covered: PASS scene=covered seconds=20.001 completions=1200 damage_events=1200
+compust covered-blur: PASS scene=covered seconds=20.001 completions=1200 damage_events=1200
+compust move-resize: PASS scene=move-resize seconds=20.000 completions=1200 damage_events=1200
+compust open-close: PASS scene=open-close seconds=20.033 completions=1202 damage_events=1202
+compust-gl idle: PASS scene=idle seconds=20.002 completions=0 damage_events=0
+compust-gl small-update: PASS scene=small-update seconds=20.001 completions=1200 damage_events=1200
+compust-gl fullscreen-translucent: PASS scene=fullscreen-translucent seconds=20.000 completions=1200 damage_events=1200
+compust-gl fullscreen-translucent-blur: PASS scene=fullscreen-translucent seconds=20.003 completions=1200 damage_events=1200
+compust-gl eight-translucent: PASS scene=eight-translucent seconds=20.002 completions=1200 damage_events=1200
+compust-gl eight-translucent-blur: PASS scene=eight-translucent seconds=20.001 completions=1200 damage_events=1200
+compust-gl covered: PASS scene=covered seconds=20.000 completions=1200 damage_events=1200
+compust-gl covered-blur: PASS scene=covered seconds=20.001 completions=1200 damage_events=1200
+compust-gl move-resize: PASS scene=move-resize seconds=20.000 completions=1200 damage_events=1200
+compust-gl open-close: PASS scene=open-close seconds=20.000 completions=1200 damage_events=1200
+Benchmark report: <reports>/single-1

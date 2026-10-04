@@ -26,7 +26,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre e em um laptop Intel/Xorg |
 | EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade e descoberta do cliente por `WM_STATE` |
 | Papel de parede | `_XROOTPMAP_ID`, depois `ESETROOT_PMAP_ID`; fundo escuro quando nenhum é utilizável |
-| DRI3 / Sync | Apenas diagnóstico de versões; sem importação DMA-BUF nem backend com sincronização explícita |
+| DRI3 1.2 e Sync 3.1 | Opcionais: o renderizador de GPU compartilha o buffer de fundo e os pixmaps das janelas e do papel de parede por DRI3, e uma fence do Sync faz o servidor enviar seu trabalho de GPU antes de cada quadro; sem sincronização explícita |
 
 “Suporte moderno a X11” é um objetivo incremental de compatibilidade, não uma promessa de implementar todas as extensões. A disponibilidade de Present não comprova ausência de tearing em todos os drivers. A cópia direta com XRender não é sincronizada com o intervalo vertical do monitor.
 
@@ -62,7 +62,7 @@ Escolha um número de display livre. O exemplo desativa a autenticação apenas 
 
 O arquivo de exemplo contém todas as opções. Sem `--config`, o Compust lê o primeiro `compust/compust.toml` que encontrar em `$XDG_CONFIG_HOME` (por padrão `~/.config`) e depois em cada diretório de `$XDG_CONFIG_DIRS` (por padrão `/etc/xdg`); se não houver arquivo, valem os padrões internos. Campos desconhecidos e valores fora do intervalo geram erro antes da conexão com o X11.
 
-Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity` e `max_fps` valem a partir do próximo quadro. Um novo `fade_ms` vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius` ou `vsync` substitui os buffers de renderização assim que o quadro em apresentação termina.
+Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity` e `max_fps` valem a partir do próximo quadro. Um novo `fade_ms` vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius`, `vsync` ou `backend` substitui o renderizador assim que o quadro em apresentação termina.
 
 ```toml
 opacity = 100
@@ -70,6 +70,7 @@ fade_ms = 180
 blur_radius = 4
 max_fps = 120
 vsync = true
+backend = "xrender"
 ```
 
 | Opção | Significado |
@@ -79,6 +80,7 @@ vsync = true
 | `blur_radius` | Raio aproximado do desfoque em pixels, de 0 a 16, arredondado para 2, 4, 8 ou 16; zero desativa o desfoque |
 | `max_fps` | Limite de redesenho, de 1 a 1000; não garante essa taxa de quadros |
 | `vsync` | Usa Present quando disponível; `false` seleciona cópia direta com XRender |
+| `backend` | `"xrender"` desenha pelo servidor X; `"gl"` desenha com OpenGL ES na GPU do servidor e volta ao XRender com um aviso onde não puder |
 
 O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
 
@@ -94,17 +96,17 @@ Instale Xvfb (`xvfb` no Debian/Ubuntu, `xorg-server-xvfb` no Arch) e execute:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace
 ```
 
-Cada cenário de integração inicia seu próprio Xvfb e um processo real do Compust. Os testes observam os pixels renderizados e o protocolo, sem simular o servidor. Use `XVFB=/caminho/para/Xvfb` para indicar outro executável. `COMPUST_ARTIFACTS=artifacts cargo test --test x11` salva algumas cenas em PPM para inspeção.
+Cada cenário de integração inicia seu próprio Xvfb e um processo real do Compust. Os testes observam os pixels renderizados e o protocolo, sem simular o servidor. Use `XVFB=/caminho/para/Xvfb` para indicar outro executável. `COMPUST_ARTIFACTS=artifacts cargo test --test x11` salva algumas cenas em PPM para inspeção. Os testes do crate de GPU desenham no dispositivo EGL de software do Mesa e são pulados sem ele; `COMPUST_GPU_TESTS=1`, como na CI, transforma isso em falha. `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` confere o compartilhamento por DRI3 com a GPU de um servidor real usando apenas pixmaps fora da tela.
 
 Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece pelo [guia de contribuição](CONTRIBUTING.pt-BR.md), pela [arquitetura](docs/ARCHITECTURE.pt-BR.md) ou pelo [roteiro](docs/ROADMAP.pt-BR.md). Relatos sobre drivers, falhas reproduzíveis, documentação e medições de desempenho também ajudam.
 
 ## Limitações atuais
 
-O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. Backends de GPU ainda estão em aberto. O [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por benchmarks; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
+O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. O renderizador de GPU opcional ([registrado em um desktop](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04)) desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, com CPU total parecida ali, maior quando janelas são redimensionadas, e cerca de 62 MiB a mais de memória para o driver GL. O [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por benchmarks; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
 O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 

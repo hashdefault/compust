@@ -1,0 +1,4 @@
+2026-10-04T14:48:48.098296Z  INFO configuration loaded path=<reports>/single-2/configs/compust-gl.toml
+2026-10-04T14:48:48.124495Z  INFO drawing with the GPU renderer="AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)"
+2026-10-04T14:48:48.125549Z  INFO compositor started present=true windows=5
+2026-10-04T14:49:10.156067Z  INFO compositor stopped

@@ -50,6 +50,16 @@ Com Present, um único buffer é enviado no modo COPY com a área repintada como
 
 Um `BadMatch` na requisição PresentPixmap pendente exata pode acionar a cópia via XRender após consultas de geometria confirmarem que o pixmap original e a saída ainda existem na mesma tela, com profundidades iguais e as dimensões esperadas do buffer. A requisição rejeitada não retém o buffer, então a espera por conclusão e liberação é encerrada. A sessão passa então a considerar Present indisponível, e a alternativa se mantém quando um redimensionamento da raiz ou uma recarga de configuração recria o renderizador. Um aviso registra a requisição rejeitada. Recursos inválidos e erros não relacionados não fazem parte dessa recuperação.
 
+### Renderizador de GPU
+
+O renderizador planeja cada quadro uma vez: a área a repintar, quais fundos são desfocados de novo, o que superfícies opacas escondem e o recorte de cada superfície. `renderer/paint.rs` entrega esse plano a um de dois pintores. O pintor XRender o executa como descrito acima. O pintor de GPU em `renderer/gpu.rs`, escolhido com `backend = "gl"`, o executa com OpenGL ES na própria GPU do servidor X e guarda seus fundos e a pirâmide de desfoque como texturas de GPU.
+
+O DRI3 Open nomeia o dispositivo DRM do servidor, e o pintor de GPU abre o dispositivo EGL por trás do mesmo nó, então uma máquina com várias GPUs usa aquela com que o servidor renderiza. O buffer de fundo continua sendo o pixmap que o servidor alocou: o pintor o importa por DRI3 BuffersFromPixmap como destino de desenho, então o Present mostra seus quadros exatamente como mostra os do pintor XRender, e nenhum formato ou modificador de buffer precisa ser negociado. Os pixmaps das janelas e do papel de parede são importados da mesma forma, uma vez por captura, e lidos sem cópia. O kernel ordena as leituras e escritas da GPU em buffers compartilhados só depois que cada lado enviou seu trabalho. O pintor envia seus desenhos antes de o quadro ser apresentado. O glamor retém os próprios comandos até o servidor ficar ocioso ou uma fence ser acionada, então antes de cada quadro o pintor aciona uma fence do SYNC e espera a resposta: um servidor ocupado poderia, do contrário, deixar uma janela recém-pintada ser lida antes de seu conteúdo chegar.
+
+O pintor precisa de DRI3 1.2. Sem ele, ou quando o pintor de GPU não abre, o Compust avisa e continua com o XRender. Um quadro que falhe, inclusive por um erro de GL informado no envio, também passa a sessão para o XRender, que repinta tudo; renderizadores posteriores não tentam a GPU de novo. O Xvfb não tem DRI3, e o Xwayland se recusa a compartilhar pixmaps, então nos dois o backend GL volta ao XRender.
+
+Todo o código unsafe do compositor fica em `crates/gl`, o crate `compust-gl`: a libEGL carregada em tempo de execução, a escolha do dispositivo, um contexto OpenGL ES sem superfície, importações de dma-buf e um único desenho que lê uma origem em `(pixel de destino + deslocamento) × escala`, o que cobre a composição e as passadas da pirâmide. Cada bloco unsafe diz por que é correto. O EGL dá a mesma display a todos os usuários de um dispositivo, então o crate nunca a encerra, e cada chamada de GL torna antes o próprio contexto atual, para que um renderizador e o que o substitui mantenham seus objetos separados.
+
 ## Mapa do código
 
 | Área | Arquivos |
@@ -60,9 +70,10 @@ Um `BadMatch` na requisição PresentPixmap pendente exata pode acionar a cópia
 | Associação entre cliente e moldura | `surface/client.rs` |
 | Cena e eventos | `scene.rs`, `events.rs`, `compositor.rs` |
 | Efeitos e apresentação | `animation.rs`, `region.rs`, `renderer.rs`, `renderer/{paint,damage,cover,blur,present,wallpaper}.rs` |
-| Verificação com servidor real | `tests/x11.rs`, `tests/cases/`, `tests/support/` |
+| Renderizador de GPU | `renderer/gpu.rs`, e `crates/gl/src/` para EGL, OpenGL ES e texturas dma-buf |
+| Verificação com servidor real | `tests/x11.rs`, `tests/cases/`, `tests/support/`, e `tests/gpu.rs` com um servidor que tenha DRI3 |
 
-Os caminhos de código são relativos a `src/`, exceto os de teste. O crate usa `unsafe_code = "forbid"`; essa restrição vale para o próprio crate, não para os detalhes internos das dependências. Rust evita várias classes de erro de memória, mas corridas do protocolo, erros de renderização e vazamentos de recursos ainda exigem testes.
+Os caminhos de código são relativos a `src/`, exceto os de teste e `crates/gl`. O crate do compositor usa `unsafe_code = "forbid"`; essa restrição vale para esse crate, não para o `compust-gl` nem para os detalhes internos das outras dependências. Rust evita várias classes de erro de memória, mas corridas do protocolo, erros de renderização e vazamentos de recursos ainda exigem testes.
 
 ## Verificação da captura
 
@@ -72,6 +83,6 @@ O mesmo transporte atende aos testes de apresentação substituindo um campo da 
 
 ## Como estender
 
-Um backend de GPU deve preservar os contratos da cena e dos tempos de vida ao substituir a renderização. Evite criar uma abstração genérica antes de entender os requisitos reais de importação, sincronização e apresentação. As consultas de versão de DRI3 e Sync servem apenas ao diagnóstico neste momento.
+Um pintor executa o plano de um quadro; um novo, como Vulkan, deve manter o plano e os contratos de tempo de vida dos recursos e dizer como importa, sincroniza e apresenta. A sincronização explícita por DRI3 1.4 e buffers alocados pelo próprio pintor de GPU continuam em aberto.
 
 A próxima otimização deve partir de medições. Cada repintura evitada acrescenta estado que uma mudança despercebida deixa desatualizado, então cada uma precisa de um teste que faça essa mudança e compare o quadro com o de um renderizador novo. Meça também o servidor X, pois o XRender delega trabalho a ele. O [roteiro](ROADMAP.pt-BR.md) define critérios de aceitação para essas mudanças.

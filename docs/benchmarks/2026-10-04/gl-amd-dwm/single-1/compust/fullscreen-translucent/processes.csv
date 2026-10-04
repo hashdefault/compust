@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+fullscreen-translucent,compositor,20.000274,5,100,0.2500,4028,4028
+fullscreen-translucent,server,20.000274,146,100,7.2999,98728,98728
+fullscreen-translucent,wm,20.000274,0,100,0.0000,14896,14896
+fullscreen-translucent,probe,20.000274,19,100,0.9500,3488,3516

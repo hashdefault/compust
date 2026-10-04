@@ -1,0 +1,15 @@
+resource,value
+WINDOW,1
+PIXMAP,17
+OTHER CLIENT,17
+PICTURE,18
+ShapeClient,15
+XFixesRegion,1
+RandRClient,1
+CompositeClientWindow,28
+CompositeClientSubwindows,1
+CompositeClientOverlay,1
+DamageExt,15
+PresentEvent,1
+pixmaps_without_size,0
+owned_pixmap_bytes,80017921

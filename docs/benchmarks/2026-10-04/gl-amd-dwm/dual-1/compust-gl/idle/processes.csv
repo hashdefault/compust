@@ -1,0 +1,5 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+idle,compositor,20.001551,0,100,0.0000,68068,68068
+idle,server,20.001551,108,100,5.3996,98216,98216
+idle,wm,20.001551,0,100,0.0000,14896,14896
+idle,probe,20.001551,21,100,1.0499,3468,3472
