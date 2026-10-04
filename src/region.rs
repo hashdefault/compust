@@ -127,17 +127,6 @@ impl Region {
         self.rects.iter().any(|kept| kept.contains(rect))
     }
 
-    /// The parts of this region inside `bounds`.
-    pub(crate) fn within(&self, bounds: Rect) -> Self {
-        Self {
-            rects: self
-                .rects
-                .iter()
-                .filter_map(|rect| rect.intersect(bounds))
-                .collect(),
-        }
-    }
-
     /// The parts of `rects` inside this region, for a clip list.
     pub(crate) fn clip(&self, rects: impl Iterator<Item = Rect>) -> Result<Vec<Rectangle>> {
         rects
@@ -154,7 +143,6 @@ impl Region {
         self.rects.iter().map(|rect| rect.x11()).collect()
     }
 
-    #[cfg(test)]
     pub(crate) fn rects(&self) -> &[Rect] {
         &self.rects
     }
@@ -197,13 +185,10 @@ mod tests {
     }
 
     #[test]
-    fn clips_and_bounds_keep_only_shared_parts() {
-        let mut region = Region::default();
-        region.add(square(-10, -10, 30));
-        region.add(square(100, 100, 30));
-        let screen = Rect::new(0, 0, 120, 120);
-        let inside = region.within(screen);
-        assert_eq!(inside.rects, [square(0, 0, 20), square(100, 100, 20)]);
+    fn clips_keep_only_shared_parts() {
+        let mut inside = Region::default();
+        inside.add(square(0, 0, 20));
+        inside.add(square(100, 100, 20));
         let clip = inside.clip([square(10, 10, 100)].into_iter()).ok();
         let corners: Option<Vec<_>> = clip.map(|clip| {
             clip.iter()

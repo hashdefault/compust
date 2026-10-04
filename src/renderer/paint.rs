@@ -1,6 +1,6 @@
 use super::{
-    Renderer, blur,
-    damage::{self, Shown},
+    Renderer, Source, blur,
+    damage::{self, Blurred, Change, OUTPUT, Shown},
 };
 use crate::{
     animation::multiply_alpha,
@@ -16,7 +16,7 @@ use x11rb::{
     NONE,
     protocol::{
         render::{Color, ConnectionExt as _, PictOp},
-        xproto::Rectangle,
+        xproto::{Rectangle, Window},
     },
 };
 impl Renderer {
@@ -40,27 +40,47 @@ impl Renderer {
                 (opacity > 0).then_some((surface, opacity))
             })
             .collect();
-        let shown: Vec<_> = visible
+        let mut changes = self.changes(&visible);
+        let screen = self.screen();
+        let mut area = Region::default();
+        for change in changes.iter().filter(|change| change.shown) {
+            if let Some(rect) = change.area.intersect(screen) {
+                area.add(rect);
+            }
+        }
+        let (windows, blurred): (Vec<_>, Vec<_>) = visible
             .iter()
-            .map(|&(surface, opacity)| Shown::new(surface, opacity))
-            .collect();
-        let mut changed = std::mem::take(&mut self.damage);
-        damage::changes(&self.shown, &shown, &mut changed);
-        self.shown = shown;
-        let mut area = changed.within(self.screen());
-        let footprints: Vec<_> = visible
-            .iter()
-            .filter(|&&(surface, opacity)| self.blurs(surface, opacity))
-            .filter_map(|(surface, _)| blur::footprint(surface, self.size, self.levels.len()))
-            .collect();
-        damage::spread(&mut area, &footprints);
+            .enumerate()
+            .filter(|&(_, &(surface, opacity))| self.blurs(surface, opacity))
+            .filter_map(|(index, (surface, _))| {
+                let bounds = surface.bounds().intersect(screen)?;
+                let kept = self
+                    .backdrops
+                    .iter()
+                    .any(|kept| kept.window == surface.window && kept.area == bounds);
+                let blurred = Blurred {
+                    layer: index + 1,
+                    bounds,
+                    footprint: blur::footprint(surface, self.size, self.levels.len())?,
+                    kept,
+                };
+                Some((surface.window, blurred))
+            })
+            .unzip();
+        let fresh = damage::plan(&blurred, &mut changes, &mut area);
+        self.backdrops.retain(|kept| windows.contains(&kept.window));
         if area.is_empty() {
             return Ok(false);
         }
         let rects = area.x11()?;
         self.paint_background(session, &rects)?;
         for (surface, opacity) in visible {
-            self.paint_surface(session, surface, opacity, &area)?;
+            let blur = windows
+                .iter()
+                .zip(blurred.iter().zip(&fresh))
+                .find(|(window, _)| **window == surface.window)
+                .map(|(_, (blurred, fresh))| (blurred.bounds, *fresh));
+            self.paint_surface(session, (surface, opacity), &area, blur)?;
         }
         session.conn.render_set_picture_clip_rectangles(
             self.back.id,
@@ -70,6 +90,35 @@ impl Renderer {
         )?;
         self.submit(session, &rects)?;
         Ok(true)
+    }
+
+    /// What changed since the last frame, which `visible` replaces: the surfaces' own changes
+    /// and those reported since, at the layer each belongs to.
+    fn changes(&mut self, visible: &[(&Surface, u16)]) -> Vec<Change> {
+        let shown: Vec<_> = visible
+            .iter()
+            .map(|&(surface, opacity)| Shown::new(surface, opacity))
+            .collect();
+        let mut changes = damage::changes(&self.shown, &shown);
+        self.shown = shown;
+        for (source, region) in std::mem::take(&mut self.pending) {
+            let layer = match source {
+                Source::Background => Some(0),
+                Source::Window(window) => visible
+                    .iter()
+                    .position(|(surface, _)| surface.window == window)
+                    .map(|index| index + 1),
+                Source::Output => Some(OUTPUT),
+            };
+            if let Some(layer) = layer {
+                changes.extend(region.rects().iter().map(|&area| Change {
+                    area,
+                    layer,
+                    shown: true,
+                }));
+            }
+        }
+        changes
     }
 
     fn blurs(&self, surface: &Surface, opacity: u16) -> bool {
@@ -110,12 +159,14 @@ impl Renderer {
         Ok(())
     }
 
+    /// Paint `surface` at its opacity within `area`. A blurred surface first shows its
+    /// backdrop over `blur`'s bounds, blurred again when `blur` says it is due.
     fn paint_surface(
-        &self,
+        &mut self,
         session: &Session,
-        surface: &Surface,
-        opacity: u16,
+        (surface, opacity): (&Surface, u16),
         area: &Region,
+        blur: Option<(Rect, bool)>,
     ) -> Result<()> {
         let conn = &session.conn;
         let bounds = surface.bounds();
@@ -126,13 +177,36 @@ impl Renderer {
                 .iter()
                 .filter_map(|rect| Rect::at(*rect, origin).intersect(bounds)),
         )?;
+        // A backdrop due to blur again is refreshed even where none of it shows, so that a
+        // later frame never reuses a stale one.
+        if let Some((bounds, true)) = blur {
+            self.keep(surface.window, bounds)?;
+        }
+        let backdrop = self.backdrop(surface.window, blur);
+        if let (Some(backdrop), Some((_, true))) = (backdrop, blur) {
+            self.blur(session, surface, backdrop)?;
+        }
         if clip.is_empty() {
             return Ok(());
         }
-        if self.blurs(surface, opacity) {
-            self.blur(session, surface, &clip)?;
-        }
         conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &clip)?;
+        if let Some(backdrop) = backdrop {
+            let area = backdrop.area.x11()?;
+            conn.render_composite(
+                PictOp::SRC,
+                backdrop.picture.id,
+                NONE,
+                self.back.id,
+                0,
+                0,
+                0,
+                0,
+                area.x,
+                area.y,
+                area.width,
+                area.height,
+            )?;
+        }
         conn.render_fill_rectangles(
             PictOp::SRC,
             self.alpha.id,
@@ -164,5 +238,13 @@ impl Renderer {
             surface.size.height,
         )?;
         Ok(())
+    }
+
+    /// The kept backdrop a blurred surface shows over `blur`'s bounds.
+    fn backdrop(&self, window: Window, blur: Option<(Rect, bool)>) -> Option<&blur::Backdrop> {
+        let (bounds, _) = blur?;
+        self.backdrops
+            .iter()
+            .find(|kept| kept.window == window && kept.area == bounds)
     }
 }

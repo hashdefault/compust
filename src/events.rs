@@ -1,6 +1,7 @@
 use crate::{
     compositor::Compositor,
     region::Rect,
+    renderer::Source,
     scene::vanished,
     surface::{Capture, Surface},
 };
@@ -69,7 +70,8 @@ impl Compositor {
                     self.session
                         .conn
                         .damage_subtract(event.damage, NONE, NONE)?;
-                    self.renderer.damage(surface.damaged(event.area));
+                    self.renderer
+                        .damage(Source::Window(surface.window), surface.damaged(event.area));
                     self.dirty = true;
                 }
             }
@@ -92,12 +94,15 @@ impl Compositor {
                 self.dirty = true;
             }
             Event::Expose(event) => {
-                self.renderer.damage(Rect::new(
-                    i32::from(event.x),
-                    i32::from(event.y),
-                    event.width,
-                    event.height,
-                ));
+                self.renderer.damage(
+                    Source::Output,
+                    Rect::new(
+                        i32::from(event.x),
+                        i32::from(event.y),
+                        event.width,
+                        event.height,
+                    ),
+                );
                 self.dirty = true;
             }
             Event::SelectionClear(event) if event.selection == self.session.atoms.selection => {

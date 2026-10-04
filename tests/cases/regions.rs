@@ -6,7 +6,7 @@ use crate::{
         presentation::{Area, Presentation},
     },
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use x11rb::{
     connection::Connection,
     protocol::xproto::{
@@ -14,12 +14,12 @@ use x11rb::{
     },
 };
 
-const BACKGROUND: [u8; 3] = [24, 24, 32];
+pub(crate) const BACKGROUND: [u8; 3] = [24, 24, 32];
 const RED: [u8; 3] = [255, 0, 0];
 const GREEN: [u8; 3] = [0, 255, 0];
 const BLUE: [u8; 3] = [0, 0, 255];
 
-fn area(x: i16, y: i16, width: u16, height: u16) -> Rectangle {
+pub(crate) fn area(x: i16, y: i16, width: u16, height: u16) -> Rectangle {
     Rectangle {
         x,
         y,
@@ -152,9 +152,10 @@ fn blurred_damage_matches_a_full_repaint_with_xrender() -> Result<()> {
 }
 
 /// Blur reads around each pixel it writes, so damage beside or under a blurred window must
-/// repaint the window's whole footprint, and through it any footprint that one overlaps.
+/// blur it again across its whole footprint, which reaches into the window beside it.
 fn blurred_damage_matches_a_full_repaint(vsync: bool) -> Result<()> {
-    let mut desktop = Desktop::new(&format!("fade_ms = 0\nblur_radius = 4\nvsync = {vsync}"))?;
+    let settings = format!("fade_ms = 0\nblur_radius = 4\nvsync = {vsync}");
+    let mut desktop = Desktop::new(&settings)?;
     let background = striped(&desktop, 320)?;
     // With radius 4 the footprints span x 92..208 and 196..276.
     let left = desktop.window(rect(100, 60), 0)?;
@@ -171,20 +172,25 @@ fn blurred_damage_matches_a_full_repaint(vsync: bool) -> Result<()> {
     desktop.until_pixel((95, 101), |p| p == RED)?;
     desktop.wait_vblanks(2)?;
     let shown = desktop.image()?;
-    assert_same(&shown, &full_repaint(&desktop)?, "beside a blur");
+    assert_same(&shown, &full_repaint(&desktop, &settings)?, "beside a blur");
 
-    // Under the right window only; its footprint reaches the left window's.
+    // Under the right window only; its footprint reaches into the left window.
     desktop.fill(background, area(240, 100, 3, 3), 0x00ff_0000)?;
     desktop.wait_vblanks(4)?;
     let shown = desktop.image()?;
-    assert_same(&shown, &full_repaint(&desktop)?, "under a chained blur");
+    assert_same(
+        &shown,
+        &full_repaint(&desktop, &settings)?,
+        "under a neighboring blur",
+    );
     assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }
 
 #[test]
 fn monitor_changes_repaint_the_whole_screen() -> Result<()> {
-    let mut desktop = Desktop::new("fade_ms = 0\nblur_radius = 4")?;
+    let settings = "fade_ms = 0\nblur_radius = 4";
+    let mut desktop = Desktop::new(settings)?;
     // The right half shows the bare background, which no window's changes repaint.
     striped(&desktop, 160)?;
     let moving = desktop.window(rect(20, 20), 0x00ff_0000)?;
@@ -210,7 +216,11 @@ fn monitor_changes_repaint_the_whole_screen() -> Result<()> {
     desktop.wait_vblanks(2)?;
 
     let shown = desktop.image()?;
-    assert_same(&shown, &full_repaint(&desktop)?, "after a monitor change");
+    assert_same(
+        &shown,
+        &full_repaint(&desktop, settings)?,
+        "after a monitor change",
+    );
     assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }
@@ -251,7 +261,7 @@ fn overlay_exposures_repaint_the_exposed_area() -> Result<()> {
 
 /// A window at the left of the screen with one-pixel black and white stripes, which any
 /// blur changes.
-fn striped(desktop: &Desktop, width: u16) -> Result<u32> {
+pub(crate) fn striped(desktop: &Desktop, width: u16) -> Result<u32> {
     let background = desktop.window(area(0, 0, width, 240), 0x00ff_ffff)?;
     desktop.map(background)?;
     for x in (0..width.cast_signed()).step_by(2) {
@@ -261,18 +271,20 @@ fn striped(desktop: &Desktop, width: u16) -> Result<u32> {
     Ok(background)
 }
 
-/// Cover the screen and uncover it, so the next frame repaints everything, and return it.
-fn full_repaint(desktop: &Desktop) -> Result<Vec<u8>> {
-    let cover = desktop.window(area(0, 0, 320, 240), 0x00ff_00ff)?;
-    desktop.map(cover)?;
-    desktop.until_pixel((0, 0), |p| p == [255, 0, 255])?;
-    desktop.conn.destroy_window(cover)?.check()?;
-    desktop.until_pixel((0, 0), |p| p != [255, 0, 255])?;
-    desktop.wait_vblanks(2)?;
+/// Reload a smaller blur radius and then `settings` again, which replaces the renderer twice,
+/// and return the frame the last one paints: the whole screen, with every backdrop blurred
+/// anew. `settings` must set `blur_radius = 4`.
+pub(crate) fn full_repaint(desktop: &Desktop, settings: &str) -> Result<Vec<u8>> {
+    let smaller = settings.replace("blur_radius = 4", "blur_radius = 2");
+    ensure!(smaller != settings, "full repaints need blur_radius = 4");
+    for settings in [smaller.as_str(), settings] {
+        desktop.reload(settings)?;
+        desktop.wait_vblanks(4)?;
+    }
     desktop.image()
 }
 
-fn assert_same(shown: &[u8], expected: &[u8], case: &str) {
+pub(crate) fn assert_same(shown: &[u8], expected: &[u8], case: &str) {
     let differing: Vec<_> = shown
         .chunks_exact(4)
         .zip(expected.chunks_exact(4))
@@ -290,7 +302,7 @@ fn assert_same(shown: &[u8], expected: &[u8], case: &str) {
 }
 
 /// Whether every submission updated only rectangles inside one of `allowed`.
-fn confined(updates: &[Option<Area>], allowed: &[(i16, i16, u16, u16)]) -> bool {
+pub(crate) fn confined(updates: &[Option<Area>], allowed: &[(i16, i16, u16, u16)]) -> bool {
     let inside = |(x, y, width, height): (i16, i16, u16, u16),
                   (left, top, span, depth): (i16, i16, u16, u16)| {
         x >= left

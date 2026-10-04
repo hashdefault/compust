@@ -35,6 +35,9 @@ mod event_path;
 
 #[path = "cases/regions.rs"]
 mod regions;
+
+#[path = "cases/backdrops.rs"]
+mod backdrops;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

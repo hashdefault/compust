@@ -92,8 +92,8 @@ impl Renderer {
         self.complete = true;
         self.submission = None;
         self.submitted = None;
-        // The rejected frame was never shown.
-        self.invalidate();
+        // The rejected frame was never shown, though the buffer holds it.
+        self.damage(super::Source::Output, self.screen());
         tracing::warn!(
             ?error,
             "Present rejected submission; continuing with XRender"

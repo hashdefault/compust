@@ -12,6 +12,7 @@ mod damage;
 mod paint;
 mod present;
 mod wallpaper;
+pub(crate) use damage::Source;
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -43,10 +44,14 @@ pub(crate) struct Renderer {
     levels: Vec<Picture>,
     /// The `blur_radius` and `vsync` settings the buffers and presentation were made for.
     built_for: (u8, bool),
-    /// Root area to repaint beyond what the scene's own changes show.
-    damage: Region,
+    /// Changes to repaint beyond what the scene's own changes show.
+    pending: Vec<(Source, Region)>,
     /// The surfaces the last frame showed, bottom to top.
     shown: Vec<damage::Shown>,
+    /// Blurred backdrops kept from earlier frames, one per blurred surface.
+    backdrops: Vec<blur::Backdrop>,
+    /// The root's depth and picture format, for buffers.
+    layout: Format,
     /// `XFixes` region naming the area each Present submission updates.
     update: u32,
 }
@@ -125,8 +130,6 @@ impl Renderer {
         )?;
         let update = conn.generate_id()?;
         conn.xfixes_create_region(update, &[])?.check()?;
-        let mut damage = Region::default();
-        damage.add(Rect::new(0, 0, size.width, size.height));
         let mut renderer = Self {
             conn: Rc::clone(conn),
             overlay: session.overlay,
@@ -145,10 +148,13 @@ impl Renderer {
             submitted: None,
             levels,
             built_for: (config.blur_radius, config.vsync),
-            damage,
+            pending: Vec::new(),
             shown: Vec::new(),
+            backdrops: Vec::new(),
+            layout,
             update,
         };
+        renderer.invalidate();
         renderer.refresh_wallpaper(session)?;
         Ok(renderer)
     }
@@ -158,14 +164,20 @@ impl Renderer {
         self.built_for == (config.blur_radius, config.vsync)
     }
 
-    /// Repaint `rect` in the next frame, besides what changed in the scene.
-    pub(crate) fn damage(&mut self, rect: Rect) {
-        self.damage.add(rect);
+    /// Repaint `rect` of `source` in the next frame, besides what changed in the scene.
+    pub(crate) fn damage(&mut self, source: Source, rect: Rect) {
+        if let Some((_, region)) = self.pending.iter_mut().find(|(kept, _)| *kept == source) {
+            region.add(rect);
+        } else {
+            let mut region = Region::default();
+            region.add(rect);
+            self.pending.push((source, region));
+        }
     }
 
-    /// Repaint the whole screen in the next frame.
+    /// Repaint the whole screen in the next frame, blurring every backdrop again.
     pub(crate) fn invalidate(&mut self) {
-        self.damage.add(self.screen());
+        self.damage(Source::Background, self.screen());
     }
 
     fn screen(&self) -> Rect {

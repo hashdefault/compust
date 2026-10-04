@@ -18,16 +18,26 @@ use x11rb::{
 
 const ONE: Fixed = 1 << 16;
 
+/// A surface's blurred backdrop, kept while nothing beneath it changes.
+pub(super) struct Backdrop {
+    pub(super) window: Window,
+    /// The screen area it holds, from the buffer's origin.
+    pub(super) area: Rect,
+    pub(super) picture: Picture,
+    /// The buffer's size, at least the area's.
+    size: Size,
+}
+
 impl Renderer {
-    /// Replace the scene behind `surface`, within `clip`, with a blurred copy. The scene must
-    /// be current across the surface's whole footprint. Each pass halves or doubles the
-    /// resolution with bilinear sampling, which glamor-based servers keep on the GPU; they
-    /// render convolution filters on the CPU instead.
+    /// Blur the scene behind `surface` into its backdrop. The scene must be current across
+    /// the surface's whole footprint. Each pass halves or doubles the resolution with bilinear
+    /// sampling, which glamor-based servers keep on the GPU; they render convolution filters
+    /// on the CPU instead.
     pub(super) fn blur(
         &self,
         session: &Session,
         surface: &Surface,
-        clip: &[Rectangle],
+        backdrop: &Backdrop,
     ) -> Result<()> {
         let Some(bounds) = footprint(surface, self.size, self.levels.len()) else {
             return Ok(());
@@ -56,12 +66,60 @@ impl Renderer {
             }
         }
         if let Some(finest) = self.levels.first() {
-            conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, clip)?;
             conn.render_set_picture_transform(finest.id, scale(ONE / 2))?;
-            composite(conn, finest.id, self.back.id, level_area(bounds, 0)?)?;
+            let area = backdrop.area.x11()?;
+            conn.render_composite(
+                PictOp::SRC,
+                finest.id,
+                NONE,
+                backdrop.picture.id,
+                area.x,
+                area.y,
+                0,
+                0,
+                0,
+                0,
+                area.width,
+                area.height,
+            )?;
         }
         Ok(())
     }
+
+    /// Make the backdrop of `window` hold `area`. A buffer too small, or over four times
+    /// larger than needed, is replaced; sizes round up so that a resize reallocates rarely.
+    pub(super) fn keep(&mut self, window: Window, area: Rect) -> Result<()> {
+        let width = u16::try_from(area.right - area.left)?;
+        let height = u16::try_from(area.bottom - area.top)?;
+        match self.backdrops.iter_mut().find(|kept| kept.window == window) {
+            Some(kept) if fits(kept.size, width, height) => kept.area = area,
+            _ => {
+                let round = |value: u16, limit: u16| {
+                    value.div_ceil(64).saturating_mul(64).min(limit).max(value)
+                };
+                let size = Size {
+                    width: round(width, self.size.width),
+                    height: round(height, self.size.height),
+                };
+                let picture = Picture::buffer(&self.conn, self.overlay, (size, self.layout))?;
+                self.backdrops.retain(|kept| kept.window != window);
+                self.backdrops.push(Backdrop {
+                    window,
+                    area,
+                    picture,
+                    size,
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+fn fits(size: Size, width: u16, height: u16) -> bool {
+    let area = |width: u16, height: u16| u64::from(width) * u64::from(height);
+    size.width >= width
+        && size.height >= height
+        && area(size.width, size.height) <= 4 * area(width, height)
 }
 
 /// Pyramid depth for a configured radius; the blur spans about 2^depth pixels, so radii
