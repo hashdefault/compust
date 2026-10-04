@@ -49,6 +49,10 @@ struct Args {
     /// iconify scenarios.
     #[arg(long, value_enum, default_value_t = scenarios::Layout::Tiling)]
     layout: scenarios::Layout,
+    /// Whether the last window must take over the tiles of windows destroyed right after
+    /// their map requests, or one such tile may stay behind showing the background.
+    #[arg(long, value_enum, default_value_t = scenarios::Vacated::Refilled)]
+    vacated_tile: scenarios::Vacated,
     /// Require reparenting frames with a painted title bar; implied by the stacking layout.
     #[arg(long)]
     frames: bool,
@@ -109,6 +113,7 @@ fn main() -> Result<()> {
         &args.output,
         scenarios::Plan {
             layout: args.layout,
+            vacated: args.vacated_tile,
             frames: args.frames || args.layout == scenarios::Layout::Stacking,
             anchor: args.workspace_anchor,
         },

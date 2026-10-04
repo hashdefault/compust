@@ -6,7 +6,7 @@ if [[ ${1:-} == --help ]]; then
     printf '%s\n' "$usage"
     printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
     printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
-    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, or i3.\n'
+    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, i3, or bspwm.\n'
     exit 0
 fi
 if (( $# < 1 || $# > 2 )); then
@@ -26,6 +26,7 @@ case "$window_manager" in
     xmonad) scenarios=(--layout tiling) ;;
     openbox) scenarios=(--layout stacking) ;;
     i3) scenarios=(--layout tiling --frames --workspace-anchor) ;;
+    bspwm) scenarios=(--layout tiling --vacated-tile may-remain) ;;
     *) printf 'Unknown window manager: %s\n' "$window_manager" >&2; exit 2 ;;
 esac
 if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
@@ -52,6 +53,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 mkdir "$work/config" "$work/cache" "$work/data"
+version_option=--version
 if [[ $window_manager == xmonad ]]; then
     wm_source=tools/desktop/xmonad.hs
     wm_binary="$work/xmonad-$(uname -m)-linux"
@@ -67,11 +69,17 @@ elif [[ $window_manager == openbox ]]; then
     # Keep the user's own Openbox menus and session files out of the run.
     wm_command=(env "XDG_CONFIG_HOME=$work/config" "XDG_CACHE_HOME=$work/cache"
         "$wm_binary" --sm-disable --config-file "$wm_source")
-else
+elif [[ $window_manager == i3 ]]; then
     wm_source=tools/desktop/i3.config
     wm_binary=$(command -v i3)
     # A private socket keeps this instance apart from an i3 session on another display.
     wm_command=(env "I3SOCK=$work/i3.sock" "$wm_binary" -c "$wm_source")
+else
+    wm_source=tools/desktop/bspwmrc
+    wm_binary=$(command -v bspwm)
+    version_option=-v
+    # bspwm runs its configuration as a program, which reaches it through this private socket.
+    wm_command=(env "BSPWM_SOCKET=$work/bspwm.sock" "$wm_binary" -c "$wm_source")
 fi
 
 if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
@@ -108,6 +116,10 @@ fi
 "${wm_command[@]}" >"$report/$window_manager.log" 2>&1 &
 wm_pid=$!
 pids=("$wm_pid" "${pids[@]}")
+if [[ $window_manager == bspwm ]]; then
+    # bspwm starts with one desktop; its configuration adds the second, which the probe needs.
+    timeout 10s bash -c 'until xprop -root _NET_NUMBER_OF_DESKTOPS 2>/dev/null | grep -q "= 2$"; do sleep 0.1; done'
+fi
 xdpyinfo >"$report/server.txt"
 xrandr --current >"$report/outputs.txt" 2>&1
 sources=(src examples tools Cargo.toml Cargo.lock rust-toolchain.toml)
@@ -126,7 +138,7 @@ date -Is >"$report/started.txt"
 lscpu >"$report/cpu.txt"
 rustc --version >"$report/rust-version.txt"
 # Read the whole output first: closing the pipe early would fail the run under pipefail.
-wm_version=$("$window_manager" --version)
+wm_version=$("$window_manager" "$version_option")
 printf '%s\n' "${wm_version%%$'\n'*}" >"$report/wm-version.txt"
 cp "$config" "$report/compust.toml"
 sha256sum target/release/compust target/release/examples/desktop_probe \

@@ -24,10 +24,21 @@ pub(super) enum Layout {
     Stacking,
 }
 
+/// What a tiling window manager does with the tile of a window destroyed right after its map
+/// request.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(super) enum Vacated {
+    /// The remaining window takes the space over, as in Xmonad and i3.
+    Refilled,
+    /// A tile can stay behind, empty, as in bspwm 0.9.12; it must then show the background.
+    MayRemain,
+}
+
 /// Which scenarios a window manager supports.
 #[derive(Clone, Copy)]
 pub(super) struct Plan {
     pub(super) layout: Layout,
+    pub(super) vacated: Vacated,
     /// Clients sit in reparenting frames with a painted title bar.
     pub(super) frames: bool,
     /// The second workspace exists only while a window is assigned to it.
@@ -129,9 +140,12 @@ pub(super) fn exercise(surface: &Surface, output: &Path, plan: Plan) -> Result<u
     surface.conn.destroy_window(blue)?.check()?;
     surface.until("survivor after rapid lifecycle", || {
         let size = surface.conn.get_geometry(red)?.reply()?;
-        let alone = match layout {
-            Layout::Tiling => size.width > original.width,
-            Layout::Stacking => surface.pixel(vacated)? == BACKGROUND,
+        let alone = match (layout, plan.vacated) {
+            (Layout::Tiling, Vacated::Refilled) => size.width > original.width,
+            (Layout::Tiling, Vacated::MayRemain) => {
+                size.width > original.width || surface.pixel(vacated)? == BACKGROUND
+            }
+            (Layout::Stacking, _) => surface.pixel(vacated)? == BACKGROUND,
         };
         Ok(alone && surface.window_has_color(red, RED)?)
     })?;
