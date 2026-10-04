@@ -147,26 +147,30 @@ impl Painter {
             }
             let clip = areas(&part.clip)?;
             let mut frame = self.gpu.frame(&self.back)?;
-            if let Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } = part.beneath
-                && let Some(backdrop) = self
-                    .backdrops
-                    .iter()
-                    .find(|kept| kept.window == window && kept.area == bounds)
-            {
-                let at = Placement::At(bounds.left, bounds.top);
-                frame.draw(backdrop.target.texture(), at, Mode::Replace, &clip)?;
-            }
             let texture = self
                 .textures
                 .iter()
                 .find(|(kept, _, _)| *kept == window)
                 .map(|(_, _, texture)| texture)
                 .context("a surface was not imported")?;
-            let at = Placement::At(
+            let origin = (
                 i32::from(part.surface.geometry.x),
                 i32::from(part.surface.geometry.y),
             );
             let opacity = f32::from(part.opacity) / f32::from(u16::MAX);
+            if let Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } = part.beneath
+                && let Some(backdrop) = self
+                    .backdrops
+                    .iter()
+                    .find(|kept| kept.window == window && kept.area == bounds)
+            {
+                // The blur shows as strongly as the surface covers each pixel, as the XRender
+                // painter weighs it.
+                let at = Placement::At(bounds.left, bounds.top);
+                let weight = (texture, origin);
+                frame.draw_masked(backdrop.target.texture(), at, weight, opacity, &clip)?;
+            }
+            let at = Placement::At(origin.0, origin.1);
             frame.draw(texture, at, Mode::Over(opacity), &clip)?;
         }
         self.gpu.flush()

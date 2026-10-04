@@ -82,7 +82,7 @@ backend = "xrender"
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
 | `backend` | `"xrender"` draws through the X server; `"gl"` draws with OpenGL ES on the server's GPU, and falls back to XRender with a warning where it cannot |
 
-Blur applies behind translucent or ARGB windows. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
+Blur applies behind translucent or ARGB windows, as strongly as each of the window's pixels is opaque: the transparent shadow margin around a browser's menu gets almost none, and the blur fades in and out with the window. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml

@@ -121,9 +121,15 @@ fn blurs_background_behind_translucent_window() -> Result<()> {
     let front = desktop.window(rect(100, 60), 0)?;
     desktop.opacity(front, 0x8000_0000)?;
     desktop.map(front)?;
-    desktop.until_pixel((140, 100), |[r, g, b]| {
-        (40..=90).contains(&r) && r == g && g == b
+    // The blur shows as strongly as the window covers the background, half here: beneath its
+    // half-black tint, black and white stripes (0 and 255 without blur) soften to a quarter
+    // of the blurred average plus a quarter of themselves, about 32 and 96.
+    let gray = |[r, g, b]: [u8; 3]| r == g && g == b;
+    desktop.until_pixel((140, 100), |pixel| {
+        gray(pixel) && (25..=40).contains(&pixel[0])
     })?;
+    let light = desktop.pixel((141, 100))?;
+    assert!(gray(light) && (88..=104).contains(&light[0]), "{light:?}");
     desktop.screenshot("blur")?;
     Ok(())
 }
@@ -148,7 +154,9 @@ fn edge_blur(radius: u8, span: i16) -> Result<()> {
     desktop.map(desktop.window(dark, 0)?)?;
     desktop.map(desktop.window(light, 0x00ff_ffff)?)?;
     desktop.until_pixel((160, 120), |pixel| pixel == [255, 255, 255])?;
-    // A nearly transparent window shows the blurred background through its 1/255 opacity.
+    // The blur shows as strongly as a window covers the background, so a half-opaque black
+    // window shows each pixel as (blurred + sharp) / 4; the blur is four times the pixel less
+    // the sharp background, within the rounding that factor of four magnifies.
     let front = desktop.window(
         Rectangle {
             x: 160 - span - 4,
@@ -158,24 +166,32 @@ fn edge_blur(radius: u8, span: i16) -> Result<()> {
         },
         0,
     )?;
-    desktop.opacity(front, 0x0101_0101)?;
+    desktop.opacity(front, 0x8000_0000)?;
     desktop.map(front)?;
-    desktop.until_pixel((159, 120), |[r, _, _]| (10..245).contains(&r))?;
+    desktop.until_pixel((159, 120), |[r, _, _]| r > 0)?;
     let row = (160 - span..160 + span)
-        .map(|x| desktop.pixel((x, 120)).map(|[r, _, _]| r))
+        .map(|x| {
+            let sharp = if x < 160 { 0 } else { 255 };
+            desktop
+                .pixel((x, 120))
+                .map(|[r, _, _]| 4 * i32::from(r) - sharp)
+        })
         .collect::<Result<Vec<_>>>()?;
     assert!(
         row.windows(2)
-            .all(|pair| matches!(pair, [left, right] if left <= right)),
+            .all(|pair| matches!(pair, [left, right] if left - right <= 8)),
         "radius {radius}: {row:?}"
     );
     let (dark_half, light_half) = row.split_at(usize::try_from(span)?);
     for (dark, light) in dark_half.iter().rev().zip(light_half) {
-        let sum = u16::from(*dark) + u16::from(*light);
-        assert!((250..=256).contains(&sum), "radius {radius}: {row:?}");
+        assert!(
+            (239..=271).contains(&(dark + light)),
+            "radius {radius}: {row:?}"
+        );
     }
     assert!(
-        row.first().is_some_and(|&first| first <= 2) && row.last().is_some_and(|&last| last >= 250),
+        row.first().is_some_and(|&first| first <= 12)
+            && row.last().is_some_and(|&last| last >= 243),
         "radius {radius}: {row:?}"
     );
     assert!(desktop.compositor.0.try_wait()?.is_none());

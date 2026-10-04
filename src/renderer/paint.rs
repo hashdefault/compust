@@ -307,23 +307,6 @@ impl Renderer {
         }
         let clip: Vec<_> = clip.iter().map(|rect| rect.x11()).collect::<Result<_>>()?;
         conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &clip)?;
-        if let Some(backdrop) = backdrop {
-            let area = backdrop.area.x11()?;
-            conn.render_composite(
-                PictOp::SRC,
-                backdrop.picture.id,
-                NONE,
-                self.back.id,
-                0,
-                0,
-                0,
-                0,
-                area.x,
-                area.y,
-                area.width,
-                area.height,
-            )?;
-        }
         conn.render_fill_rectangles(
             PictOp::SRC,
             self.alpha.id,
@@ -340,6 +323,9 @@ impl Renderer {
                 height: 1,
             }],
         )?;
+        if let Some(backdrop) = backdrop {
+            self.show_backdrop(session, surface, backdrop, &clip)?;
+        }
         conn.render_composite(
             PictOp::OVER,
             surface.picture.id,
@@ -353,6 +339,56 @@ impl Renderer {
             surface.geometry.y,
             surface.size.width,
             surface.size.height,
+        )?;
+        Ok(())
+    }
+
+    /// Composite `backdrop` beneath `surface` within `clip`, as strongly as the surface covers
+    /// each pixel: its alpha times the opacity the alpha mask holds. A transparent margin or
+    /// shadow then shows little blur, and the blur fades in and out with the surface.
+    fn show_backdrop(
+        &self,
+        session: &Session,
+        surface: &Surface,
+        backdrop: &blur::Backdrop,
+        clip: &[Rectangle],
+    ) -> Result<()> {
+        let conn = &session.conn;
+        let area = backdrop.area.x11()?;
+        let (mask, origin) = match &self.weights {
+            Some(weights) if surface.has_alpha => {
+                conn.render_set_picture_clip_rectangles(weights.id, 0, 0, clip)?;
+                conn.render_composite(
+                    PictOp::SRC,
+                    self.alpha.id,
+                    surface.picture.id,
+                    weights.id,
+                    0,
+                    0,
+                    0,
+                    0,
+                    surface.geometry.x,
+                    surface.geometry.y,
+                    surface.size.width,
+                    surface.size.height,
+                )?;
+                (weights.id, (area.x, area.y))
+            }
+            _ => (self.alpha.id, (0, 0)),
+        };
+        conn.render_composite(
+            PictOp::OVER,
+            backdrop.picture.id,
+            mask,
+            self.back.id,
+            0,
+            0,
+            origin.0,
+            origin.1,
+            area.x,
+            area.y,
+            area.width,
+            area.height,
         )?;
         Ok(())
     }

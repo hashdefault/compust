@@ -194,6 +194,46 @@ impl Desktop {
         Ok(())
     }
 
+    /// A window with an alpha channel, transparent until something draws into it, as browsers
+    /// make menus.
+    pub(crate) fn argb_window(&self, rect: Rectangle) -> Result<Window> {
+        let visual = self
+            .conn
+            .setup()
+            .roots
+            .iter()
+            .flat_map(|screen| &screen.allowed_depths)
+            .filter(|depth| depth.depth == 32)
+            .flat_map(|depth| &depth.visuals)
+            .find(|visual| visual.class == VisualClass::TRUE_COLOR)
+            .context("the server has no 32-bit visual")?
+            .visual_id;
+        let colormap = self.conn.generate_id()?;
+        self.conn
+            .create_colormap(ColormapAlloc::NONE, colormap, self.root, visual)?
+            .check()?;
+        let window = self.conn.generate_id()?;
+        self.conn
+            .create_window(
+                32,
+                window,
+                self.root,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                0,
+                WindowClass::INPUT_OUTPUT,
+                visual,
+                &CreateWindowAux::new()
+                    .background_pixel(0)
+                    .border_pixel(0)
+                    .colormap(colormap),
+            )?
+            .check()?;
+        Ok(window)
+    }
+
     /// Draw `area` of `window` in `color`, as a client repainting part of itself.
     pub(crate) fn fill(&self, window: Window, area: Rectangle, color: u32) -> Result<()> {
         let gc = self.conn.generate_id()?;

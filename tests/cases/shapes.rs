@@ -181,8 +181,9 @@ fn clips_blur_to_offscreen_window_shape() -> Result<()> {
 
     desktop.map(window)?;
 
+    // A white stripe softened by half the blur beneath the half-opaque black window.
     desktop.until_pixel((11, 80), |[r, g, b]| {
-        (40..90).contains(&r) && r == g && g == b
+        (88..=104).contains(&r) && r == g && g == b
     })?;
     assert_eq!(desktop.pixel((21, 80))?, [255, 255, 255]);
     assert_eq!(desktop.pixel((41, 80))?, [255, 255, 255]);

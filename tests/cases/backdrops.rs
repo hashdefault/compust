@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use x11rb::protocol::xproto::{ConfigureWindowAux, ConnectionExt as _, StackMode};
 
 const BLUE: [u8; 3] = [0, 0, 255];
+const GREEN: [u8; 3] = [0, 255, 0];
 
 #[test]
 fn kept_backdrops_follow_every_change_with_present() -> Result<()> {
@@ -154,5 +155,29 @@ fn stacked_blurs_keep_the_upper_backdrop_when_the_lower_blurs_again() -> Result<
         "beneath a lower blur",
     );
     assert!(desktop.compositor.0.try_wait()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn blur_shows_as_strongly_as_the_window_covers_it() -> Result<()> {
+    let desktop = Desktop::new("fade_ms = 0\nblur_radius = 4")?;
+    striped(&desktop, 320)?;
+    // Like a browser menu: an opaque body in a transparent margin, here with a
+    // half-transparent band along the bottom.
+    let menu = desktop.argb_window(area(100, 60, 120, 100))?;
+    desktop.map(menu)?;
+    desktop.fill(menu, area(20, 20, 80, 60), 0xff00_ff00)?;
+    desktop.fill(menu, area(0, 90, 120, 10), 0x8000_0000)?;
+    desktop.until_pixel((160, 110), |p| p == GREEN)?;
+    desktop.wait_vblanks(2)?;
+    // The transparent margin leaves the stripes sharp: no halo of blur around the body.
+    assert_eq!(desktop.pixel((104, 70))?, [0, 0, 0]);
+    assert_eq!(desktop.pixel((105, 70))?, [255, 255, 255]);
+    // The half-transparent band shows half the blur beneath its half-black tint.
+    let gray = |[r, g, b]: [u8; 3]| r == g && g == b;
+    let dark = desktop.pixel((104, 155))?;
+    let light = desktop.pixel((105, 155))?;
+    assert!(gray(dark) && (25..=40).contains(&dark[0]), "{dark:?}");
+    assert!(gray(light) && (88..=104).contains(&light[0]), "{light:?}");
     Ok(())
 }

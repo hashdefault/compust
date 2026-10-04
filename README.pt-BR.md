@@ -82,7 +82,7 @@ backend = "xrender"
 | `vsync` | Usa Present quando disponível; `false` seleciona cópia direta com XRender |
 | `backend` | `"xrender"` desenha pelo servidor X; `"gl"` desenha com OpenGL ES na GPU do servidor e volta ao XRender com um aviso onde não puder |
 
-O desfoque é aplicado atrás de janelas translúcidas ou ARGB. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
+O desfoque é aplicado atrás de janelas translúcidas ou ARGB, com a força com que cada pixel da janela é opaco: a margem transparente de sombra em volta do menu de um navegador quase não recebe desfoque, e o desfoque surge e some com a janela. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml

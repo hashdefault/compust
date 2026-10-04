@@ -132,9 +132,10 @@ fn repeated_blur_reload(vsync: bool) -> Result<()> {
     let front = desktop.window(rect(100, 60), 0)?;
     desktop.opacity(front, 0x8000_0000)?;
     desktop.map(front)?;
-    // A white stripe behind the half-opaque black window, then the stripes' average.
+    // A white stripe behind the half-opaque black window, then that stripe softened by half
+    // the blur, which shows as strongly as the window covers it.
     let is_sharp = |[r, g, b]: [u8; 3]| (120..=135).contains(&r) && r == g && g == b;
-    let is_blurred = |[r, g, b]: [u8; 3]| (40..=90).contains(&r) && r == g && g == b;
+    let is_blurred = |[r, g, b]: [u8; 3]| (88..=104).contains(&r) && r == g && g == b;
     desktop.until_pixel((141, 100), is_sharp)?;
     let cycle = |desktop: &Desktop| -> Result<()> {
         desktop.reload(&blurred)?;

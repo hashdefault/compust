@@ -347,3 +347,54 @@ fn repeated_textures_tile() -> Result<()> {
     assert_eq!(reds, [255, 0, 255, 0, 255]);
     Ok(())
 }
+
+#[test]
+fn masked_draws_weigh_the_source_by_the_mask_alpha_and_opacity() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    let red = painted(&gpu, (3, 1), &[([1.0, 0.0, 0.0, 1.0], rect(0, 0, 3, 1))])?;
+    // A transparent, a half-transparent, and an opaque mask pixel.
+    let mask = painted(
+        &gpu,
+        (3, 1),
+        &[
+            ([0.0; 4], rect(0, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 0.5], rect(1, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 1.0], rect(2, 0, 1, 1)),
+        ],
+    )?;
+    let target = painted(&gpu, (3, 2), &[([0.0, 0.0, 1.0, 1.0], rect(0, 0, 3, 2))])?;
+    let mut frame = gpu.frame(&target)?;
+    frame.draw_masked(
+        red.texture(),
+        Placement::At(0, 0),
+        (mask.texture(), (0, 0)),
+        1.0,
+        &[rect(0, 0, 3, 1)],
+    )?;
+    // The second row places the source and the mask a row lower, at half opacity.
+    frame.draw_masked(
+        red.texture(),
+        Placement::At(0, 1),
+        (mask.texture(), (0, 1)),
+        0.5,
+        &[rect(0, 1, 3, 1)],
+    )?;
+    let pixels = gpu.read(&target, rect(0, 0, 3, 2))?;
+    let near = |[r, g, b, _]: [u8; 4], [er, eb]: [u8; 2]| {
+        r.abs_diff(er) <= 1 && g == 0 && b.abs_diff(eb) <= 1
+    };
+    for (point, expected) in [
+        ((0, 0), [0, 255]),
+        ((1, 0), [128, 127]),
+        ((2, 0), [255, 0]),
+        ((0, 1), [0, 255]),
+        ((1, 1), [64, 191]),
+        ((2, 1), [128, 127]),
+    ] {
+        let found = pixel(&pixels, 3, point)?;
+        assert!(near(found, expected), "{point:?}: {found:?}");
+    }
+    Ok(())
+}

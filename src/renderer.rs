@@ -48,6 +48,9 @@ pub(crate) struct Renderer {
     pub(crate) submitted: Option<Instant>,
     /// Blur pyramid, each level half the size of the previous one; empty without blur.
     levels: Vec<Picture>,
+    /// How strongly each pixel shows the blurred backdrop of the surface being painted: its
+    /// alpha times its opacity. Absent without blur.
+    weights: Option<Picture>,
     /// The `blur_radius`, `vsync`, and `backend` settings the renderer was made for.
     built_for: (u8, bool, Backend),
     /// Changes to repaint beyond what the scene's own changes show.
@@ -88,7 +91,8 @@ impl Renderer {
         let back = Picture::buffer(conn, session.screen.root, (size, layout))?;
         back.repeat(Repeat::PAD)?;
         let output = Picture::borrowed(conn, session.overlay, format)?;
-        let alpha = alpha_mask(session, &formats)?;
+        let a8 = a8_format(&formats)?;
+        let alpha = alpha_mask(session, a8)?;
         let present = config.vsync && session.capabilities.present;
         let event_id = if present {
             Some(conn.generate_id()?)
@@ -117,6 +121,11 @@ impl Renderer {
             (size, layout),
             blur::depth(radius),
         )?;
+        let weights = if levels.is_empty() {
+            None
+        } else {
+            Some(Picture::buffer(conn, session.screen.root, (size, a8))?)
+        };
         let update = conn.generate_id()?;
         conn.xfixes_create_region(update, &[])?.check()?;
         let gpu = match (config.backend, back.pixmap) {
@@ -144,6 +153,7 @@ impl Renderer {
             submission: None,
             submitted: None,
             levels,
+            weights,
             built_for: (config.blur_radius, config.vsync, config.backend),
             pending: Vec::new(),
             shown: Vec::new(),
@@ -182,14 +192,21 @@ impl Renderer {
     }
 }
 
-/// A repeating one-pixel A8 picture, whose alpha sets a composite's opacity.
-fn alpha_mask(session: &Session, formats: &QueryPictFormatsReply) -> Result<Picture> {
-    let a8 = formats
+/// The format of pictures with only an 8-bit alpha channel.
+fn a8_format(formats: &QueryPictFormatsReply) -> Result<Format> {
+    let format = formats
         .formats
         .iter()
         .find(|f| f.depth == 8 && f.direct.alpha_mask == 255)
-        .context("missing A8 render format")?
-        .id;
+        .context("missing A8 render format")?;
+    Ok(Format {
+        depth: 8,
+        id: format.id,
+    })
+}
+
+/// A repeating one-pixel A8 picture, whose alpha sets a composite's opacity.
+fn alpha_mask(session: &Session, a8: Format) -> Result<Picture> {
     let alpha = Picture::buffer(
         &session.conn,
         session.screen.root,
@@ -198,7 +215,7 @@ fn alpha_mask(session: &Session, formats: &QueryPictFormatsReply) -> Result<Pict
                 width: 1,
                 height: 1,
             },
-            Format { depth: 8, id: a8 },
+            a8,
         ),
     )?;
     alpha.repeat(Repeat::NORMAL)?;

@@ -40,9 +40,12 @@ const VERTEX: &str = "
 attribute vec2 position;
 uniform vec2 viewport;
 uniform vec4 mapping;
+uniform vec4 mask_mapping;
 varying vec2 texcoord;
+varying vec2 maskcoord;
 void main() {
     texcoord = position * mapping.xy + mapping.zw;
+    maskcoord = position * mask_mapping.xy + mask_mapping.zw;
     gl_Position = vec4(position / viewport * 2.0 - 1.0, 0.0, 1.0);
 }
 ";
@@ -72,10 +75,23 @@ void main() {
 }
 ";
 
+const MASKED: &str = "
+uniform sampler2D source;
+uniform sampler2D mask;
+uniform float opacity;
+varying vec2 texcoord;
+varying vec2 maskcoord;
+void main() {
+    float weight = texture2D(mask, maskcoord).a * opacity;
+    gl_FragColor = vec4(texture2D(source, texcoord).rgb, 1.0) * weight;
+}
+";
+
 struct Program {
     id: glow::Program,
     viewport: Option<Location>,
     mapping: Option<Location>,
+    mask_mapping: Option<Location>,
     opacity: Option<Location>,
     color: Option<Location>,
 }
@@ -85,6 +101,7 @@ pub(crate) struct Programs {
     inner: Rc<Inner>,
     textured: Program,
     solid: Program,
+    masked: Program,
     vertices: glow::Buffer,
 }
 
@@ -92,6 +109,7 @@ impl Programs {
     pub(crate) fn new(inner: &Rc<Inner>) -> Result<Self> {
         let textured = program(inner, TEXTURED)?;
         let solid = program(inner, SOLID)?;
+        let masked = program(inner, MASKED)?;
         let gl = inner.gl()?;
         // SAFETY: `gl` made the context current.
         let vertices = unsafe { gl.create_buffer() }.map_err(anyhow::Error::msg)?;
@@ -99,6 +117,7 @@ impl Programs {
             inner: Rc::clone(inner),
             textured,
             solid,
+            masked,
             vertices,
         })
     }
@@ -112,6 +131,7 @@ impl Drop for Programs {
             unsafe {
                 gl.delete_program(self.textured.id);
                 gl.delete_program(self.solid.id);
+                gl.delete_program(self.masked.id);
                 gl.delete_buffer(self.vertices);
             }
         }
@@ -143,10 +163,15 @@ fn program(inner: &Inner, fragment: &str) -> Result<Program> {
             "linking a shader program: {}",
             gl.get_program_info_log(id)
         );
+        // Sources sample texture unit 0 and masks unit 1.
+        gl.use_program(Some(id));
+        gl.uniform_1_i32(gl.get_uniform_location(id, "source").as_ref(), 0);
+        gl.uniform_1_i32(gl.get_uniform_location(id, "mask").as_ref(), 1);
         Ok(Program {
             id,
             viewport: gl.get_uniform_location(id, "viewport"),
             mapping: gl.get_uniform_location(id, "mapping"),
+            mask_mapping: gl.get_uniform_location(id, "mask_mapping"),
             opacity: gl.get_uniform_location(id, "opacity"),
             color: gl.get_uniform_location(id, "color"),
         })
@@ -242,18 +267,7 @@ impl Frame<'_> {
         let programs = &self.gpu.programs;
         let program = &programs.textured;
         let gl = self.gpu.inner.gl()?;
-        let size = [pixels(source.width)?, pixels(source.height)?];
-        let (scale, offset, filter) = match placement {
-            Placement::At(x, y) => (1.0, [-x, -y], glow::NEAREST),
-            Placement::Scaled { offset, scale } => (scale, offset, glow::LINEAR),
-        };
-        let [from_x, from_y] = offset;
-        let mapping = [
-            scale / size[0],
-            scale / size[1],
-            coordinate(from_x)? * scale / size[0],
-            coordinate(from_y)? * scale / size[1],
-        ];
+        let (mapping, filter) = mapping(source, placement)?;
         let (opacity, blend) = match mode {
             Mode::Replace => (1.0, false),
             Mode::Over(opacity) => (opacity, true),
@@ -275,6 +289,45 @@ impl Frame<'_> {
             } else {
                 gl.disable(glow::BLEND);
             }
+        }
+        self.quads(program, clip)
+    }
+
+    /// Composite `source`, mapped by `placement` and taken as opaque, over `clip`, weighted
+    /// at each pixel by the alpha of `mask` times `opacity`. The mask's pixel (0, 0) lies on
+    /// target pixel `mask_at`, one to one.
+    pub fn draw_masked(
+        &mut self,
+        source: &Texture,
+        placement: Placement,
+        (mask, mask_at): (&Texture, (i32, i32)),
+        opacity: f32,
+        clip: &[Rect],
+    ) -> Result<()> {
+        let programs = &self.gpu.programs;
+        let program = &programs.masked;
+        let gl = self.gpu.inner.gl()?;
+        let (mask_mapping, _) = mapping(mask, Placement::At(mask_at.0, mask_at.1))?;
+        let (mapping, filter) = mapping(source, placement)?;
+        // SAFETY: `gl` made the context current; the program, its uniforms, and both textures
+        // belong to it.
+        unsafe {
+            gl.use_program(Some(program.id));
+            for (unit, texture, filter) in [
+                (glow::TEXTURE1, mask, glow::NEAREST),
+                (glow::TEXTURE0, source, filter),
+            ] {
+                gl.active_texture(unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture.id));
+                for parameter in [glow::TEXTURE_MIN_FILTER, glow::TEXTURE_MAG_FILTER] {
+                    gl.tex_parameter_i32(glow::TEXTURE_2D, parameter, filter.cast_signed());
+                }
+            }
+            gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
+            gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_1_f32(program.opacity.as_ref(), opacity);
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
         }
         self.quads(program, clip)
     }
@@ -315,6 +368,24 @@ impl Frame<'_> {
         }
         Ok(())
     }
+}
+
+/// How the vertex shader maps target pixels to `source`'s texture coordinates for
+/// `placement`, and the filter that sampling needs.
+fn mapping(source: &Texture, placement: Placement) -> Result<([f32; 4], u32)> {
+    let size = [pixels(source.width)?, pixels(source.height)?];
+    let (scale, offset, filter) = match placement {
+        Placement::At(x, y) => (1.0, [-x, -y], glow::NEAREST),
+        Placement::Scaled { offset, scale } => (scale, offset, glow::LINEAR),
+    };
+    let [from_x, from_y] = offset;
+    let mapping = [
+        scale / size[0],
+        scale / size[1],
+        coordinate(from_x)? * scale / size[0],
+        coordinate(from_y)? * scale / size[1],
+    ];
+    Ok((mapping, filter))
 }
 
 /// A pixel coordinate as a float, exact for the 16-bit range X uses.
