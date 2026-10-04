@@ -1,4 +1,5 @@
 use crate::{
+    atoms::active_window,
     config::{Config, Source},
     renderer::Renderer,
     scene::{Scene, vanished},
@@ -57,12 +58,21 @@ impl Compositor {
         signal_hook::flag::register(SIGUSR1, Arc::clone(&reload))?;
         session.acquire()?;
         let renderer = Renderer::new(&session, &config)?;
-        let mut scene = Scene::default();
+        let active = active_window(
+            &session.conn,
+            session.screen.root,
+            session.atoms.active_window,
+        )?;
+        let mut scene = Scene {
+            active,
+            ..Scene::default()
+        };
         let context = Capture {
             conn: &session.conn,
             formats: &renderer.formats,
             atoms: &session.atoms,
             config: &config,
+            active: scene.active,
             replaces: None,
         };
         for window in scene.stack.query(&session)?.to_vec() {
@@ -222,6 +232,7 @@ impl Compositor {
         self.output = Output::Composited;
         tracing::debug!("compositing resumed");
         let mut gone = Vec::new();
+        let active = self.scene.active;
         for surface in self.scene.windows.iter_mut().filter(|s| s.mapped) {
             let capture = Surface::capture(
                 surface.window,
@@ -230,6 +241,7 @@ impl Compositor {
                     formats: &self.renderer.formats,
                     atoms: &self.session.atoms,
                     config: &self.config,
+                    active,
                     replaces: Some(surface),
                 },
             );

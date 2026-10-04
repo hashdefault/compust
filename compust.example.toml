@@ -27,9 +27,9 @@ unredirect_fullscreen = false
 
 # Per-window rules go after the settings above. Each chooses windows by `wm_class` (the second
 # WM_CLASS string), `window_type` (an EWMH type such as "normal", "dialog", "menu", "popup_menu",
-# "tooltip", or "dock"), or `name` (the title), matching the exact text, and sets `opacity`,
-# `blur`, `fade_ms`, or `shadow` for them. Each setting comes from the first matching rule that
-# sets it.
+# "tooltip", or "dock"), `name` (the title), matching the exact text, or `focused` (whether it
+# is the active window), and sets `opacity`, `blur`, `fade_ms`, or `shadow` for them. Each
+# setting comes from the first matching rule that sets it.
 # `xprop` shows a window's class, type, and title.
 #
 # [[rules]]

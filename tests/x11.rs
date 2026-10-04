@@ -53,6 +53,9 @@ mod shadows;
 
 #[path = "cases/unredirect.rs"]
 mod unredirect;
+
+#[path = "cases/focus.rs"]
+mod focus;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

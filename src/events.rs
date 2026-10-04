@@ -1,4 +1,5 @@
 use crate::{
+    atoms::active_window,
     compositor::{Compositor, Output},
     region::Rect,
     renderer::Source,
@@ -167,6 +168,7 @@ impl Compositor {
                 formats: &self.renderer.formats,
                 atoms: &self.session.atoms,
                 config: &self.config,
+                active: self.scene.active,
                 replaces: None,
             },
         )
@@ -234,6 +236,17 @@ impl Compositor {
             self.renderer.invalidate();
             self.dirty = true;
         }
+        if event.window == self.session.screen.root
+            && event.atom == self.session.atoms.active_window
+        {
+            // Rules that choose by focus now give other settings to the windows that lost
+            // and gained it.
+            let active = active_window(&self.session.conn, event.window, event.atom)?;
+            self.scene.active = active;
+            for surface in self.scene.windows.iter_mut().filter(|s| s.mapped) {
+                self.dirty |= surface.focus(active, &self.config);
+            }
+        }
         if event.atom == self.session.atoms.wm_state {
             self.clients_changed(&[event.window])?;
         } else if event.atom == self.session.atoms.opacity {
@@ -266,13 +279,14 @@ impl Compositor {
     }
 
     fn clients_changed(&mut self, windows: &[Window]) -> Result<()> {
+        let active = self.scene.active;
         for surface in self
             .scene
             .windows
             .iter_mut()
             .filter(|s| s.mapped && windows.iter().any(|window| s.watches(*window)))
         {
-            match surface.refresh_client(&self.session.atoms, &self.config) {
+            match surface.refresh_client(&self.session.atoms, &self.config, active) {
                 Ok(()) => (),
                 Err(error) if vanished(&error) => {
                     surface.close(std::time::Instant::now(), &self.config);
@@ -287,6 +301,7 @@ impl Compositor {
     /// Follow a mapped window's move or resize; reports whether its surface changed.
     fn configure(&mut self, event: &ConfigureNotifyEvent) -> Result<bool> {
         let window = event.window;
+        let active = self.scene.active;
         let Some(surface) = self
             .scene
             .windows
@@ -316,6 +331,7 @@ impl Compositor {
                 formats: &self.renderer.formats,
                 atoms: &self.session.atoms,
                 config: &self.config,
+                active,
                 replaces: Some(surface),
             },
         );

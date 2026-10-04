@@ -18,6 +18,8 @@ use x11rb::{
 pub(crate) struct Scene {
     pub(crate) windows: Vec<Surface>,
     pub(crate) stack: Stack,
+    /// The window the window manager reports as active; see `atoms::active_window`.
+    pub(crate) active: Option<Window>,
 }
 
 /// The root's children from bottom to top, mirrored from structure events so that restacking

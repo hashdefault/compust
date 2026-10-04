@@ -18,6 +18,8 @@ pub(crate) struct Atoms {
     pub(crate) window_type: Atom,
     /// The margins a client-side-decorated window keeps for the shadow it draws itself.
     pub(crate) frame_extents: Atom,
+    /// The root property in which the window manager names the active window.
+    pub(crate) active_window: Atom,
     /// Each `_NET_WM_WINDOW_TYPE_` atom with the type it names.
     pub(crate) window_types: Vec<(Atom, WindowType)>,
 }
@@ -37,6 +39,7 @@ impl Atoms {
             utf8_string: intern(b"UTF8_STRING")?,
             window_type: intern(b"_NET_WM_WINDOW_TYPE")?,
             frame_extents: intern(b"_GTK_FRAME_EXTENTS")?,
+            active_window: intern(b"_NET_ACTIVE_WINDOW")?,
             window_types: {
                 let cookies = WindowType::ALL
                     .iter()
@@ -64,6 +67,27 @@ impl Atoms {
             || atom == self.window_type
             || atom == self.frame_extents
     }
+}
+
+/// The window that `root`'s `_NET_ACTIVE_WINDOW` names: `Some(NONE)` when the window manager
+/// reports that none is active, and `None` when the property is missing or malformed, as
+/// under a window manager that does not report focus.
+pub(crate) fn active_window(
+    conn: &RustConnection,
+    root: Window,
+    atom: Atom,
+) -> Result<Option<Window>> {
+    let reply = conn
+        .get_property(false, root, atom, AtomEnum::WINDOW, 0, 1)?
+        .reply()?;
+    if reply.type_ != u32::from(AtomEnum::WINDOW)
+        || reply.format != 32
+        || reply.value_len != 1
+        || reply.bytes_after != 0
+    {
+        return Ok(None);
+    }
+    Ok(reply.value32().and_then(|mut values| values.next()))
 }
 
 pub(crate) fn cardinal(conn: &RustConnection, window: Window, atom: Atom) -> Result<Option<u32>> {

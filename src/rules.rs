@@ -12,6 +12,8 @@ pub(crate) struct Rule {
     window_type: Option<WindowType>,
     /// The title, `_NET_WM_NAME` or else `WM_NAME`.
     name: Option<String>,
+    /// Whether the window is the one the window manager reports as active.
+    focused: Option<bool>,
     opacity: Option<u8>,
     blur: Option<bool>,
     fade_ms: Option<u16>,
@@ -81,6 +83,8 @@ pub(crate) struct Identity {
     /// Whether the window casts a shadow unless a rule says otherwise: its type does, and
     /// the client draws none itself.
     pub(crate) shadow: bool,
+    /// Whether the window is the active one, or the window manager reports none.
+    pub(crate) focused: bool,
 }
 
 /// The settings rules give one window; `None` keeps the global value.
@@ -97,8 +101,11 @@ impl Rule {
     /// `number` counts rules from 1 for the message.
     pub(crate) fn validate(&self, number: usize) -> Result<()> {
         ensure!(
-            self.wm_class.is_some() || self.window_type.is_some() || self.name.is_some(),
-            "rule {number} needs wm_class, window_type, or name"
+            self.wm_class.is_some()
+                || self.window_type.is_some()
+                || self.name.is_some()
+                || self.focused.is_some(),
+            "rule {number} needs wm_class, window_type, name, or focused"
         );
         ensure!(
             self.opacity.is_some()
@@ -125,6 +132,7 @@ impl Rule {
                 .window_type
                 .is_none_or(|wanted| identity.window_type == wanted)
             && text(&self.name, &identity.name)
+            && self.focused.is_none_or(|wanted| identity.focused == wanted)
     }
 }
 
@@ -170,6 +178,7 @@ mod tests {
             window_type,
             name: name.map(str::to_owned),
             shadow: window_type.casts_shadow(),
+            focused: true,
         }
     }
 
@@ -195,6 +204,12 @@ mod tests {
                 .and_then(|rule| rule.validate(1))
                 .is_ok()
         );
+        // Focus alone chooses windows.
+        assert!(
+            rule("focused = false\nopacity = 80")
+                .and_then(|rule| rule.validate(1))
+                .is_ok()
+        );
         assert!(
             rule("window_type = \"dropdown_menu\"\nblur = false")
                 .and_then(|rule| rule.validate(1))
@@ -208,6 +223,7 @@ mod tests {
             wm_class: Some("Brave".into()),
             window_type: Some(WindowType::Menu),
             name: None,
+            focused: None,
             opacity: Some(80),
             blur: None,
             fade_ms: None,
@@ -217,6 +233,15 @@ mod tests {
         assert!(!rule.matches(&identity(Some("brave"), WindowType::Menu, None)));
         assert!(!rule.matches(&identity(Some("Brave"), WindowType::Normal, None)));
         assert!(!rule.matches(&identity(None, WindowType::Menu, None)));
+        // A rule for unfocused windows passes over the active one, whatever else matches.
+        let inactive = Rule {
+            focused: Some(false),
+            ..rule
+        };
+        let mut window = identity(Some("Brave"), WindowType::Menu, None);
+        assert!(!inactive.matches(&window));
+        window.focused = false;
+        assert!(inactive.matches(&window));
     }
 
     #[test]

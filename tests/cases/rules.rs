@@ -67,7 +67,7 @@ fn set_transient(desktop: &Desktop, window: Window) -> Result<()> {
 }
 
 /// Reparent `client` into `frame` as a window manager does, with `WM_STATE` when `managed`.
-fn frame(desktop: &Desktop, frame: Window, client: Window, managed: bool) -> Result<()> {
+pub(crate) fn frame(desktop: &Desktop, frame: Window, client: Window, managed: bool) -> Result<()> {
     desktop
         .conn
         .reparent_window(client, frame, 10, 10)?

@@ -58,6 +58,8 @@ pub(crate) struct Capture<'a> {
     pub(crate) formats: &'a QueryPictFormatsReply,
     pub(crate) atoms: &'a Atoms,
     pub(crate) config: &'a Config,
+    /// The window the window manager reports as active; see `atoms::active_window`.
+    pub(crate) active: Option<Window>,
     /// The surface a resize replaces, whose client's identity it keeps.
     pub(crate) replaces: Option<&'a Surface>,
 }
@@ -97,7 +99,7 @@ impl Surface {
         picture.pixmap = Some(pixmap);
         let client_tree = ClientTree::discover(conn, window, context.atoms.wm_state)?;
         let client = client_tree.client;
-        let (identified, identity) = match context.replaces {
+        let (identified, mut identity) = match context.replaces {
             Some(old) if !new_client(old.identified, client, window) => {
                 (old.identified, old.identity.clone())
             }
@@ -106,6 +108,7 @@ impl Surface {
                 identity(conn, client, context.atoms, attr.override_redirect)?.unwrap_or_default(),
             ),
         };
+        identity.focused = focused(context.active, identified);
         let overrides = rules::overrides(&context.config.rules, &identity);
         conn.shape_select_input(window, true)?.check()?;
         let damage = conn.generate_id()?;
@@ -202,14 +205,27 @@ impl Surface {
         self.client_tree.watched.contains(&window)
     }
 
-    pub(crate) fn refresh_client(&mut self, atoms: &Atoms, config: &Config) -> Result<()> {
+    pub(crate) fn refresh_client(
+        &mut self,
+        atoms: &Atoms,
+        config: &Config,
+        active: Option<Window>,
+    ) -> Result<()> {
         self.client_tree = ClientTree::discover(&self.conn, self.window, atoms.wm_state)?;
         let client = self.client_tree.client;
         if new_client(self.identified, client, self.window) {
             self.identified = client;
+            self.identity.focused = focused(active, client);
             self.refresh_identity(atoms, config)?;
         }
         self.refresh_opacity(atoms)
+    }
+
+    /// Follow the active window to `active`; reports whether the rules now give the surface
+    /// other settings.
+    pub(crate) fn focus(&mut self, active: Option<Window>, config: &Config) -> bool {
+        let now = focused(active, self.identified);
+        std::mem::replace(&mut self.identity.focused, now) != now && self.apply(config)
     }
 
     /// Whether the surface casts a shadow where shadows are on: as its rule says, or else as
@@ -241,7 +257,11 @@ impl Surface {
         if let Some(identity) =
             identity(&self.conn, self.identified, atoms, self.override_redirect)?
         {
-            self.identity = identity;
+            // Focus comes from the root, not from the client's properties.
+            self.identity = Identity {
+                focused: self.identity.focused,
+                ..identity
+            };
         }
         let ruled = self.apply(config);
         Ok(ruled || self.identity.shadow != shadow)
@@ -289,6 +309,12 @@ fn fade_duration(config: &Config, overrides: Overrides) -> Duration {
         || config.fade_duration(),
         |ms| Duration::from_millis(u64::from(ms)),
     )
+}
+
+/// Whether `client` is the active window. Under a window manager that reports none, every
+/// window counts, so that rules for unfocused windows change nothing.
+fn focused(active: Option<Window>, client: Window) -> bool {
+    active.is_none_or(|active| active == client)
 }
 
 /// Whether `client`, found in `frame`, is not the window an identity came from. A frame that
@@ -380,6 +406,7 @@ fn identity(
         window_type,
         name,
         shadow,
+        focused: false,
     }))
 }
 
