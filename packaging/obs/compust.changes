@@ -1,0 +1,13 @@
+-------------------------------------------------------------------
+Sun Oct  4 23:03:52 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Package snapshot 681eae243cbf31d723928ce39317acd92a26243a from main
+  after 0.3.0-beta.1, with shadows, focus rules, fullscreen suspension,
+  independent benchmarks and the recorded 60/180 Hz monitor checks.
+- Vendor every dependency from the unchanged Cargo.lock for offline,
+  locked builds. Require Rust and Cargo 1.95 or newer.
+- Run the workspace tests, including Xvfb pixel tests and Mesa software
+  GPU tests, during the RPM build. Ship the example configuration,
+  dependency notices and the exact source revision in BUILDINFO.
+- Create the X11 socket directory before parallel Xvfb fixtures to avoid
+  their directory-creation race in a fresh build environment.
