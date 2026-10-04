@@ -41,6 +41,9 @@ mod backdrops;
 
 #[path = "cases/occlusion.rs"]
 mod occlusion;
+
+#[path = "cases/backend.rs"]
+mod backend;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

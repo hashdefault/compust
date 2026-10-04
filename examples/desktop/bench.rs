@@ -18,8 +18,8 @@ use x11rb::{
         Event,
         present::CompleteKind,
         xproto::{
-            AtomEnum, ConfigureWindowAux, ConnectionExt as _, CreateWindowAux, PropMode,
-            WindowClass,
+            AtomEnum, ConfigureWindowAux, ConnectionExt as _, CreateGCAux, CreateWindowAux,
+            PropMode, Rectangle, WindowClass,
         },
     },
     wrapper::ConnectionExt as _,
@@ -268,6 +268,59 @@ fn cascaded(index: i16) -> Area {
         width: 480,
         height: 360,
     }
+}
+
+/// Show a fixed scene for comparing renderers and write the composited screen to `path`:
+/// stripes that any blur changes, under overlapping translucent windows at several opacities
+/// and an opaque window.
+pub(super) fn snapshot(surface: &Surface, path: &Path) -> Result<()> {
+    let screen = Area {
+        x: 0,
+        y: 0,
+        width: surface.width,
+        height: surface.height,
+    };
+    let backdrop = window(surface, screen, 0x00ff_ffff, None)?;
+    let gc = surface.conn.generate_id()?;
+    surface
+        .conn
+        .create_gc(gc, backdrop, &CreateGCAux::new().foreground(0))?
+        .check()?;
+    let mut stripes = Vec::new();
+    for x in (0..surface.width).step_by(4) {
+        stripes.push(Rectangle {
+            x: i16::try_from(x)?,
+            y: 0,
+            width: 1,
+            height: surface.height,
+        });
+    }
+    for y in (0..surface.height).step_by(6) {
+        stripes.push(Rectangle {
+            x: 0,
+            y: i16::try_from(y)?,
+            width: surface.width,
+            height: 2,
+        });
+    }
+    surface
+        .conn
+        .poly_fill_rectangle(backdrop, gc, &stripes)?
+        .check()?;
+    for (index, (color, opacity)) in [
+        (0x0020_40c0, Some(50)),
+        (0x00c0_4020, Some(75)),
+        (0x0000_8000, Some(30)),
+        (0x00ff_ff00, None),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        window(surface, cascaded(i16::try_from(index)? * 2), color, opacity)?;
+    }
+    // No fades run in the benchmark configurations; a second is many frames.
+    std::thread::sleep(Duration::from_secs(1));
+    surface.screenshot(path)
 }
 
 /// Create and map an override-redirect window, with an opacity percentage if translucent.

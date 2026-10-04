@@ -5,6 +5,7 @@ use super::{
 };
 use crate::{
     animation::multiply_alpha,
+    capabilities,
     config::Config,
     region::{Rect, Region},
     scene::Scene,
@@ -23,13 +24,30 @@ use x11rb::{
 
 /// What a surface shows beneath it in a frame.
 #[derive(Clone, Copy)]
-enum Beneath {
+pub(super) enum Beneath {
     /// The scene as painted, because the surface is not blurred.
     Scene,
     /// Its kept backdrop, which covers these screen bounds.
     Kept(Rect),
     /// Its backdrop blurred again over these screen bounds, from the scene in its footprint.
     Fresh { bounds: Rect, footprint: Rect },
+}
+
+/// A surface a frame paints.
+pub(super) struct Part<'a> {
+    pub(super) surface: &'a Surface,
+    pub(super) opacity: u16,
+    /// Where it shows in the repaint area; empty where it shows nowhere.
+    pub(super) clip: Vec<Rect>,
+    pub(super) beneath: Beneath,
+}
+
+/// What a frame paints, which either painter carries out.
+pub(super) struct Plan<'a> {
+    /// Where the background shows in the repaint area.
+    pub(super) background: Vec<Rect>,
+    /// The surfaces, bottom to top, without those hidden whole.
+    pub(super) parts: Vec<Part<'a>>,
 }
 
 impl Renderer {
@@ -41,18 +59,45 @@ impl Renderer {
         config: &Config,
     ) -> Result<bool> {
         let visible = visible(scene, config)?;
-        let mut changes = self.changes(&visible);
+        let Some((area, plan)) = self.plan(&visible) else {
+            return Ok(false);
+        };
+        let wallpaper = self.wallpaper_pixmap;
+        let failed = if let Some(gpu) = self.gpu.as_mut() {
+            gpu.paint(&session.conn, &plan, wallpaper).err()
+        } else {
+            self.paint_xrender(session, &plan)?;
+            None
+        };
+        if let Some(error) = failed {
+            tracing::warn!("GPU rendering failed; continuing with XRender: {error:#}");
+            session.capabilities.gpu.set(capabilities::Gpu::Failed);
+            self.gpu = None;
+            self.invalidate();
+            return self.paint(session, scene, config);
+        }
+        self.submit(session, &area.x11()?)?;
+        Ok(true)
+    }
+
+    /// Find what changed and plan the frame that shows it, with the area it repaints; `None`
+    /// when nothing changed.
+    fn plan<'a>(&mut self, visible: &[(&'a Surface, u16)]) -> Option<(Region, Plan<'a>)> {
+        let mut changes = self.changes(visible);
         let mut area = Region::default();
         for change in changes.iter().filter(|change| change.shown) {
             if let Some(rect) = change.area.intersect(self.screen()) {
                 area.add(rect);
             }
         }
-        let (windows, blurred) = self.blurred(&visible);
+        let (windows, blurred) = self.blurred(visible);
         let fresh = damage::plan(&blurred, &mut changes, &mut area);
         self.backdrops.retain(|kept| windows.contains(&kept.window));
+        if let Some(gpu) = self.gpu.as_mut() {
+            gpu.retain(&windows);
+        }
         if area.is_empty() {
-            return Ok(false);
+            return None;
         }
         let beneath: Vec<_> = visible
             .iter()
@@ -80,19 +125,41 @@ impl Renderer {
             })
             .collect();
         let covers = cover::covers(&layers);
-        self.paint_background(session, &covers.background.visible(area.rects().to_vec()))?;
-        for (index, (part, beneath)) in visible.into_iter().zip(beneath).enumerate() {
+        let mut parts = Vec::with_capacity(visible.len());
+        for (index, (&(surface, opacity), beneath)) in visible.iter().zip(beneath).enumerate() {
             if covers.hidden.get(index) == Some(&true) {
                 // Hidden whole, it need not blur, and its backdrop would go stale.
-                self.backdrops.retain(|kept| kept.window != part.0.window);
+                self.backdrops.retain(|kept| kept.window != surface.window);
+                if let Some(gpu) = self.gpu.as_mut() {
+                    gpu.forget(surface.window);
+                }
                 continue;
             }
-            let clip = area.clip(shape(part.0));
+            let clip = area.clip(shape(surface));
             let clip = match covers.above.get(index) {
                 Some(cover) => cover.visible(clip),
                 None => clip,
             };
-            self.paint_surface(session, part, &clip, beneath)?;
+            parts.push(Part {
+                surface,
+                opacity,
+                clip,
+                beneath,
+            });
+        }
+        let background = covers.background.visible(area.rects().to_vec());
+        Some((area, Plan { background, parts }))
+    }
+
+    fn paint_xrender(&mut self, session: &Session, plan: &Plan<'_>) -> Result<()> {
+        self.paint_background(session, &plan.background)?;
+        for part in &plan.parts {
+            self.paint_surface(
+                session,
+                (part.surface, part.opacity),
+                &part.clip,
+                part.beneath,
+            )?;
         }
         session.conn.render_set_picture_clip_rectangles(
             self.back.id,
@@ -100,8 +167,7 @@ impl Renderer {
             0,
             &[self.screen().x11()?],
         )?;
-        self.submit(session, &area.x11()?)?;
-        Ok(true)
+        Ok(())
     }
 
     /// What changed since the last frame, which `visible` replaces: the surfaces' own changes
@@ -141,10 +207,13 @@ impl Renderer {
             .filter(|&(_, &(surface, opacity))| self.blurs(surface, opacity))
             .filter_map(|(index, (surface, _))| {
                 let bounds = surface.bounds().intersect(self.screen())?;
-                let kept = self
-                    .backdrops
-                    .iter()
-                    .any(|kept| kept.window == surface.window && kept.area == bounds);
+                let kept = match &self.gpu {
+                    Some(gpu) => gpu.kept(surface.window, bounds),
+                    None => self
+                        .backdrops
+                        .iter()
+                        .any(|kept| kept.window == surface.window && kept.area == bounds),
+                };
                 let blurred = Blurred {
                     layer: index + 1,
                     bounds,

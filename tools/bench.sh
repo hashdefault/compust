@@ -8,7 +8,8 @@ if [[ ${1:-} == --help ]]; then
     usage
     printf 'Measure the benchmark scenes on DISPLAY under each compositor in turn. Stop the\n'
     printf "display's compositor first and build release binaries, including the probe.\n"
-    printf 'COMPOSITORS defaults to "compust picom-xrender picom-glx"; SCENES to every scene,\n'
+    printf 'COMPOSITORS defaults to "compust picom-xrender picom-glx"; compust-gl adds Compust'"'"'s\n'
+    printf 'GPU renderer. SCENES defaults to every scene,\n'
     printf 'where a ":blur" suffix selects the blur configurations. SECONDS_PER_PHASE: 1-30.\n'
     printf 'GPU_BUSY names a GPU load file to sample; the first amdgpu one is used by default.\n'
     exit 0
@@ -28,7 +29,7 @@ fullscreen-translucent:blur eight-translucent eight-translucent:blur covered cov
 move-resize open-close}"
 for compositor in "${compositors[@]}"; do
     case "$compositor" in
-        compust | picom-xrender | picom-glx) ;;
+        compust | compust-gl | picom-xrender | picom-glx) ;;
         *) printf 'Unknown compositor: %s\n' "$compositor" >&2; exit 2 ;;
     esac
 done
@@ -108,9 +109,9 @@ start() {
     local compositor=$1 blur=$2 log=$3 suffix=
     [[ $blur == 1 ]] && suffix=-blur
     case "$compositor" in
-        compust)
+        compust | compust-gl)
             target/release/compust --display "$DISPLAY" \
-                --config "$report/configs/compust$suffix.toml" >"$log" 2>&1 &
+                --config "$report/configs/$compositor$suffix.toml" >"$log" 2>&1 &
             ;;
         picom-*)
             local backend=${compositor#picom-} config=picom.conf
@@ -142,6 +143,12 @@ for compositor in "${compositors[@]}"; do
             fi
             { printf '%s,%s,' "$compositor" "$blur"; tail -n 1 "$output/summary.csv"; } >>"$summary"
             printf '%s %s: %s\n' "$compositor" "$name" "$(tail -n 1 "$output/probe.log")"
+            # The GPU renderer falls back to XRender with a warning; such a scene measured
+            # XRender instead.
+            if [[ $compositor == compust-gl ]] && ! grep -q 'drawing with the GPU' "$output/compositor.log"; then
+                printf '%s %s: the GPU renderer did not start\n' "$compositor" "$name"
+                status=1
+            fi
         else
             printf '%s %s: failed\n' "$compositor" "$name"
             tail -n 3 "$output/probe.log" || true

@@ -68,6 +68,10 @@ struct Args {
     /// `gpu_busy_percent` under `/sys/class/drm`.
     #[arg(long, requires = "bench")]
     gpu_busy: Option<PathBuf>,
+    /// Show a fixed scene of translucent windows over stripes and write the composited
+    /// screen to this PPM file, to compare renderers. It needs no window manager.
+    #[arg(long, conflicts_with = "bench")]
+    snapshot: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -78,7 +82,10 @@ enum Presentation {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let surface = Surface::connect(&args.display, args.bench.is_none())?;
+    let surface = Surface::connect(
+        &args.display,
+        args.bench.is_none() && args.snapshot.is_none(),
+    )?;
     println!(
         "vendor={} release={} geometry={}x{} depth=24",
         String::from_utf8_lossy(&surface.conn.setup().vendor),
@@ -90,6 +97,9 @@ fn main() -> Result<()> {
     processes.push(Process::probe());
     if let Some(scene) = args.bench {
         return bench::run(&surface, &args, scene, &processes);
+    }
+    if let Some(path) = &args.snapshot {
+        return bench::snapshot(&surface, path);
     }
     if args.hotplug {
         return hotplug::run(&surface, &args, &processes);

@@ -11,6 +11,19 @@ pub(crate) struct Config {
     pub(crate) blur_radius: u8,
     pub(crate) max_fps: u16,
     pub(crate) vsync: bool,
+    pub(crate) backend: Backend,
+}
+
+/// What draws the frames.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Backend {
+    /// The X server, through `XRender`.
+    #[default]
+    Xrender,
+    /// OpenGL ES on the X server's GPU, sharing buffers through DRI3; it falls back to
+    /// `XRender` when the server or driver cannot.
+    Gl,
 }
 
 impl Default for Config {
@@ -21,6 +34,7 @@ impl Default for Config {
             blur_radius: 4,
             max_fps: 120,
             vsync: true,
+            backend: Backend::Xrender,
         }
     }
 }
@@ -131,6 +145,8 @@ mod tests {
             "max_fps = 1001",
             "fade_ms = -1",
             "opactiy = 80",
+            "backend = \"vulkan\"",
+            "backend = \"GL\"",
         ] {
             assert!(Config::parse(input).is_err(), "accepted {input}");
         }
@@ -190,5 +206,10 @@ mod tests {
         assert_eq!(config.opacity, 73);
         assert_eq!(config.fade_ms, 180);
         assert!(config.vsync);
+        assert_eq!(config.backend, Backend::Xrender);
+        assert_eq!(
+            Config::parse("backend = \"gl\"").unwrap().backend,
+            Backend::Gl
+        );
     }
 }

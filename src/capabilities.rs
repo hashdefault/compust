@@ -1,5 +1,5 @@
 use anyhow::{Result, ensure};
-use std::io::Write;
+use std::{cell::Cell, io::Write};
 use x11rb::{
     connection::RequestConnection,
     protocol::{composite, damage, dri3, present, randr, render, shape, sync, xfixes},
@@ -12,6 +12,18 @@ pub(crate) struct Capabilities {
     pub(crate) present: bool,
     pub(crate) randr: bool,
     pub(crate) bilinear: bool,
+    /// Whether the GPU renderer can run; a renderer that fails marks it so for the session.
+    pub(crate) gpu: Cell<Gpu>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Gpu {
+    /// DRI3 1.2 shares pixmaps' buffers, with their modifiers.
+    Usable,
+    /// The server lacks DRI3 1.2.
+    Missing,
+    /// The GPU renderer failed; the session keeps to `XRender`.
+    Failed,
 }
 
 impl Capabilities {
@@ -82,10 +94,14 @@ impl Capabilities {
         } else {
             false
         };
+        let dri3 = versions
+            .iter()
+            .any(|(name, version)| *name == "DRI3" && version.is_some_and(|v| v >= (1, 2)));
         Ok(Self {
             present: has("Present"),
             randr: has("RANDR"),
             bilinear,
+            gpu: Cell::new(if dri3 { Gpu::Usable } else { Gpu::Missing }),
             versions,
         })
     }
@@ -119,9 +135,14 @@ impl Capabilities {
             }
         }
         writeln!(out, "XRender bilinear blur: {}", self.bilinear)?;
+        let gpu = match self.gpu.get() {
+            Gpu::Usable => "DRI3 1.2 shares pixmaps with the GPU renderer (backend = \"gl\")",
+            Gpu::Missing | Gpu::Failed => "unavailable; the server lacks DRI3 1.2",
+        };
+        writeln!(out, "GPU renderer: {gpu}")?;
         writeln!(
             out,
-            "DRI3 and Sync are diagnostic probes only; no DMA-BUF import or explicit synchronization backend."
+            "Sync is a diagnostic probe only; frames rely on implicit synchronization."
         )?;
         Ok(())
     }

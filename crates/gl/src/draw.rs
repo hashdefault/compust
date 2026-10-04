@@ -175,11 +175,16 @@ impl Gpu {
     }
 
     /// Send the draws so far to the GPU. Another client using a buffer they wrote, such as
-    /// the X server presenting it, then sees them.
+    /// the X server presenting it, then sees them. A GL error since the last flush, such as a
+    /// lost device, fails it, so the caller can stop using the GPU.
     pub fn flush(&self) -> Result<()> {
         let gl = self.inner.gl()?;
-        // SAFETY: `gl` made the context current, and Flush takes no arguments.
-        unsafe { gl.flush() };
+        // SAFETY: `gl` made the context current, and Flush and GetError take no arguments.
+        let error = unsafe {
+            gl.flush();
+            gl.get_error()
+        };
+        ensure!(error == glow::NO_ERROR, "the GPU reported error {error:#x}");
         Ok(())
     }
 

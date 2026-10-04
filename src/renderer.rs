@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Backend, Config},
     picture::{Format, Picture, Size},
     region::{Rect, Region},
     session::Session,
@@ -10,6 +10,7 @@ use x11rb::rust_connection::RustConnection;
 mod blur;
 mod cover;
 mod damage;
+mod gpu;
 mod paint;
 mod present;
 mod wallpaper;
@@ -20,7 +21,7 @@ use x11rb::{
         present::{ConnectionExt as _, EventMask},
         render::{ConnectionExt as _, QueryPictFormatsReply, Repeat},
         xfixes::ConnectionExt as _,
-        xproto::ConnectionExt as _,
+        xproto::{ConnectionExt as _, Pixmap},
     },
 };
 
@@ -34,6 +35,10 @@ pub(crate) struct Renderer {
     output: Picture,
     alpha: Picture,
     wallpaper: Option<Picture>,
+    /// The pixmap `wallpaper` shows, which the GPU painter imports.
+    wallpaper_pixmap: Option<Pixmap>,
+    /// The GPU painter, when `backend = "gl"` and it opened; otherwise `XRender` paints.
+    gpu: Option<gpu::Painter>,
     pub(crate) present: bool,
     pub(crate) idle: bool,
     pub(crate) complete: bool,
@@ -43,8 +48,8 @@ pub(crate) struct Renderer {
     pub(crate) submitted: Option<Instant>,
     /// Blur pyramid, each level half the size of the previous one; empty without blur.
     levels: Vec<Picture>,
-    /// The `blur_radius` and `vsync` settings the buffers and presentation were made for.
-    built_for: (u8, bool),
+    /// The `blur_radius`, `vsync`, and `backend` settings the renderer was made for.
+    built_for: (u8, bool, Backend),
     /// Changes to repaint beyond what the scene's own changes show.
     pending: Vec<(Source, Region)>,
     /// The surfaces the last frame showed, bottom to top.
@@ -83,24 +88,7 @@ impl Renderer {
         let back = Picture::buffer(conn, session.screen.root, (size, layout))?;
         back.repeat(Repeat::PAD)?;
         let output = Picture::borrowed(conn, session.overlay, format)?;
-        let a8 = formats
-            .formats
-            .iter()
-            .find(|f| f.depth == 8 && f.direct.alpha_mask == 255)
-            .context("missing A8 render format")?
-            .id;
-        let alpha = Picture::buffer(
-            conn,
-            session.screen.root,
-            (
-                Size {
-                    width: 1,
-                    height: 1,
-                },
-                Format { depth: 8, id: a8 },
-            ),
-        )?;
-        alpha.repeat(Repeat::NORMAL)?;
+        let alpha = alpha_mask(session, &formats)?;
         let present = config.vsync && session.capabilities.present;
         let event_id = if present {
             Some(conn.generate_id()?)
@@ -131,6 +119,12 @@ impl Renderer {
         )?;
         let update = conn.generate_id()?;
         conn.xfixes_create_region(update, &[])?.check()?;
+        let gpu = match (config.backend, back.pixmap) {
+            (Backend::Gl, Some(pixmap)) => {
+                gpu::Painter::open(session, pixmap, size, blur::depth(radius))
+            }
+            _ => None,
+        };
         let mut renderer = Self {
             conn: Rc::clone(conn),
             overlay: session.overlay,
@@ -141,6 +135,8 @@ impl Renderer {
             output,
             alpha,
             wallpaper: None,
+            wallpaper_pixmap: None,
+            gpu,
             present,
             idle: true,
             complete: true,
@@ -148,7 +144,7 @@ impl Renderer {
             submission: None,
             submitted: None,
             levels,
-            built_for: (config.blur_radius, config.vsync),
+            built_for: (config.blur_radius, config.vsync, config.backend),
             pending: Vec::new(),
             shown: Vec::new(),
             backdrops: Vec::new(),
@@ -162,7 +158,7 @@ impl Renderer {
 
     /// Whether a reloaded configuration can keep this renderer.
     pub(crate) fn fits(&self, config: &Config) -> bool {
-        self.built_for == (config.blur_radius, config.vsync)
+        self.built_for == (config.blur_radius, config.vsync, config.backend)
     }
 
     /// Repaint `rect` of `source` in the next frame, besides what changed in the scene.
@@ -184,4 +180,27 @@ impl Renderer {
     fn screen(&self) -> Rect {
         Rect::new(0, 0, self.size.width, self.size.height)
     }
+}
+
+/// A repeating one-pixel A8 picture, whose alpha sets a composite's opacity.
+fn alpha_mask(session: &Session, formats: &QueryPictFormatsReply) -> Result<Picture> {
+    let a8 = formats
+        .formats
+        .iter()
+        .find(|f| f.depth == 8 && f.direct.alpha_mask == 255)
+        .context("missing A8 render format")?
+        .id;
+    let alpha = Picture::buffer(
+        &session.conn,
+        session.screen.root,
+        (
+            Size {
+                width: 1,
+                height: 1,
+            },
+            Format { depth: 8, id: a8 },
+        ),
+    )?;
+    alpha.repeat(Repeat::NORMAL)?;
+    Ok(alpha)
 }

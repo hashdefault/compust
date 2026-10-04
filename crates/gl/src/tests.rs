@@ -318,3 +318,32 @@ fn two_contexts_on_one_thread_keep_their_own_objects() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn repeated_textures_tile() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    let tile = painted(
+        &gpu,
+        (2, 1),
+        &[
+            ([1.0, 0.0, 0.0, 1.0], rect(0, 0, 1, 1)),
+            ([0.0, 0.0, 1.0, 1.0], rect(1, 0, 1, 1)),
+        ],
+    )?;
+    tile.texture().repeat()?;
+    let wide = gpu.target(5, 1)?;
+    gpu.frame(&wide)?.draw(
+        tile.texture(),
+        Placement::At(0, 0),
+        Mode::Replace,
+        &[rect(0, 0, 5, 1)],
+    )?;
+    let pixels = gpu.read(&wide, rect(0, 0, 5, 1))?;
+    let reds: Vec<u8> = (0..5)
+        .map(|x| pixel(&pixels, 5, (x, 0)).map(|[r, ..]| r))
+        .collect::<Result<_>>()?;
+    assert_eq!(reds, [255, 0, 255, 0, 255]);
+    Ok(())
+}

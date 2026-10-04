@@ -8,6 +8,11 @@ use x11rb::{
 impl Renderer {
     pub(crate) fn refresh_wallpaper(&mut self, session: &Session) -> Result<()> {
         self.wallpaper = None;
+        self.wallpaper_pixmap = None;
+        // A setter may draw into the same pixmap again, so the GPU painter imports it anew.
+        if let Some(gpu) = self.gpu.as_mut() {
+            gpu.forget_wallpaper();
+        }
         for atom in session.atoms.wallpaper {
             let reply = session
                 .conn
@@ -40,6 +45,7 @@ impl Renderer {
                     Ok(picture) => {
                         picture.repeat(Repeat::NORMAL)?;
                         self.wallpaper = Some(picture);
+                        self.wallpaper_pixmap = Some(pixmap);
                         break;
                     }
                     Err(error) if crate::scene::vanished(&error) => {

@@ -184,7 +184,7 @@ fn around(window: Rect, root: Size, depth: usize) -> Option<Rect> {
 }
 
 /// `bounds` in the coordinates of pyramid `level`, where level 0 is the root.
-fn level_area(bounds: Rect, level: usize) -> Result<Rectangle> {
+pub(super) fn level_area(bounds: Rect, level: usize) -> Result<Rectangle> {
     let scale = 1_i32 << level;
     let (left, top) = (bounds.left / scale, bounds.top / scale);
     Ok(Rectangle {

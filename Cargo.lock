@@ -137,6 +137,7 @@ version = "0.2.0-beta.3"
 dependencies = [
  "anyhow",
  "clap",
+ "compust-gl",
  "rustix",
  "serde",
  "signal-hook",

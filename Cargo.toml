@@ -15,6 +15,7 @@ members = ["crates/gl"]
 
 [dependencies]
 anyhow = "1"
+compust-gl = { path = "crates/gl" }
 clap = { version = "4", features = ["derive"] }
 rustix = { version = "1", features = ["event"] }
 serde = { version = "1", features = ["derive"] }

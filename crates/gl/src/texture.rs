@@ -74,6 +74,20 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
+
+    /// Tile the texture beyond its edges instead of clamping, as a wallpaper does.
+    pub fn repeat(&self) -> Result<()> {
+        let gl = self.inner.gl()?;
+        // SAFETY: `gl` made the context that owns the texture current; the calls name the
+        // texture and constants.
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, Some(self.id));
+            for wrap in [glow::TEXTURE_WRAP_S, glow::TEXTURE_WRAP_T] {
+                gl.tex_parameter_i32(glow::TEXTURE_2D, wrap, glow::REPEAT.cast_signed());
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Texture {
