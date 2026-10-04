@@ -153,3 +153,98 @@ fn the_gpu_composites_server_pixmaps_into_a_server_pixmap() -> Result<()> {
     }
     Ok(())
 }
+
+/// Make the server flush its own GPU work, as the GPU painter does before each frame:
+/// glamor flushes when a fence is triggered, and the reply shows the trigger was handled.
+fn flush_server(server: &Server, fence: u32) -> Result<()> {
+    use x11rb::protocol::sync::ConnectionExt as _;
+    server.conn.sync_trigger_fence(fence)?;
+    server.conn.sync_query_fence(fence)?.reply()?;
+    server.conn.sync_reset_fence(fence)?;
+    Ok(())
+}
+
+fn fresh_pixmaps_read_back(synchronized: bool) -> Result<Option<usize>> {
+    use x11rb::protocol::sync::ConnectionExt as _;
+    let Some(server) = server()? else {
+        return Ok(None);
+    };
+    server.conn.sync_initialize(3, 1)?.reply()?;
+    let fence = server.conn.generate_id()?;
+    server
+        .conn
+        .sync_create_fence(server.root, fence, false)?
+        .check()?;
+    let copy = server.gpu.target(1, 1)?;
+    let area = Rect {
+        x: 0,
+        y: 0,
+        width: 1,
+        height: 1,
+    };
+    // Another client keeps the server busy, as a desktop's clients do, so it seldom idles,
+    // which is when it otherwise flushes its GPU work.
+    let display = std::env::var("COMPUST_GPU_DISPLAY")?;
+    let busy = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let running = std::sync::Arc::clone(&busy);
+    let load = std::thread::spawn(move || -> Result<()> {
+        let (conn, screen) = x11rb::connect(Some(&display))?;
+        let root = conn
+            .setup()
+            .roots
+            .get(screen)
+            .context("missing screen")?
+            .root;
+        let target = conn.generate_id()?;
+        conn.create_pixmap(24, target, root, 1024, 1024)?.check()?;
+        let gc = conn.generate_id()?;
+        conn.create_gc(gc, target, &CreateGCAux::new().foreground(0x0000_00ff))?
+            .check()?;
+        let all = Rectangle {
+            x: 0,
+            y: 0,
+            width: 1024,
+            height: 1024,
+        };
+        while running.load(std::sync::atomic::Ordering::Relaxed) {
+            for _ in 0..64 {
+                conn.poly_fill_rectangle(target, gc, &[all])?;
+            }
+            conn.get_input_focus()?.reply()?;
+        }
+        Ok(())
+    });
+    let mut stale = 0;
+    for _ in 0..100 {
+        // Sharing a pixmap can move it into a new buffer with a copy the server has not yet
+        // sent to its GPU, so a read right after the reply may find the new buffer empty.
+        let pixmap = server.pixmap(24, 256, 0x00ff_0000)?;
+        let texture = server.gpu.import(&server.dmabuf(pixmap)?)?;
+        if synchronized {
+            flush_server(&server, fence)?;
+        }
+        server.gpu.frame(&copy)?.draw(
+            &texture,
+            Placement::At(-128, -128),
+            Mode::Replace,
+            &[area],
+        )?;
+        if server.gpu.read(&copy, area)?.first() != Some(&255) {
+            stale += 1;
+        }
+        server.conn.free_pixmap(pixmap)?;
+    }
+    busy.store(false, std::sync::atomic::Ordering::Relaxed);
+    load.join()
+        .map_err(|_| anyhow::anyhow!("the load thread panicked"))??;
+    Ok(Some(stale))
+}
+
+#[test]
+fn the_server_flushes_its_gpu_work_when_a_fence_triggers() -> Result<()> {
+    let Some(stale) = fresh_pixmaps_read_back(true)? else {
+        return Ok(());
+    };
+    assert_eq!(stale, 0, "the GPU read pixmaps the server had not finished");
+    Ok(())
+}

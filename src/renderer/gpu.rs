@@ -7,12 +7,14 @@ use anyhow::{Context as _, Result, bail, ensure};
 use compust_gl::{
     Device, Dmabuf, Gpu, Mode, Placement, Plane, Rect as Area, Target, Texture, fourcc,
 };
-use std::{fs::File, os::unix::fs::MetadataExt as _};
+use std::{fs::File, os::unix::fs::MetadataExt as _, rc::Rc};
 use x11rb::{
     NONE,
+    connection::Connection as _,
     protocol::{
         dri3::ConnectionExt as _,
         render::Picture as PictureId,
+        sync::{ConnectionExt as _, Fence},
         xproto::{Pixmap, Window},
     },
     rust_connection::RustConnection,
@@ -23,9 +25,12 @@ const BACKGROUND: [f32; 4] = [24.0 / 255.0, 24.0 / 255.0, 32.0 / 255.0, 1.0];
 
 /// The GPU painter. It draws each frame with OpenGL ES into the back buffer that the X server
 /// allocated and Present shows, reading window pixmaps through DRI3 without copying them. The
-/// kernel orders the GPU's reads and writes of shared buffers, so the frame is complete for
-/// the server once the draws are flushed.
+/// kernel orders the GPU's reads and writes of shared buffers once each side has sent its
+/// work: the frame is complete for the server once the draws are flushed, and before each
+/// frame `fence` makes the server send the work it holds back.
 pub(super) struct Painter {
+    conn: Rc<RustConnection>,
+    fence: Fence,
     gpu: Gpu,
     back: Target,
     /// The blur pyramid, each level half the size of the previous one.
@@ -70,6 +75,9 @@ impl Painter {
         let node = File::from(device.device_fd).metadata()?;
         let gpu = Gpu::open(Device::Drm(node.rdev()))?;
         let back = gpu.import_target(&dmabuf(conn, back)?)?;
+        let fence = conn.generate_id()?;
+        conn.sync_create_fence(session.screen.root, fence, false)?
+            .check()?;
         let mut levels = Vec::with_capacity(depth);
         let (mut width, mut height) = (u32::from(size.width), u32::from(size.height));
         for _ in 0..depth {
@@ -78,6 +86,8 @@ impl Painter {
         }
         tracing::info!(renderer = gpu.renderer()?, "drawing with the GPU");
         Ok(Self {
+            conn: Rc::clone(conn),
+            fence,
             gpu,
             back,
             levels,
@@ -108,13 +118,14 @@ impl Painter {
     }
 
     /// Draw `plan` into the back buffer and flush it, with `wallpaper` as the root's pixmap.
-    pub(super) fn paint(
-        &mut self,
-        conn: &RustConnection,
-        plan: &Plan<'_>,
-        wallpaper: Option<Pixmap>,
-    ) -> Result<()> {
-        self.import(conn, plan, wallpaper)?;
+    pub(super) fn paint(&mut self, plan: &Plan<'_>, wallpaper: Option<Pixmap>) -> Result<()> {
+        self.import(plan, wallpaper)?;
+        // The server sends its own GPU work, such as a window's newly painted background or
+        // the copy that sharing a pixmap can need, when it idles or a fence triggers. Once the
+        // trigger is answered, the kernel orders this frame's reads after that work.
+        self.conn.sync_trigger_fence(self.fence)?;
+        self.conn.sync_query_fence(self.fence)?.reply()?;
+        self.conn.sync_reset_fence(self.fence)?;
         let background = areas(&plan.background)?;
         if !background.is_empty() {
             let mut frame = self.gpu.frame(&self.back)?;
@@ -162,12 +173,8 @@ impl Painter {
     }
 
     /// Import the pixmaps `plan` shows, and drop textures it no longer needs.
-    fn import(
-        &mut self,
-        conn: &RustConnection,
-        plan: &Plan<'_>,
-        wallpaper: Option<Pixmap>,
-    ) -> Result<()> {
+    fn import(&mut self, plan: &Plan<'_>, wallpaper: Option<Pixmap>) -> Result<()> {
+        let conn = &*self.conn;
         self.textures.retain(|(window, picture, _)| {
             plan.parts
                 .iter()
@@ -332,4 +339,16 @@ fn level_area(footprint: Rect, level: usize) -> Result<Area> {
         width: i32::from(area.width),
         height: i32::from(area.height),
     })
+}
+
+impl Drop for Painter {
+    fn drop(&mut self) {
+        if let Err(error) = self
+            .conn
+            .sync_destroy_fence(self.fence)
+            .map(x11rb::cookie::VoidCookie::ignore_error)
+        {
+            tracing::debug!(%error, "fence cleanup failed");
+        }
+    }
 }

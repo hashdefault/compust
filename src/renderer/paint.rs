@@ -64,7 +64,7 @@ impl Renderer {
         };
         let wallpaper = self.wallpaper_pixmap;
         let failed = if let Some(gpu) = self.gpu.as_mut() {
-            gpu.paint(&session.conn, &plan, wallpaper).err()
+            gpu.paint(&plan, wallpaper).err()
         } else {
             self.paint_xrender(session, &plan)?;
             None
