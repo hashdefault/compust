@@ -1,9 +1,10 @@
 use crate::{
+    config::Config,
     session::Session,
     surface::{Capture, Surface},
 };
 use anyhow::Result;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use x11rb::{
     NONE,
     errors::ReplyError,
@@ -108,7 +109,7 @@ impl Scene {
                 if let Some(previous) = self.windows.iter_mut().find(|s| s.window == window) {
                     previous
                         .fade
-                        .reopen(Instant::now(), context.config.fade_duration());
+                        .reopen(Instant::now(), surface.fade_duration(context.config));
                     std::mem::swap(&mut surface.fade, &mut previous.fade);
                     *previous = surface;
                 } else {
@@ -155,14 +156,14 @@ impl Scene {
     }
 
     /// Start closing the mapped surface of `window`; reports whether there was one.
-    pub(crate) fn close(&mut self, window: Window, fade: Duration) -> bool {
+    pub(crate) fn close(&mut self, window: Window, config: &Config) -> bool {
         match self
             .windows
             .iter_mut()
             .find(|s| s.window == window && s.mapped)
         {
             Some(surface) => {
-                surface.close(Instant::now(), fade);
+                surface.close(Instant::now(), config);
                 true
             }
             None => false,

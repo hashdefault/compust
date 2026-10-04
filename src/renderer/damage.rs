@@ -30,7 +30,8 @@ pub(super) struct Change {
 }
 
 /// A surface as a frame showed it. Comparing the last frame's surfaces with the next one's
-/// finds moves, resizes, recaptures, shape and opacity changes, fades, and restacks.
+/// finds moves, resizes, recaptures, shape and opacity changes, fades, blur turned on or off,
+/// and restacks.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Shown {
     window: Window,
@@ -38,10 +39,11 @@ pub(super) struct Shown {
     bounds: Rect,
     shape: Vec<Rect>,
     opacity: u16,
+    blur: bool,
 }
 
 impl Shown {
-    pub(super) fn new(surface: &Surface, opacity: u16) -> Self {
+    pub(super) fn new(surface: &Surface, opacity: u16, blur: bool) -> Self {
         Self {
             window: surface.window,
             picture: surface.picture.id,
@@ -52,6 +54,7 @@ impl Shown {
                 .map(|rect| Rect::at(*rect, (0, 0)))
                 .collect(),
             opacity,
+            blur,
         }
     }
 }
@@ -190,6 +193,7 @@ mod tests {
             bounds: Rect::new(x, 0, 10, 10),
             shape: vec![Rect::new(0, 0, 10, 10)],
             opacity,
+            blur: false,
         }
     }
 
@@ -253,6 +257,13 @@ mod tests {
                 &[shown(2, 50, u16::MAX)]
             ),
             [change(0, 10, 0, true)]
+        );
+        // A rule turning blur on shows a different backdrop through the same surface.
+        let mut blurred = shown(1, 0, 1000);
+        blurred.blur = true;
+        assert_eq!(
+            changes(&[shown(1, 0, 1000)], &[blurred]),
+            [change(0, 10, 1, true), change(0, 10, 1, true)]
         );
     }
 

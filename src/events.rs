@@ -34,17 +34,17 @@ impl Compositor {
             // Repainting for a window that shows nothing would hold the next real frame back
             // by a vblank, because the single buffer waits for each submission to finish.
             Event::UnmapNotify(event) => {
-                self.dirty |= self.scene.close(event.window, self.config.fade_duration());
+                self.dirty |= self.scene.close(event.window, &self.config);
             }
             Event::DestroyNotify(event) => {
-                self.dirty |= self.scene.close(event.window, self.config.fade_duration());
+                self.dirty |= self.scene.close(event.window, &self.config);
                 self.clients_changed(&[event.event, event.window])?;
             }
             Event::ReparentNotify(event) => {
                 if event.parent == root {
                     self.add(event.window)?;
                 } else {
-                    self.scene.close(event.window, self.config.fade_duration());
+                    self.scene.close(event.window, &self.config);
                 }
                 self.clients_changed(&[event.event, event.parent, event.window])?;
                 self.scene.restack(&self.session)?;
@@ -127,6 +127,7 @@ impl Compositor {
                 formats: &self.renderer.formats,
                 atoms: &self.session.atoms,
                 config: &self.config,
+                replaces: None,
             },
         )
     }
@@ -173,7 +174,7 @@ impl Compositor {
             match surface.refresh_shape() {
                 Ok(()) => (),
                 Err(error) if vanished(&error) => {
-                    surface.close(std::time::Instant::now(), self.config.fade_duration());
+                    surface.close(std::time::Instant::now(), &self.config);
                 }
                 Err(error) => return Err(error),
             }
@@ -205,12 +206,21 @@ impl Compositor {
                 match surface.refresh_opacity(&self.session.atoms) {
                     Ok(()) => (),
                     Err(error) if vanished(&error) => {
-                        surface.close(std::time::Instant::now(), self.config.fade_duration());
+                        surface.close(std::time::Instant::now(), &self.config);
                     }
                     Err(error) => return Err(error),
                 }
             }
             self.dirty = true;
+        } else if self.session.atoms.identifies(event.atom) {
+            for surface in self
+                .scene
+                .windows
+                .iter_mut()
+                .filter(|s| s.mapped && s.identified_by(event.window))
+            {
+                self.dirty |= surface.refresh_identity(&self.session.atoms, &self.config)?;
+            }
         }
         Ok(())
     }
@@ -222,10 +232,10 @@ impl Compositor {
             .iter_mut()
             .filter(|s| s.mapped && windows.iter().any(|window| s.watches(*window)))
         {
-            match surface.refresh_client(&self.session.atoms) {
+            match surface.refresh_client(&self.session.atoms, &self.config) {
                 Ok(()) => (),
                 Err(error) if vanished(&error) => {
-                    surface.close(std::time::Instant::now(), self.config.fade_duration());
+                    surface.close(std::time::Instant::now(), &self.config);
                 }
                 Err(error) => return Err(error),
             }
@@ -266,6 +276,7 @@ impl Compositor {
                 formats: &self.renderer.formats,
                 atoms: &self.session.atoms,
                 config: &self.config,
+                replaces: Some(surface),
             },
         );
         match capture {
@@ -275,7 +286,7 @@ impl Compositor {
             }
             Ok(None) => (),
             Err(error) if vanished(&error) => {
-                surface.close(std::time::Instant::now(), self.config.fade_duration());
+                surface.close(std::time::Instant::now(), &self.config);
             }
             Err(error) => return Err(error),
         }

@@ -52,6 +52,7 @@ impl Compositor {
             formats: &renderer.formats,
             atoms: &session.atoms,
             config: &config,
+            replaces: None,
         };
         for window in scene.stack.query(&session)?.to_vec() {
             if window != session.owner && window != session.overlay {
@@ -151,8 +152,9 @@ impl Compositor {
         Ok(())
     }
 
-    /// Reads the configuration again, as a restart would. A file that cannot be read or is
-    /// invalid leaves the running configuration in place. Fades in progress keep their duration.
+    /// Reads the configuration again, as a restart would, and applies its rules to every window.
+    /// A file that cannot be read or is invalid leaves the running configuration in place. Fades
+    /// in progress keep their duration.
     fn reload_config(&mut self) {
         let (config, path) = match self.source.load() {
             Ok(loaded) => loaded,
@@ -163,6 +165,9 @@ impl Compositor {
         };
         self.dirty |= config != self.config;
         self.config = config;
+        for surface in &mut self.scene.windows {
+            surface.apply(&self.config);
+        }
         if let Some(path) = path {
             tracing::info!(path = %path.display(), "configuration reloaded");
         } else {

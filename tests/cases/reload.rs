@@ -12,7 +12,7 @@ use x11rb::{
 };
 
 /// A saturated channel at 50% global opacity over the default background.
-fn half_red([r, g, b]: [u8; 3]) -> bool {
+pub(crate) fn half_red([r, g, b]: [u8; 3]) -> bool {
     (136..=142).contains(&r) && (11..=13).contains(&g) && (15..=17).contains(&b)
 }
 

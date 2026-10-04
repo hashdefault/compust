@@ -175,7 +175,7 @@ impl Renderer {
     fn changes(&mut self, visible: &[(&Surface, u16)]) -> Vec<Change> {
         let shown: Vec<_> = visible
             .iter()
-            .map(|&(surface, opacity)| Shown::new(surface, opacity))
+            .map(|&(surface, opacity)| Shown::new(surface, opacity, self.blurs(surface, opacity)))
             .collect();
         let mut changes = damage::changes(&self.shown, &shown);
         self.shown = shown;
@@ -225,8 +225,12 @@ impl Renderer {
             .unzip()
     }
 
+    /// Whether a blurred backdrop shows through `surface`: when blur is on, a rule leaves it
+    /// on, and the surface is translucent anywhere.
     fn blurs(&self, surface: &Surface, opacity: u16) -> bool {
-        !self.levels.is_empty() && (opacity < u16::MAX || surface.has_alpha)
+        !self.levels.is_empty()
+            && surface.overrides.blur.unwrap_or(true)
+            && (opacity < u16::MAX || surface.has_alpha)
     }
 
     /// The screen area `surface` paints over completely: its shape, when it has no alpha
@@ -394,21 +398,23 @@ impl Renderer {
     }
 }
 
-/// The surfaces a frame shows, bottom to top, with their opacity.
+/// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
+/// rule's or else the global one, times their fade.
 fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<(&'a Surface, u16)>> {
     let now = Instant::now();
-    let global = u16::try_from(u32::from(config.opacity) * u32::from(u16::MAX) / 100)?;
-    Ok(scene
-        .windows
-        .iter()
-        .filter_map(|surface| {
-            let opacity = multiply_alpha(
-                multiply_alpha(surface.opacity, global),
-                surface.fade.sample(now),
-            );
-            (opacity > 0).then_some((surface, opacity))
-        })
-        .collect())
+    let mut visible = Vec::with_capacity(scene.windows.len());
+    for surface in &scene.windows {
+        let percent = surface.overrides.opacity.unwrap_or(config.opacity);
+        let configured = u16::try_from(u32::from(percent) * u32::from(u16::MAX) / 100)?;
+        let opacity = multiply_alpha(
+            multiply_alpha(surface.opacity, configured),
+            surface.fade.sample(now),
+        );
+        if opacity > 0 {
+            visible.push((surface, opacity));
+        }
+    }
+    Ok(visible)
 }
 
 /// The screen area of `surface`'s shape, within its bounds.

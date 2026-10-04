@@ -1,3 +1,4 @@
+use crate::rules::WindowType;
 use anyhow::Result;
 use x11rb::{
     protocol::xproto::{Atom, AtomEnum, ConnectionExt, Window},
@@ -12,6 +13,11 @@ pub(crate) struct Atoms {
     pub(crate) wallpaper: [Atom; 2],
     pub(crate) wm_state: Atom,
     pub(crate) timestamp: Atom,
+    pub(crate) net_wm_name: Atom,
+    pub(crate) utf8_string: Atom,
+    pub(crate) window_type: Atom,
+    /// Each `_NET_WM_WINDOW_TYPE_` atom with the type it names.
+    pub(crate) window_types: Vec<(Atom, WindowType)>,
 }
 
 impl Atoms {
@@ -25,7 +31,33 @@ impl Atoms {
             wallpaper: [intern(b"_XROOTPMAP_ID")?, intern(b"ESETROOT_PMAP_ID")?],
             wm_state: intern(b"WM_STATE")?,
             timestamp: intern(b"_COMPUST_TIMESTAMP")?,
+            net_wm_name: intern(b"_NET_WM_NAME")?,
+            utf8_string: intern(b"UTF8_STRING")?,
+            window_type: intern(b"_NET_WM_WINDOW_TYPE")?,
+            window_types: {
+                let cookies = WindowType::ALL
+                    .iter()
+                    .map(|(kind, name)| Ok((*kind, conn.intern_atom(false, name.as_bytes())?)))
+                    .collect::<Result<Vec<_>>>()?;
+                cookies
+                    .into_iter()
+                    .map(|(kind, cookie)| Ok((cookie.reply()?.atom, kind)))
+                    .collect::<Result<_>>()?
+            },
         })
+    }
+
+    /// The properties rules match on, whose changes refresh a window's identity.
+    pub(crate) fn identifies(&self, atom: Atom) -> bool {
+        [
+            AtomEnum::WM_CLASS,
+            AtomEnum::WM_NAME,
+            AtomEnum::WM_TRANSIENT_FOR,
+        ]
+        .into_iter()
+        .any(|known| atom == u32::from(known))
+            || atom == self.net_wm_name
+            || atom == self.window_type
     }
 }
 

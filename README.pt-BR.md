@@ -12,7 +12,7 @@ O compositor combina as janelas dos aplicativos para formar a imagem final da á
 
 ## O que já funciona
 
-A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas. O desfoque reduz repetidamente pela metade a área atrás da janela com amostragem bilinear e depois a amplia de volta, operações que servidores com aceleração por GPU mantêm na GPU.
+A abertura e o fechamento de janelas usam uma transição de opacidade com curva smoothstep, inclusive quando uma janela é fechada durante a animação de abertura. A transparência combina o conteúdo ARGB do aplicativo, `_NET_WM_WINDOW_OPACITY` e a opacidade global configurada. Janelas translúcidas podem desfocar o conteúdo atrás delas. O desfoque reduz repetidamente pela metade a área atrás da janela com amostragem bilinear e depois a amplia de volta, operações que servidores com aceleração por GPU mantêm na GPU. [Regras por janela](#regras-por-janela) definem a opacidade, o desfoque e a duração do fade das janelas escolhidas por classe, tipo ou título.
 
 O Compust acompanha empilhamento, movimento, redimensionamento, formato das janelas, atualizações de conteúdo e pixmaps de papel de parede. Os pixmaps nomeados são preservados durante a animação de fechamento. A janela de composição tem região de entrada vazia, permitindo que os cliques cheguem aos aplicativos. Um compositor existente nunca é substituído automaticamente.
 
@@ -24,7 +24,7 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 | XFixes 2.0+ e Shape 1.1+ | Obrigatórias: passagem de entrada e janelas com formatos não retangulares |
 | Present | Opcional: apresentação por cópia, aguardando conclusão e liberação do buffer |
 | RandR | Opcional: eventos de mudança da tela e recriação de buffers; hotplug físico registrado em um desktop AMD/XLibre e em um laptop Intel/Xorg |
-| EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade e descoberta do cliente por `WM_STATE` |
+| EWMH / ICCCM | Seleção do compositor, anúncio MANAGER, opacidade, descoberta do cliente por `WM_STATE` e regras que comparam `WM_CLASS`, `_NET_WM_WINDOW_TYPE` (com `WM_TRANSIENT_FOR` para o tipo padrão) e `_NET_WM_NAME` ou `WM_NAME` |
 | Papel de parede | `_XROOTPMAP_ID`, depois `ESETROOT_PMAP_ID`; fundo escuro quando nenhum é utilizável |
 | DRI3 1.2 e Sync 3.1 | Opcionais: o renderizador de GPU compartilha o buffer de fundo e os pixmaps das janelas e do papel de parede por DRI3, e uma fence do Sync faz o servidor enviar seu trabalho de GPU antes de cada quadro; sem sincronização explícita |
 
@@ -62,7 +62,7 @@ Escolha um número de display livre. O exemplo desativa a autenticação apenas 
 
 O arquivo de exemplo contém todas as opções. Sem `--config`, o Compust lê o primeiro `compust/compust.toml` que encontrar em `$XDG_CONFIG_HOME` (por padrão `~/.config`) e depois em cada diretório de `$XDG_CONFIG_DIRS` (por padrão `/etc/xdg`); se não houver arquivo, valem os padrões internos. Campos desconhecidos e valores fora do intervalo geram erro antes da conexão com o X11.
 
-Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity` e `max_fps` valem a partir do próximo quadro. Um novo `fade_ms` vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius`, `vsync` ou `backend` substitui o renderizador assim que o quadro em apresentação termina.
+Envie SIGUSR1 para recarregar a configuração sem reiniciar, por exemplo com `pkill -USR1 -x compust`. A recarga lê o mesmo arquivo que uma reinicialização leria. Se esse arquivo não puder ser lido ou for inválido, o Compust registra um aviso e mantém as opções atuais. `opacity`, `max_fps` e a opacidade e o desfoque dados por regras valem a partir do próximo quadro, também para janelas já abertas. Um novo `fade_ms`, global ou em uma regra, vale para toda abertura e todo fechamento iniciados depois, inclusive de janelas já abertas; fades em andamento terminam com a duração anterior. Uma mudança em `blur_radius`, `vsync` ou `backend` substitui o renderizador assim que o quadro em apresentação termina.
 
 ```toml
 opacity = 100
@@ -83,6 +83,36 @@ backend = "xrender"
 | `backend` | `"xrender"` desenha pelo servidor X; `"gl"` desenha com OpenGL ES na GPU do servidor e volta ao XRender com um aviso onde não puder |
 
 O desfoque é aplicado atrás de janelas translúcidas ou ARGB, com a força com que cada pixel da janela é opaco: a margem transparente de sombra em volta do menu de um navegador quase não recebe desfoque, e o desfoque surge e some com a janela. Se o servidor não oferecer filtragem bilinear, o Compust registra um aviso e continua sem desfoque. `max_fps` não força redesenhos quando nada muda; o loop de eventos acorda no máximo uma vez por segundo durante a inatividade para observar sinais de encerramento e de recarga.
+
+### Regras por janela
+
+Cada tabela `[[rules]]` escolhe janelas e muda opções para elas. As regras vêm depois das opções globais, porque o TOML coloca toda tabela depois das chaves simples.
+
+```toml
+# Terminais com 90% de opacidade.
+[[rules]]
+wm_class = "Alacritty"
+opacity = 90
+
+# Dicas de ferramenta sem desfoque atrás e sem fades.
+[[rules]]
+window_type = "tooltip"
+blur = false
+fade_ms = 0
+```
+
+| Campo | Significado |
+| --- | --- |
+| `wm_class` | Escolhe janelas cuja classe de recurso, a segunda string de `WM_CLASS`, é este texto |
+| `window_type` | Escolhe janelas deste tipo EWMH: `desktop`, `dock`, `toolbar`, `menu`, `utility`, `splash`, `dialog`, `dropdown_menu`, `popup_menu`, `tooltip`, `notification`, `combo`, `dnd` ou `normal` |
+| `name` | Escolhe janelas cujo título, `_NET_WM_NAME` ou, na falta dele, `WM_NAME`, é este texto |
+| `opacity` | Porcentagem de opacidade, de 0 a 100, usada no lugar da `opacity` global e multiplicada pela opacidade do aplicativo |
+| `blur` | `false` mantém nítido o conteúdo atrás da janela; `true` o desfoca como por padrão, enquanto `blur_radius` for maior que zero |
+| `fade_ms` | Duração da abertura e do fechamento em milissegundos, de 0 a 65535, usada no lugar do `fade_ms` global |
+
+Uma regra precisa de ao menos um dos três primeiros campos, que escolhem janelas, e de ao menos um dos três últimos, que ela define. O texto precisa ser idêntico, inclusive em maiúsculas e minúsculas, e a janela precisa corresponder a todos os campos pelos quais a regra escolhe. Cada opção vem da primeira regra correspondente que a define, então regras específicas vêm antes das amplas; assim, `true` em uma regra mantém o desfoque de janelas para as quais uma regra posterior o desliga. Rode `xprop` e clique em uma janela para ver seus `WM_CLASS`, `_NET_WM_WINDOW_TYPE` e `_NET_WM_NAME`.
+
+O Compust lê essas propriedades da janela do aplicativo, dentro da moldura do gerenciador de janelas, e as lê de novo quando mudam, como quando um título muda. Uma janela que não declara nenhum tipo conhecido pelo Compust é `dialog` quando é transitória para outra janela e o gerenciador de janelas a controla, e `normal` nos demais casos, como determina a EWMH. Uma propriedade ausente ou malformada não corresponde a nenhum texto. Uma janela em fechamento mantém as regras que tinha enquanto o fade termina.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
@@ -106,9 +136,9 @@ Contribuições em **português brasileiro ou inglês** são bem-vindas. Comece 
 
 ## Limitações atuais
 
-O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. O renderizador de GPU opcional ([registrado em um desktop](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04)) desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, com CPU total parecida ali, maior quando janelas são redimensionadas, e cerca de 62 MiB a mais de memória para o driver GL. O [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por benchmarks; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina. Não há sombras, cantos arredondados, animações de movimento ou escala, regras por janela, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
+O protótipo repinta apenas a área da tela que mudou, e cada janela desfocada guarda seu fundo desfocado até que algo abaixo dela mude, o que a desfoca de novo em toda a sua área de alcance. No [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03), uma janela translúcida em tela cheia com desfoque manteve 60 quadros por segundo enquanto o Xorg usava cerca de 4% de um núcleo. Janelas escondidas atrás de janelas opacas não são pintadas. O renderizador de GPU opcional ([registrado em um desktop](docs/DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04)) desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, com CPU total parecida ali, maior quando janelas são redimensionadas, e cerca de 62 MiB a mais de memória para o driver GL. O [próximo marco](docs/ROADMAP.pt-BR.md#próximo-passo-medir-e-reduzir-o-trabalho-de-renderização) começa por benchmarks; seus [primeiros registros](docs/DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03) comparam o Compust com o picom em uma máquina. Não há sombras, cantos arredondados, animações de movimento ou escala, suspensão da composição em tela cheia ou compatibilidade com arquivos do picom.
 
-O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide, curvas e regras por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
+O marco planejado de **Animações de janelas** no [roteiro](docs/ROADMAP.pt-BR.md) amplia o fade existente com pop, slide e curvas, escolhidos por janela. Seus exemplos de configuração descrevem trabalho futuro e não são aceitos pelo binário atual.
 
 Um processo atende uma tela X; uma raiz com vários monitores é composta como uma única superfície. Agendamento para taxas de atualização diferentes, HDR/gerenciamento de cores, VRR, importação DMA-BUF, sincronização explícita e extensões exclusivas do XLibre não estão implementados ou certificados. O hotplug físico foi verificado apenas no [desktop AMD/XLibre registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03) e no [laptop Intel/Xorg registrado](docs/DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-hotplug-em-intelxorg-2026-10-03). Wayland nativo está fora do escopo atual.
 

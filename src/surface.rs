@@ -6,6 +6,7 @@ use crate::{
     config::Config,
     picture::{Picture, Size},
     region::Rect,
+    rules::{self, Identity, Overrides, WindowType},
 };
 use anyhow::{Context, Result};
 use client::{ClientTree, window_gone};
@@ -20,7 +21,10 @@ use x11rb::{
         damage::{ConnectionExt as _, ReportLevel},
         render::QueryPictFormatsReply,
         shape::{ConnectionExt as _, SK},
-        xproto::{ConnectionExt, GetGeometryReply, MapState, Rectangle, Window, WindowClass},
+        xproto::{
+            AtomEnum, ConnectionExt, GetGeometryReply, GetPropertyReply, MapState, Rectangle,
+            Window, WindowClass,
+        },
     },
     rust_connection::RustConnection,
 };
@@ -37,6 +41,15 @@ pub(crate) struct Surface {
     pub(crate) has_alpha: bool,
     pub(crate) fade: Fade,
     pub(crate) mapped: bool,
+    /// What rules match on, from the client window.
+    identity: Identity,
+    /// The window `identity` came from.
+    identified: Window,
+    /// Whether the window manager leaves the window alone, which decides the type of a window
+    /// that names none.
+    override_redirect: bool,
+    /// What the rules give this surface.
+    pub(crate) overrides: Overrides,
     conn: Rc<RustConnection>,
 }
 
@@ -45,6 +58,8 @@ pub(crate) struct Capture<'a> {
     pub(crate) formats: &'a QueryPictFormatsReply,
     pub(crate) atoms: &'a Atoms,
     pub(crate) config: &'a Config,
+    /// The surface a resize replaces, whose client's identity it keeps.
+    pub(crate) replaces: Option<&'a Surface>,
 }
 
 impl Surface {
@@ -81,6 +96,17 @@ impl Surface {
         };
         picture.pixmap = Some(pixmap);
         let client_tree = ClientTree::discover(conn, window, context.atoms.wm_state)?;
+        let client = client_tree.client;
+        let (identified, identity) = match context.replaces {
+            Some(old) if !new_client(old.identified, client, window) => {
+                (old.identified, old.identity.clone())
+            }
+            _ => (
+                client,
+                identity(conn, client, context.atoms, attr.override_redirect)?.unwrap_or_default(),
+            ),
+        };
+        let overrides = rules::overrides(&context.config.rules, &identity);
         conn.shape_select_input(window, true)?.check()?;
         let damage = conn.generate_id()?;
         // Each report carries the extents of the damage since the last subtraction, which
@@ -100,8 +126,12 @@ impl Surface {
             shape: Vec::new(),
             opacity: u16::MAX,
             has_alpha,
-            fade: Fade::opening(Instant::now(), context.config.fade_duration()),
+            fade: Fade::opening(Instant::now(), fade_duration(context.config, overrides)),
             mapped: true,
+            identity,
+            identified,
+            override_redirect: attr.override_redirect,
+            overrides,
             conn: Rc::clone(conn),
         };
         surface.refresh_shape()?;
@@ -172,9 +202,42 @@ impl Surface {
         self.client_tree.watched.contains(&window)
     }
 
-    pub(crate) fn refresh_client(&mut self, atoms: &Atoms) -> Result<()> {
+    pub(crate) fn refresh_client(&mut self, atoms: &Atoms, config: &Config) -> Result<()> {
         self.client_tree = ClientTree::discover(&self.conn, self.window, atoms.wm_state)?;
+        let client = self.client_tree.client;
+        if new_client(self.identified, client, self.window) {
+            self.identified = client;
+            self.refresh_identity(atoms, config)?;
+        }
         self.refresh_opacity(atoms)
+    }
+
+    /// Whether the identity comes from `window`.
+    pub(crate) fn identified_by(&self, window: Window) -> bool {
+        self.identified == window
+    }
+
+    /// Read the identity again from the window it came from, unless that window is gone; reports
+    /// whether the rules now give the surface other settings.
+    pub(crate) fn refresh_identity(&mut self, atoms: &Atoms, config: &Config) -> Result<bool> {
+        if let Some(identity) =
+            identity(&self.conn, self.identified, atoms, self.override_redirect)?
+        {
+            self.identity = identity;
+        }
+        Ok(self.apply(config))
+    }
+
+    /// Resolve the rules of `config` for this surface again, as after a reload; reports
+    /// whether they now give it other settings.
+    pub(crate) fn apply(&mut self, config: &Config) -> bool {
+        let overrides = rules::overrides(&config.rules, &self.identity);
+        std::mem::replace(&mut self.overrides, overrides) != overrides
+    }
+
+    /// How long this surface's fades take: its rule's `fade_ms`, or else the global one.
+    pub(crate) fn fade_duration(&self, config: &Config) -> Duration {
+        fade_duration(config, self.overrides)
     }
 
     pub(crate) fn refresh_opacity(&mut self, atoms: &Atoms) -> Result<()> {
@@ -194,12 +257,95 @@ impl Surface {
         Ok(())
     }
 
-    pub(crate) fn close(&mut self, now: Instant, fade: Duration) {
+    pub(crate) fn close(&mut self, now: Instant, config: &Config) {
         if self.mapped {
-            self.fade.close(now, fade);
+            self.fade.close(now, self.fade_duration(config));
             self.mapped = false;
         }
     }
+}
+
+fn fade_duration(config: &Config, overrides: Overrides) -> Duration {
+    overrides.fade_ms.map_or_else(
+        || config.fade_duration(),
+        |ms| Duration::from_millis(u64::from(ms)),
+    )
+}
+
+/// Whether `client`, found in `frame`, is not the window an identity came from. A frame that
+/// loses its client, as when the client closes, keeps the client's identity while it fades.
+fn new_client(identified: Window, client: Window, frame: Window) -> bool {
+    client != identified && client != frame
+}
+
+/// The identity of `client`, from its class, type, and title, read in one round trip; `None`
+/// when the client is gone.
+fn identity(
+    conn: &RustConnection,
+    client: Window,
+    atoms: &Atoms,
+    override_redirect: bool,
+) -> Result<Option<Identity>> {
+    let requests = [
+        (AtomEnum::WM_CLASS.into(), AtomEnum::STRING.into(), 256),
+        (atoms.window_type, AtomEnum::ATOM.into(), 32),
+        (AtomEnum::WM_TRANSIENT_FOR.into(), AtomEnum::ANY.into(), 0),
+        (atoms.net_wm_name, atoms.utf8_string, 1024),
+        (AtomEnum::WM_NAME.into(), AtomEnum::ANY.into(), 1024),
+    ];
+    let cookies = requests
+        .map(|(property, kind, words)| conn.get_property(false, client, property, kind, 0, words));
+    // Every reply is read before any error returns: the error of a reply left unread would
+    // arrive later as an event.
+    let replies = cookies.map(|cookie| -> Result<GetPropertyReply> { Ok(cookie?.reply()?) });
+    let [class, types, transient, utf8, legacy] = match replies {
+        [Ok(class), Ok(types), Ok(transient), Ok(utf8), Ok(legacy)] => {
+            [class, types, transient, utf8, legacy]
+        }
+        replies => {
+            return match replies.into_iter().find_map(Result::err) {
+                Some(error) if !window_gone(&error) => Err(error),
+                _ => Ok(None),
+            };
+        }
+    };
+    let text = |reply: &GetPropertyReply, kind: u32| {
+        reply.type_ == kind && reply.format == 8 && reply.bytes_after == 0
+    };
+    let class = text(&class, AtomEnum::STRING.into())
+        .then(|| rules::class(&class.value))
+        .flatten();
+    let named = (types.type_ == u32::from(AtomEnum::ATOM) && types.bytes_after == 0)
+        .then(|| types.value32())
+        .flatten()
+        .and_then(|mut values| {
+            values.find_map(|atom| {
+                atoms
+                    .window_types
+                    .iter()
+                    .find_map(|&(known, kind)| (known == atom).then_some(kind))
+            })
+        });
+    let transient = transient.type_ != u32::from(AtomEnum::NONE);
+    let window_type = named.unwrap_or(if transient && !override_redirect {
+        WindowType::Dialog
+    } else {
+        WindowType::Normal
+    });
+    let name = if text(&utf8, atoms.utf8_string) {
+        String::from_utf8(utf8.value).ok()
+    } else if text(&legacy, AtomEnum::STRING.into()) {
+        Some(rules::latin1(&legacy.value))
+    } else if text(&legacy, atoms.utf8_string) {
+        String::from_utf8(legacy.value).ok()
+    } else {
+        None
+    };
+    Ok(Some(Identity {
+        class,
+        window_type,
+        name,
+    }))
 }
 
 impl Drop for Surface {

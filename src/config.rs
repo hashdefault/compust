@@ -1,5 +1,6 @@
 use std::{env, ffi::OsString, fs, io, path::PathBuf, time::Duration};
 
+use crate::rules::Rule;
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 
@@ -12,6 +13,8 @@ pub(crate) struct Config {
     pub(crate) max_fps: u16,
     pub(crate) vsync: bool,
     pub(crate) backend: Backend,
+    /// Per-window rules, from `[[rules]]` tables in order.
+    pub(crate) rules: Vec<Rule>,
 }
 
 /// What draws the frames.
@@ -35,6 +38,7 @@ impl Default for Config {
             max_fps: 120,
             vsync: true,
             backend: Backend::Xrender,
+            rules: Vec::new(),
         }
     }
 }
@@ -118,6 +122,9 @@ impl Config {
             (1..=1000).contains(&config.max_fps),
             "max_fps must be between 1 and 1000"
         );
+        for (index, rule) in config.rules.iter().enumerate() {
+            rule.validate(index + 1)?;
+        }
         Ok(config)
     }
 
@@ -210,6 +217,21 @@ mod tests {
         assert_eq!(
             Config::parse("backend = \"gl\"").unwrap().backend,
             Backend::Gl
+        );
+        assert!(config.rules.is_empty());
+    }
+
+    #[test]
+    fn rules_parse_in_order_and_an_invalid_one_rejects_the_file() {
+        let config = Config::parse(
+            "[[rules]]\nwindow_type = \"menu\"\nblur = false\n\n[[rules]]\nwm_class = \"Alacritty\"\nopacity = 90\n",
+        )
+        .unwrap();
+        assert_eq!(config.rules.len(), 2);
+        let error = Config::parse("[[rules]]\nblur = false\n").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("rule 1 needs wm_class"),
+            "{error:#}"
         );
     }
 }

@@ -12,7 +12,7 @@ A compositor combines application windows into the final desktop image. Compust 
 
 ## What works today
 
-Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them. The blur repeatedly halves the area behind a window with bilinear sampling and scales it back up, which GPU-accelerated servers keep on the GPU.
+Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them. The blur repeatedly halves the area behind a window with bilinear sampling and scales it back up, which GPU-accelerated servers keep on the GPU. [Per-window rules](#per-window-rules) set the opacity, blur, and fade duration of windows chosen by class, type, or title.
 
 Compust tracks window stacking, movement, resizing, bounding shapes, redraws, and root wallpaper pixmaps. It retains named pixmaps during closing animations. The overlay has an empty input region so clicks reach the applications below it. An existing compositor is never replaced automatically.
 
@@ -24,7 +24,7 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 | XFixes 2.0+ and Shape 1.1+ | Required: input-transparent overlay and shaped windows |
 | Present | Optional: copy presentation, waiting for completion and buffer-idle events |
 | RandR | Optional: screen-change subscription and buffer recreation; physical hotplug recorded on one AMD/XLibre desktop and one Intel/Xorg laptop |
-| EWMH / ICCCM | Compositor selection, manager announcement, opacity, and client discovery through `WM_STATE` |
+| EWMH / ICCCM | Compositor selection, manager announcement, opacity, client discovery through `WM_STATE`, and rules matching `WM_CLASS`, `_NET_WM_WINDOW_TYPE` (with `WM_TRANSIENT_FOR` for its default), and `_NET_WM_NAME` or `WM_NAME` |
 | Root wallpaper | `_XROOTPMAP_ID`, then `ESETROOT_PMAP_ID`; dark fallback when neither is usable |
 | DRI3 1.2 and Sync 3.1 | Optional: the GPU renderer shares the back buffer, window, and wallpaper pixmaps through DRI3, and a Sync fence makes the server send its GPU work before each frame; no explicit synchronization |
 
@@ -62,7 +62,7 @@ Choose an unused display number. This example disables X authentication only for
 
 The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11.
 
-Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity` and `max_fps` apply from the next frame. A new `fade_ms` applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
+Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity`, `max_fps`, and the opacity and blur that rules give apply from the next frame, to windows already open too. A new `fade_ms`, global or in a rule, applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
 
 ```toml
 opacity = 100
@@ -83,6 +83,36 @@ backend = "xrender"
 | `backend` | `"xrender"` draws through the X server; `"gl"` draws with OpenGL ES on the server's GPU, and falls back to XRender with a warning where it cannot |
 
 Blur applies behind translucent or ARGB windows, as strongly as each of the window's pixels is opaque: the transparent shadow margin around a browser's menu gets almost none, and the blur fades in and out with the window. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
+
+### Per-window rules
+
+Each `[[rules]]` table chooses windows and changes settings for them. Rules go after the global settings, because TOML puts every table after the plain keys.
+
+```toml
+# Terminals at 90% opacity.
+[[rules]]
+wm_class = "Alacritty"
+opacity = 90
+
+# Tooltips without blur behind them, and without fades.
+[[rules]]
+window_type = "tooltip"
+blur = false
+fade_ms = 0
+```
+
+| Field | Meaning |
+| --- | --- |
+| `wm_class` | Chooses windows whose resource class, the second string of `WM_CLASS`, is this text |
+| `window_type` | Chooses windows of this EWMH type: `desktop`, `dock`, `toolbar`, `menu`, `utility`, `splash`, `dialog`, `dropdown_menu`, `popup_menu`, `tooltip`, `notification`, `combo`, `dnd`, or `normal` |
+| `name` | Chooses windows whose title, `_NET_WM_NAME` or else `WM_NAME`, is this text |
+| `opacity` | Opacity percentage, 0–100, used instead of the global `opacity` and multiplied by application opacity |
+| `blur` | `false` keeps the content behind the window sharp; `true` blurs it as by default, while `blur_radius` is above zero |
+| `fade_ms` | Opening/closing duration in milliseconds, 0–65535, used instead of the global `fade_ms` |
+
+A rule needs at least one of the first three fields, which choose windows, and at least one of the last three, which it sets. Text must match exactly, including case, and a window must match every field a rule chooses by. Each setting comes from the first matching rule that sets it, so specific rules go before broad ones; `true` in a rule thus keeps blur for windows a later rule turns it off for. Run `xprop` and click a window to see its `WM_CLASS`, `_NET_WM_WINDOW_TYPE`, and `_NET_WM_NAME`.
+
+Compust reads these properties from the application's window inside the window manager's frame, and reads them again when they change, such as when a title changes. A window that names no type Compust knows is `dialog` when it is transient for another window and the window manager handles it, and `normal` otherwise, as EWMH specifies. A property that is missing or malformed matches no text. A closing window keeps the rules it had while it fades out.
 
 ```sh
 ./target/release/compust --check-config --config compust.example.toml
@@ -106,9 +136,9 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with benchmarks; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine. It has no shadows, rounded corners, movement/scale animations, per-window rules, fullscreen unredirection, or picom configuration compatibility.
+This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [next milestone](docs/ROADMAP.md#next-measure-and-reduce-rendering-work) starts with benchmarks; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine. It has no shadows, rounded corners, movement/scale animations, fullscreen unredirection, or picom configuration compatibility.
 
-The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, easing, and per-window rules. Its configuration examples describe future work and are not accepted by the current binary.
+The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, and easing, chosen per window. Its configuration examples describe future work and are not accepted by the current binary.
 
 One process handles one X screen; a multi-monitor root is composed as one surface. Mixed-refresh scheduling, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Physical hotplug is verified only on the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and the [recorded Intel/Xorg laptop](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03). Native Wayland support is outside the current scope.
 

@@ -8,6 +8,7 @@ mod events;
 mod picture;
 mod region;
 mod renderer;
+mod rules;
 mod scene;
 mod session;
 mod surface;

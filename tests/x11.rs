@@ -44,6 +44,9 @@ mod occlusion;
 
 #[path = "cases/backend.rs"]
 mod backend;
+
+#[path = "cases/rules.rs"]
+mod rules;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{
