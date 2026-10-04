@@ -125,7 +125,7 @@ A useful sequence starts with a baseline, then a mode change, another layout, an
 
 ## Run the benchmark scenes
 
-`tools/bench.sh` measures fixed scenes under Compust and then under picom on an existing X11 session; it starts no server or window manager. Stop the session's compositor first and keep the command that restores it. The [configurations](../tools/bench/) match each other: Compust without fades or blur and with `vsync = true`, and picom with the same settings in its `xrender` and `glx` backends, without shadows, fades, rounded corners, dimming, or unredirection. The blur variants use a 4-pixel radius. picom's xrender backend lacks Dual Kawase, so it blurs with a size-9 box; its glx backend uses Dual Kawase approximating the same size. `COMPOSITORS` and `SCENES` select a subset.
+`tools/bench.sh` measures Compust's own fixed scenes on an existing X11 session; it starts no server or window manager. Stop the session's compositor first and keep the command that restores it. The [configurations](../tools/bench/) disable fades, use full opacity and `vsync = true`, and select XRender or the optional GL painter, with a 4-pixel radius in the blur variants. `COMPOSITORS` accepts `compust` (the default), `compust-gl`, or both separated by a space. `SCENES` selects a subset. No other compositor is run or required.
 
 ```sh
 cargo build --release --locked --bin compust --example desktop_probe
@@ -146,9 +146,9 @@ Each scene maps a backdrop over the whole root and then override-redirect window
 
 The translucent and covered scenes run without blur and, with a `:blur` suffix, with it. All scenes fit a 1366×768 screen; on a larger one only the full-screen window grows.
 
-Each scene directory holds `summary.csv` with Present intervals, CPU, RSS, open and close latencies, and GPU load; `frames.csv` with every Present completion; `processes.csv`; `latency.csv` for `open-close`; `topology.txt`; `resources.csv`; and the compositor and probe logs. The report root collects the summary rows in its own `summary.csv` and records the commit, configurations, picom version, and binary hashes. CPU is a share of one core and, as elsewhere, excludes GPU time. On amdgpu the probe also samples `gpu_busy_percent` ten times a second; `GPU_BUSY` names another load file. An open or close latency runs from the request until the probe reads the change from the overlay after a Present completion or Damage event, so it includes one `GetImage` round trip. `skipped_vblanks` counts vblanks without a completion between consecutive frames, which is meaningful only in scenes that update every vblank. On a multi-monitor root, Present can switch the CRTC it follows, and the new CRTC's MSC has another base; `msc_discontinuities` counts MSC steps that disagree with the time between the frames, whose skipped vblanks are estimated from that time. XRes counts X pixmaps but not GL buffers, so picom's glx figures understate its memory.
+Each scene directory holds `summary.csv` with Present intervals, CPU, RSS, open and close latencies, and GPU load; `frames.csv` with every Present completion; `processes.csv`; `latency.csv` for `open-close`; `topology.txt`; `resources.csv`; and the compositor and probe logs. The report root collects the summary rows in its own `summary.csv` and records the commit, Compust configurations, and binary hashes. CPU is a share of one core and, as elsewhere, excludes GPU time. On amdgpu the probe also samples `gpu_busy_percent` ten times a second; `GPU_BUSY` names another load file. An open or close latency runs from the request until the probe reads the change from the overlay after a Present completion or Damage event, so it includes one `GetImage` round trip. `skipped_vblanks` counts vblanks without a completion between consecutive frames, which is meaningful only in scenes that update every vblank. On a multi-monitor root, Present can switch the CRTC it follows, and the new CRTC's MSC has another base; `msc_discontinuities` counts MSC steps that disagree with the time between the frames, whose skipped vblanks are estimated from that time. XRes counts X pixmaps but not GL buffers, so the GL painter's XRes counts alone do not describe its total memory.
 
-Present completes no frames while DPMS has the monitors off. The runner turns them on, disables the screen saver and DPMS for the run, and restores the previous settings afterward. Run it in a dedicated session or on an otherwise idle desktop: other applications' redraws become part of every scene, under either compositor.
+Present completes no frames while DPMS has the monitors off. The runner turns them on, disables the screen saver and DPMS for the run, and restores the previous settings afterward. Run it in a dedicated session or on an otherwise idle desktop: other applications' redraws become part of every scene, under either Compust painter.
 
 ## Recorded hardware session: 2026-10-03
 
@@ -386,43 +386,41 @@ The windows are the probe's synthetic ones. No window opened or closed while fad
 
 ## Recorded benchmark scenes: 2026-10-03
 
-The [benchmark runner](#run-the-benchmark-scenes) ran twice with both monitors and twice with DP-2 alone on the [RX 9060 XT desktop](#recorded-reload-session-2026-10-03), with 20-second phases. The tree was the clean commit `394b7e63404e8eac5028e7dc933f7458dd7fa696` and picom was v13, revision `d87a5ba`. No application redrew during the runs. The [records](benchmarks/2026-10-03/bench-amd-dwm/) hold the four reports and the [script](benchmarks/2026-10-03/bench-amd-dwm/sequence.sh) that ran them.
+Compust ran twice with both monitors and twice with DP-2 alone on the [RX 9060 XT desktop](#recorded-reload-session-2026-10-03), with 20-second phases at the clean commit `394b7e63404e8eac5028e7dc933f7458dd7fa696`. No application redrew during the runs. The [raw records](benchmarks/2026-10-03/bench-amd-dwm/) preserve the original measurements; the tables below report Compust's workloads.
 
-Each cell is the compositor's own CPU plus the X server's, as a percentage of one core and the mean of the two runs; the runs agree within 0.25 points wherever the frame rate held. With nothing changing on screen the server used 5.3–5.4% under every compositor, so that much of each server figure is this machine's baseline, not compositing. Every scene ran at 60 frames per second without a skipped vblank except where a rate is given.
+Each cell is Compust's CPU plus the X server's, as a percentage of one core and the mean of the two runs; the runs agree within 0.25 points. With nothing changing on screen the server used 5.4%, which is this machine's baseline. Active scenes held 60 frames per second without a skipped vblank; the idle scene presented no frames.
 
 Two monitors, 3840×1080:
 
-| Scene | Compust | picom xrender | picom glx |
-| --- | ---: | ---: | ---: |
-| Idle | 0.0 + 5.4% | 0.0 + 5.3% | 0.0 + 5.3% |
-| Small window updating | 0.3 + 7.8% | 0.7 + 7.4% | 1.4 + 6.6% |
-| Full-screen translucent | 0.3 + 8.0% | 0.8 + 7.8% | 1.5 + 6.6% |
-| Full-screen translucent, blur | 0.4 + 8.2% | 0.1 + 97.2%, 1.2 fps | 1.6 + 6.7% |
-| Eight translucent | 0.4 + 8.5% | 1.6 + 10.1% | 1.8 + 6.7% |
-| Eight translucent, blur | 1.0 + 9.4% | 0.3 + 90.9%, 4.6 fps | 3.3 + 6.7% |
-| Move and resize | 1.1 + 8.8% | 1.1 + 8.3% | 2.8 + 9.0% |
-| Open and close | 0.4 + 9.1% | 1.1 + 8.3% | 1.9 + 8.9% |
+| Scene | Compust  |
+| --- | ---:  |
+| Idle | 0.0 + 5.4%  |
+| Small window updating | 0.3 + 7.8%  |
+| Full-screen translucent | 0.3 + 8.0%  |
+| Full-screen translucent, blur | 0.4 + 8.2%  |
+| Eight translucent | 0.4 + 8.5%  |
+| Eight translucent, blur | 1.0 + 9.4%  |
+| Move and resize | 1.1 + 8.8%  |
+| Open and close | 0.4 + 9.1%  |
 
 DP-2 alone, 1920×1080:
 
-| Scene | Compust | picom xrender | picom glx |
-| --- | ---: | ---: | ---: |
-| Idle | 0.0 + 5.4% | 0.0 + 5.4% | 0.0 + 5.3% |
-| Small window updating | 0.2 + 7.4% | 0.7 + 7.4% | 1.4 + 6.5% |
-| Full-screen translucent | 0.2 + 7.3% | 0.8 + 7.8% | 1.4 + 6.6% |
-| Full-screen translucent, blur | 0.4 + 7.6% | 0.1 + 96.6%, 2.4 fps | 1.6 + 6.6% |
-| Eight translucent | 0.4 + 7.9% | 1.6 + 10.1% | 1.8 + 6.5% |
-| Eight translucent, blur | 1.0 + 8.8% | 0.3 + 92.7%, 3.9 fps | 3.1 + 6.6% |
-| Move and resize | 1.1 + 8.4% | 1.1 + 8.3% | 2.7 + 8.9% |
-| Open and close | 0.4 + 8.6% | 1.0 + 8.2% | 1.9 + 8.2% |
+| Scene | Compust  |
+| --- | ---:  |
+| Idle | 0.0 + 5.4%  |
+| Small window updating | 0.2 + 7.4%  |
+| Full-screen translucent | 0.2 + 7.3%  |
+| Full-screen translucent, blur | 0.4 + 7.6%  |
+| Eight translucent | 0.4 + 7.9%  |
+| Eight translucent, blur | 1.0 + 8.8%  |
+| Move and resize | 1.1 + 8.4%  |
+| Open and close | 0.4 + 8.6%  |
 
-Where Compust is slower: in the update and translucency scenes the X server works harder under it than under picom glx, by 0.7 to 2.7 points of a core, because Compust renders with XRender inside the server while picom glx renders with OpenGL in its own process. The gap is widest with blur over eight windows. Adding both processes, Compust is at most 0.4 points above picom glx, with two monitors and eight translucent windows. With a 64×64 window updating on two monitors, amdgpu reported the GPU 8.4% busy under Compust, 6.8% under picom xrender, and 3.8% under picom glx: Compust repaints and copies the whole 3840×1080 frame for each change. The GPU picks its clock by load, so `gpu_busy_percent` compares work only roughly; the other scenes at 60 frames per second read 3.9–10.6% without a consistent order between compositors.
+Compust's own process used 0.2–1.1% of a core and 3,788–3,936 KiB of RSS. The small-window scene reported 8.4% GPU load on two monitors; this build repainted and copied the whole 3840×1080 frame for each change. The GPU changes its clock with load, so `gpu_busy_percent` is only an approximate measure of work. In the idle two-monitor scene, XRes reported 41.6 MB of pixmaps owned by Compust; XRes does not include GL buffers.
 
-Where Compust is faster: its own process used 0.2–1.1% of a core, less than picom glx in every scene that changes and less than picom xrender except in moving and resizing, where both used 1.1%, and in the blur scenes, where picom xrender drew only a few frames. Adding both processes, Compust is 1.1–2.1 points below picom glx when windows move, resize, open, and close. Its RSS stayed at 3,788–3,936 KiB, against 6,800–7,136 KiB for picom xrender and 79,232–82,124 KiB for picom glx, whose figure includes the GL driver. In each run Compust showed 46–58 of the 100 new windows one frame after the map request (16.3–16.7 ms) and the rest after two (about 33.2 ms); picom showed every one after two frames (32.4–34.5 ms). This split is why Compust's median open latency differs between runs; `latency.csv` lists every cycle. Every compositor removed each closed window one frame after the request, within 17.5 ms, and none presented a frame while the screen was idle.
+In each run, 46–58 of the 100 new windows appeared one frame after the map request (16.3–16.7 ms), and the rest after two (about 33.2 ms). This split explains the variation in median open latency; `latency.csv` lists every cycle. Closed windows disappeared one frame after the request, within 17.5 ms. Later [repaint changes](#recorded-repaint-change-2026-10-03) removed the redundant frame.
 
-picom's xrender backend blurs with an XRender convolution filter, which glamor runs on the CPU, as the [hardware desktop session](#recorded-hardware-desktop-session-2026-10-03) found for Compust's earlier box blur. With two monitors, full-screen blur fell to 1.2 frames per second while the X server used 97% of a core. In the idle scene with two monitors, XRes reported 41.6 MB of pixmaps owned by Compust, 74.8 MB by picom xrender, and 33.2 MB by picom glx, which also held four GLX pixmaps without a reported size and GL buffers that XRes does not see.
-
-This is one machine with a fast discrete GPU and 60 Hz monitors, synthetic windows, and a backdrop covering the desktop. It does not cover a 4K screen, a slow GPU, Xorg, or the Intel/Xorg laptop. Latencies include the probe's read of the overlay and say nothing about the panels themselves.
+This record covers one machine with a fast discrete GPU and 60 Hz monitors, synthetic windows, and a backdrop covering the desktop. It does not cover a 4K screen, a slow GPU, Xorg, or the Intel/Xorg laptop. Latencies include the probe's overlay read and do not measure the panels.
 
 ## Recorded event-path change: 2026-10-03
 
@@ -445,7 +443,7 @@ In the first two-monitor run, the small-window scene missed 17 vblanks in less t
 
 The [benchmark records](#recorded-benchmark-scenes-2026-10-03) showed about half of new windows one frame later under Compust than the rest. A temporarily instrumented build logged each event and Present submission during the open-and-close scene. In every such cycle, the window's `UnmapNotify` and `DestroyNotify` were read in separate batches: the unmap alone removed the window and its frame was submitted, then the destroy requested another, identical frame. That frame went out as soon as the first completed, and the next window, mapped right after, waited a vblank for it because the single Present buffer is reused only after each submission finishes.
 
-Compust now repaints only for events that change a shown surface or their order. At the clean commit `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, the same three scenes ran twice per monitor layout. Every one of the 400 new windows appeared one frame after its map request, in at most 17.3 ms, against 46–58 per 100 before and none under picom; closes still took one frame. The 100 cycles took 3.33 seconds instead of 4.1–4.3, with exactly two Present completions each. CPU in the small-window and move-and-resize scenes stayed within the variation between runs, and no scene skipped a vblank. The [records](benchmarks/2026-10-03/repaint-amd-dwm/) follow the earlier ones.
+Compust now repaints only for events that change a shown surface or their order. At the clean commit `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, the same three scenes ran twice per monitor layout. Every one of the 400 new windows appeared one frame after its map request, in at most 17.3 ms, against 46–58 per 100 before; closes still took one frame. The 100 cycles took 3.33 seconds instead of 4.1–4.3, with exactly two Present completions each. CPU in the small-window and move-and-resize scenes stayed within the variation between runs, and no scene skipped a vblank. The [records](benchmarks/2026-10-03/repaint-amd-dwm/) follow the earlier ones.
 
 ## Recorded region repaint: 2026-10-04
 
@@ -630,4 +628,4 @@ Run the [hardware session](#run-the-desktop-checks-on-hardware) for the probe's 
 
 For step 2, run the [monitor-transition procedure](#sample-monitor-transitions) in both presentation modes on each environment proposed for support. It records connector names, modes, refresh rates, and the monitor layout around each physical disconnection and reconnection, and checks redraws across shared monitor edges. Virtual CRTC disable/enable is covered in automation and does not substitute for these connector tests. The session above covers one AMD/XLibre environment.
 
-For step 3, measure idle and active CPU for both Compust and the X server, memory trends over repeated operations, and Present intervals where available. Include workload duration, window count, opacity/blur settings, and monitor refresh rates. Compare picom only with an identified version/backend and equivalent scenes and effects. Publish evidence for each server/window-manager/driver combination before declaring it supported; beta distribution remains gated on that declared scope.
+For step 3, measure idle and active CPU for both Compust and the X server, memory trends over repeated operations, and Present intervals where available. Include workload duration, window count, opacity/blur settings, and monitor refresh rates. Repeat the same Compust workload and configuration to measure variation and regressions. Publish evidence for each server/window-manager/driver combination before declaring it supported; beta distribution remains gated on that declared scope.

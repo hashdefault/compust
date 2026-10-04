@@ -6,10 +6,10 @@ usage() {
 }
 if [[ ${1:-} == --help ]]; then
     usage
-    printf 'Measure the benchmark scenes on DISPLAY under each compositor in turn. Stop the\n'
+    printf 'Measure Compust benchmark scenes on DISPLAY. Stop the\n'
     printf "display's compositor first and build release binaries, including the probe.\n"
-    printf 'COMPOSITORS defaults to "compust picom-xrender picom-glx"; compust-gl adds Compust'"'"'s\n'
-    printf 'GPU renderer. SCENES defaults to every scene,\n'
+    printf 'COMPOSITORS selects compust (the default) or compust-gl for the GPU renderer.\n'
+    printf 'SCENES defaults to every scene,\n'
     printf 'where a ":blur" suffix selects the blur configurations. SECONDS_PER_PHASE: 1-30.\n'
     printf 'GPU_BUSY names a GPU load file to sample; the first amdgpu one is used by default.\n'
     exit 0
@@ -23,13 +23,13 @@ if [[ -z ${DISPLAY:-} || -z ${SERVER_PID:-} ]]; then
     printf 'DISPLAY and SERVER_PID must identify the X server to measure.\n' >&2
     exit 2
 fi
-read -r -a compositors <<<"${COMPOSITORS:-compust picom-xrender picom-glx}"
+read -r -a compositors <<<"${COMPOSITORS:-compust}"
 read -r -a scenes <<<"${SCENES:-idle small-update fullscreen-translucent \
 fullscreen-translucent:blur eight-translucent eight-translucent:blur covered covered:blur \
 move-resize open-close}"
 for compositor in "${compositors[@]}"; do
     case "$compositor" in
-        compust | compust-gl | picom-xrender | picom-glx) ;;
+        compust | compust-gl) ;;
         *) printf 'Unknown compositor: %s\n' "$compositor" >&2; exit 2 ;;
     esac
 done
@@ -46,26 +46,40 @@ if [[ -n $gpu_busy ]]; then
 fi
 # Present stops completing frames while DPMS has the monitors off, so keep them on and
 # restore the screen saver and DPMS settings afterward.
-xset q >"$report/xset.txt"
+if ! xset q >"$report/xset.txt"; then
+    grep -Fq 'Server does not have the DPMS Extension' "$report/xset.txt" || exit 1
+fi
 read -r saver_timeout saver_cycle < <(awk '/timeout:/ { print $2, $4; exit }' "$report/xset.txt")
-read -r standby suspend off < <(awk '/Standby:/ { print $2, $4, $6; exit }' "$report/xset.txt")
+dpms=1
+if grep -Fq 'Server does not have the DPMS Extension' "$report/xset.txt"; then
+    dpms=0
+else
+    read -r standby suspend off < <(awk '/Standby:/ { print $2, $4, $6; exit }' "$report/xset.txt")
+fi
 compositor_pid=
 cleanup() {
     if [[ -n $compositor_pid ]] && kill -0 "$compositor_pid" 2>/dev/null; then
         kill -TERM "$compositor_pid" || true
         wait "$compositor_pid" || true
     fi
-    xset s "$saver_timeout" "$saver_cycle" dpms "$standby" "$suspend" "$off"
-    if grep -q 'DPMS is Disabled' "$report/xset.txt"; then
-        xset -dpms
+    xset s "$saver_timeout" "$saver_cycle"
+    if (( dpms )); then
+        xset dpms "$standby" "$suspend" "$off"
+        if grep -q 'DPMS is Disabled' "$report/xset.txt"; then
+            xset -dpms
+        fi
     fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-xset dpms force on s reset
-xset s off -dpms
+xset s reset
+xset s off
+if (( dpms )); then
+    xset dpms force on
+    xset -dpms
+fi
 
 sources=(src examples tools Cargo.toml Cargo.lock rust-toolchain.toml)
 git rev-parse HEAD >"$report/commit.txt"
@@ -96,29 +110,16 @@ xrandr --listproviders >"$report/providers.txt"
 xrandr --verbose | awk '/^\t[^\t]/ { edid = /^\tEDID:/ } !(edid && /^\t\t/)' >"$report/outputs.txt"
 target/release/compust --diagnose >"$report/diagnose.txt"
 mkdir "$report/configs"
-cp tools/bench/*.toml tools/bench/*.conf "$report/configs/"
+cp tools/bench/*.toml "$report/configs/"
 binaries=(target/release/compust target/release/examples/desktop_probe)
-if [[ " ${compositors[*]} " == *" picom-"* ]]; then
-    picom --version >"$report/picom-version.txt"
-    binaries+=("$(command -v picom)")
-fi
 sha256sum "${binaries[@]}" >"$report/binaries.txt"
 date -Is >"$report/started.txt"
 
 start() {
     local compositor=$1 blur=$2 log=$3 suffix=
     [[ $blur == 1 ]] && suffix=-blur
-    case "$compositor" in
-        compust | compust-gl)
-            target/release/compust --display "$DISPLAY" \
-                --config "$report/configs/$compositor$suffix.toml" >"$log" 2>&1 &
-            ;;
-        picom-*)
-            local backend=${compositor#picom-} config=picom.conf
-            [[ $blur == 1 ]] && config=picom-blur-$backend.conf
-            picom --config "$report/configs/$config" --backend "$backend" >"$log" 2>&1 &
-            ;;
-    esac
+    target/release/compust --display "$DISPLAY" \
+        --config "$report/configs/$compositor$suffix.toml" >"$log" 2>&1 &
     compositor_pid=$!
 }
 
@@ -156,11 +157,11 @@ for compositor in "${compositors[@]}"; do
         fi
         if kill -0 "$compositor_pid" 2>/dev/null; then
             kill -TERM "$compositor_pid"
-            # picom does not handle SIGTERM, so 143 is its normal end here.
             exit_status=0
             wait "$compositor_pid" || exit_status=$?
-            if (( exit_status != 0 && exit_status != 143 )); then
+            if (( exit_status != 0 )); then
                 printf '%s exited with status %s\n' "$compositor" "$exit_status"
+                status=1
             fi
         else
             wait "$compositor_pid" || true

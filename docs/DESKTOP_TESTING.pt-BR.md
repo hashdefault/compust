@@ -125,7 +125,7 @@ Uma sequência útil começa com uma referência inicial e depois muda o modo, a
 
 ## Executar as cenas de benchmark
 
-`tools/bench.sh` mede cenas fixas com o Compust e depois com o picom em uma sessão X11 existente; ele não inicia servidor nem gerenciador de janelas. Pare antes o compositor da sessão e guarde o comando que o restaura. As [configurações](../tools/bench/) se equivalem: o Compust sem fades nem desfoque e com `vsync = true`, e o picom com as mesmas opções nos backends `xrender` e `glx`, sem sombras, fades, cantos arredondados, escurecimento nem suspensão da composição. As variantes com desfoque usam raio de 4 pixels. O backend xrender do picom não tem Dual Kawase e desfoca com uma caixa de tamanho 9; o backend glx usa Dual Kawase aproximando o mesmo tamanho. `COMPOSITORS` e `SCENES` escolhem um subconjunto.
+`tools/bench.sh` mede as próprias cenas fixas do Compust em uma sessão X11 existente; ele não inicia servidor nem gerenciador de janelas. Pare antes o compositor da sessão e guarde o comando que o restaura. As [configurações](../tools/bench/) desativam fades, usam opacidade total e `vsync = true` e escolhem XRender ou o pintor GL opcional, com raio de 4 pixels nas variantes com desfoque. `COMPOSITORS` aceita `compust` (o padrão), `compust-gl` ou os dois separados por espaço. `SCENES` escolhe um subconjunto. Nenhum outro compositor é executado nem exigido.
 
 ```sh
 cargo build --release --locked --bin compust --example desktop_probe
@@ -146,9 +146,9 @@ Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, 
 
 As cenas translúcidas e a coberta rodam sem desfoque e, com o sufixo `:blur`, com ele. Todas cabem em uma tela de 1366×768; em uma maior, só a janela de tela cheia cresce.
 
-Cada diretório de cena contém `summary.csv`, com intervalos do Present, CPU, RSS, latências de abertura e fechamento e carga da GPU; `frames.csv`, com cada conclusão do Present; `processes.csv`; `latency.csv` em `open-close`; `topology.txt`; `resources.csv`; e os logs do compositor e da sonda. A raiz do relatório reúne as linhas de resumo no próprio `summary.csv` e registra o commit, as configurações, a versão do picom e os hashes dos binários. A CPU é uma fração de um núcleo e, como nas outras medições, exclui o tempo de GPU. No amdgpu, a sonda também amostra `gpu_busy_percent` dez vezes por segundo; `GPU_BUSY` indica outro arquivo de carga. Uma latência de abertura ou fechamento vai da requisição até a sonda ler a mudança no overlay após uma conclusão do Present ou um evento Damage, então inclui uma ida e volta de `GetImage`. `skipped_vblanks` conta vblanks sem conclusão entre quadros consecutivos e só faz sentido em cenas que atualizam a cada vblank. Em uma raiz com vários monitores, o Present pode trocar o CRTC que acompanha, e o MSC do novo CRTC tem outra base; `msc_discontinuities` conta saltos de MSC incompatíveis com o tempo entre os quadros, cujos vblanks perdidos são estimados a partir desse tempo. O XRes conta pixmaps do X, mas não buffers GL, então os números do picom com glx subestimam sua memória.
+Cada diretório de cena contém `summary.csv`, com intervalos do Present, CPU, RSS, latências de abertura e fechamento e carga da GPU; `frames.csv`, com cada conclusão do Present; `processes.csv`; `latency.csv` em `open-close`; `topology.txt`; `resources.csv`; e os logs do compositor e da sonda. A raiz do relatório reúne as linhas de resumo no próprio `summary.csv` e registra o commit, as configurações do Compust e os hashes dos binários. A CPU é uma fração de um núcleo e, como nas outras medições, exclui o tempo de GPU. No amdgpu, a sonda também amostra `gpu_busy_percent` dez vezes por segundo; `GPU_BUSY` indica outro arquivo de carga. Uma latência de abertura ou fechamento vai da requisição até a sonda ler a mudança no overlay após uma conclusão do Present ou um evento Damage, então inclui uma ida e volta de `GetImage`. `skipped_vblanks` conta vblanks sem conclusão entre quadros consecutivos e só faz sentido em cenas que atualizam a cada vblank. Em uma raiz com vários monitores, o Present pode trocar o CRTC que acompanha, e o MSC do novo CRTC tem outra base; `msc_discontinuities` conta saltos de MSC incompatíveis com o tempo entre os quadros, cujos vblanks perdidos são estimados a partir desse tempo. O XRes conta pixmaps do X, mas não buffers GL, então as contagens do XRes sozinhas não descrevem a memória total do pintor GL.
 
-O Present não conclui quadros enquanto o DPMS mantém os monitores desligados. O script os liga, desativa a proteção de tela e o DPMS durante a execução e restaura as opções anteriores ao final. Execute-o em uma sessão dedicada ou em um desktop ocioso: os redesenhos de outros aplicativos entram em todas as cenas, com qualquer compositor.
+O Present não conclui quadros enquanto o DPMS mantém os monitores desligados. O script os liga, desativa a proteção de tela e o DPMS durante a execução e restaura as opções anteriores ao final. Execute-o em uma sessão dedicada ou em um desktop ocioso: os redesenhos de outros aplicativos entram em todas as cenas, com qualquer pintor do Compust.
 
 ## Sessão registrada em hardware: 2026-10-03
 
@@ -386,43 +386,41 @@ As janelas são as sintéticas da sonda. Nenhuma janela abriu ou fechou enquanto
 
 ## Cenas de benchmark registradas: 2026-10-03
 
-O [executor de benchmarks](#executar-as-cenas-de-benchmark) rodou duas vezes com os dois monitores e duas com somente DP-2 no [desktop com RX 9060 XT](#sessão-registrada-de-recarga-2026-10-03), com fases de 20 segundos. A árvore era o commit limpo `394b7e63404e8eac5028e7dc933f7458dd7fa696`, e o picom era a v13, revisão `d87a5ba`. Nenhum aplicativo redesenhou durante as execuções. Os [registros](benchmarks/2026-10-03/bench-amd-dwm/) contêm os quatro relatórios e o [script](benchmarks/2026-10-03/bench-amd-dwm/sequence.sh) que os executou.
+O Compust rodou duas vezes com os dois monitores e duas com somente DP-2 no [desktop com RX 9060 XT](#sessão-registrada-de-recarga-2026-10-03), com fases de 20 segundos no commit limpo `394b7e63404e8eac5028e7dc933f7458dd7fa696`. Nenhum aplicativo redesenhou durante as execuções. Os [registros brutos](benchmarks/2026-10-03/bench-amd-dwm/) preservam as medições originais; as tabelas abaixo apresentam as cargas do Compust.
 
-Cada célula traz a CPU do próprio compositor mais a do servidor X, em porcentagem de um núcleo e como média das duas execuções; as execuções concordam em até 0,25 ponto sempre que a taxa de quadros se manteve. Sem nada mudando na tela, o servidor usou 5,3–5,4% com todos os compositores; essa parte de cada número do servidor é a linha de base desta máquina, não composição. Todas as cenas rodaram a 60 quadros por segundo sem vblank perdido, exceto onde uma taxa aparece.
+Cada célula traz a CPU do Compust mais a do servidor X, em porcentagem de um núcleo e como média das duas execuções; as execuções concordam em até 0,25 ponto. Sem nada mudando na tela, o servidor usou 5,4%, a linha de base desta máquina. As cenas ativas mantiveram 60 quadros por segundo sem vblank perdido; a cena ociosa não apresentou quadros.
 
 Dois monitores, 3840×1080:
 
-| Cena | Compust | picom xrender | picom glx |
-| --- | ---: | ---: | ---: |
-| Ociosa | 0,0 + 5,4% | 0,0 + 5,3% | 0,0 + 5,3% |
-| Janela pequena atualizando | 0,3 + 7,8% | 0,7 + 7,4% | 1,4 + 6,6% |
-| Translúcida em tela cheia | 0,3 + 8,0% | 0,8 + 7,8% | 1,5 + 6,6% |
-| Translúcida em tela cheia, desfoque | 0,4 + 8,2% | 0,1 + 97,2%, 1,2 qps | 1,6 + 6,7% |
-| Oito translúcidas | 0,4 + 8,5% | 1,6 + 10,1% | 1,8 + 6,7% |
-| Oito translúcidas, desfoque | 1,0 + 9,4% | 0,3 + 90,9%, 4,6 qps | 3,3 + 6,7% |
-| Mover e redimensionar | 1,1 + 8,8% | 1,1 + 8,3% | 2,8 + 9,0% |
-| Abrir e fechar | 0,4 + 9,1% | 1,1 + 8,3% | 1,9 + 8,9% |
+| Cena | Compust  |
+| --- | ---:  |
+| Ociosa | 0,0 + 5,4%  |
+| Janela pequena atualizando | 0,3 + 7,8%  |
+| Translúcida em tela cheia | 0,3 + 8,0%  |
+| Translúcida em tela cheia, desfoque | 0,4 + 8,2%  |
+| Oito translúcidas | 0,4 + 8,5%  |
+| Oito translúcidas, desfoque | 1,0 + 9,4%  |
+| Mover e redimensionar | 1,1 + 8,8%  |
+| Abrir e fechar | 0,4 + 9,1%  |
 
 Somente DP-2, 1920×1080:
 
-| Cena | Compust | picom xrender | picom glx |
-| --- | ---: | ---: | ---: |
-| Ociosa | 0,0 + 5,4% | 0,0 + 5,4% | 0,0 + 5,3% |
-| Janela pequena atualizando | 0,2 + 7,4% | 0,7 + 7,4% | 1,4 + 6,5% |
-| Translúcida em tela cheia | 0,2 + 7,3% | 0,8 + 7,8% | 1,4 + 6,6% |
-| Translúcida em tela cheia, desfoque | 0,4 + 7,6% | 0,1 + 96,6%, 2,4 qps | 1,6 + 6,6% |
-| Oito translúcidas | 0,4 + 7,9% | 1,6 + 10,1% | 1,8 + 6,5% |
-| Oito translúcidas, desfoque | 1,0 + 8,8% | 0,3 + 92,7%, 3,9 qps | 3,1 + 6,6% |
-| Mover e redimensionar | 1,1 + 8,4% | 1,1 + 8,3% | 2,7 + 8,9% |
-| Abrir e fechar | 0,4 + 8,6% | 1,0 + 8,2% | 1,9 + 8,2% |
+| Cena | Compust  |
+| --- | ---:  |
+| Ociosa | 0,0 + 5,4%  |
+| Janela pequena atualizando | 0,2 + 7,4%  |
+| Translúcida em tela cheia | 0,2 + 7,3%  |
+| Translúcida em tela cheia, desfoque | 0,4 + 7,6%  |
+| Oito translúcidas | 0,4 + 7,9%  |
+| Oito translúcidas, desfoque | 1,0 + 8,8%  |
+| Mover e redimensionar | 1,1 + 8,4%  |
+| Abrir e fechar | 0,4 + 8,6%  |
 
-Onde o Compust é mais lento: nas cenas de atualização e translucidez, o servidor X trabalha mais com ele do que com o picom glx, de 0,7 a 2,7 pontos de um núcleo, porque o Compust renderiza com XRender dentro do servidor, enquanto o picom glx renderiza com OpenGL no próprio processo. A diferença é maior com desfoque sobre oito janelas. Somando os dois processos, o Compust fica no máximo 0,4 ponto acima do picom glx, com dois monitores e oito janelas translúcidas. Com uma janela de 64×64 atualizando em dois monitores, o amdgpu informou a GPU 8,4% ocupada com o Compust, 6,8% com o picom xrender e 3,8% com o picom glx: o Compust repinta e copia o quadro inteiro de 3840×1080 a cada mudança. A GPU escolhe o clock conforme a carga, então `gpu_busy_percent` compara o trabalho apenas de forma aproximada; as outras cenas a 60 quadros por segundo marcaram 3,9–10,6%, sem ordem consistente entre os compositores.
+O próprio processo do Compust usou 0,2–1,1% de um núcleo e 3.788–3.936 KiB de RSS. A cena da janela pequena marcou 8,4% de carga da GPU em dois monitores; essa versão repintava e copiava o quadro inteiro de 3840×1080 a cada mudança. A GPU muda o clock conforme a carga, então `gpu_busy_percent` mede o trabalho apenas de forma aproximada. Na cena ociosa com dois monitores, o XRes informou 41,6 MB em pixmaps do Compust; o XRes não inclui buffers GL.
 
-Onde o Compust é mais rápido: seu próprio processo usou 0,2–1,1% de um núcleo, menos que o picom glx em todas as cenas que mudam e menos que o picom xrender, exceto ao mover e redimensionar, em que ambos usaram 1,1%, e nas cenas com desfoque, em que o picom xrender desenhou poucos quadros. Somando os dois processos, o Compust fica 1,1–2,1 pontos abaixo do picom glx quando janelas se movem, mudam de tamanho, abrem e fecham. Seu RSS ficou em 3.788–3.936 KiB, contra 6.800–7.136 KiB do picom xrender e 79.232–82.124 KiB do picom glx, cujo número inclui o driver GL. Em cada execução, o Compust mostrou de 46 a 58 das 100 novas janelas um quadro depois do pedido de mapeamento (16,3–16,7 ms) e as demais depois de dois (cerca de 33,2 ms); o picom mostrou todas depois de dois quadros (32,4–34,5 ms). Essa divisão explica por que a mediana de abertura do Compust muda entre execuções; `latency.csv` lista cada ciclo. Todos os compositores retiraram cada janela fechada um quadro depois do pedido, em até 17,5 ms, e nenhum apresentou quadros com a tela ociosa.
+Em cada execução, 46–58 das 100 novas janelas apareceram um quadro depois do pedido de mapeamento (16,3–16,7 ms), e as demais depois de dois (cerca de 33,2 ms). Essa divisão explica a variação da mediana de abertura; `latency.csv` lista cada ciclo. Janelas fechadas sumiram um quadro depois do pedido, em até 17,5 ms. As [mudanças posteriores no redesenho](#mudança-registrada-no-redesenho-2026-10-03) eliminaram o quadro redundante.
 
-O backend xrender do picom desfoca com um filtro de convolução do XRender, que o glamor executa na CPU, como a [sessão de desktop em hardware](#sessão-de-desktop-registrada-em-hardware-2026-10-03) constatou com o antigo desfoque em caixa do Compust. Com dois monitores, o desfoque em tela cheia caiu para 1,2 quadro por segundo enquanto o servidor X usava 97% de um núcleo. Na cena ociosa com dois monitores, o XRes informou 41,6 MB em pixmaps do Compust, 74,8 MB do picom xrender e 33,2 MB do picom glx, que também tinha quatro pixmaps GLX sem tamanho informado e buffers GL que o XRes não enxerga.
-
-Trata-se de uma máquina com GPU dedicada rápida e monitores de 60 Hz, janelas sintéticas e um fundo cobrindo o desktop. Não cobre tela 4K, GPU lenta, Xorg nem o laptop Intel/Xorg. As latências incluem a leitura do overlay pela sonda e não dizem nada sobre os próprios painéis.
+Esse registro cobre uma máquina com GPU dedicada rápida e monitores de 60 Hz, janelas sintéticas e um fundo cobrindo o desktop. Não cobre tela 4K, GPU lenta, Xorg nem o laptop Intel/Xorg. As latências incluem a leitura do overlay pela sonda e não medem os painéis.
 
 ## Mudança registrada no caminho de eventos: 2026-10-03
 
@@ -445,7 +443,7 @@ Na primeira execução com dois monitores, a cena da janela pequena perdeu 17 vb
 
 Os [registros de benchmark](#cenas-de-benchmark-registradas-2026-10-03) mostraram cerca de metade das novas janelas um quadro mais tarde que as demais com o Compust. Uma versão instrumentada temporariamente registrou cada evento e envio do Present durante a cena de abrir e fechar. Em todos esses ciclos, o `UnmapNotify` e o `DestroyNotify` da janela foram lidos em lotes separados: o desmapeamento sozinho retirava a janela e seu quadro era enviado; depois, a destruição pedia outro quadro idêntico. Esse quadro saía assim que o primeiro terminava, e a janela seguinte, mapeada logo depois, esperava um vblank por ele, porque o único buffer do Present só é reutilizado depois que cada envio termina.
 
-O Compust agora só redesenha para eventos que alteram uma superfície exibida ou a ordem delas. No commit limpo `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, as mesmas três cenas rodaram duas vezes por disposição de monitores. Todas as 400 novas janelas apareceram um quadro depois do pedido de mapeamento, em no máximo 17,3 ms, contra 46–58 a cada 100 antes e nenhuma com o picom; os fechamentos continuaram levando um quadro. Os 100 ciclos levaram 3,33 segundos em vez de 4,1–4,3, com exatamente duas conclusões do Present cada. A CPU nas cenas de janela pequena e de mover e redimensionar ficou dentro da variação entre execuções, e nenhuma cena perdeu vblank. Os [registros](benchmarks/2026-10-03/repaint-amd-dwm/) seguem os anteriores.
+O Compust agora só redesenha para eventos que alteram uma superfície exibida ou a ordem delas. No commit limpo `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, as mesmas três cenas rodaram duas vezes por disposição de monitores. Todas as 400 novas janelas apareceram um quadro depois do pedido de mapeamento, em no máximo 17,3 ms, contra 46–58 a cada 100 antes; os fechamentos continuaram levando um quadro. Os 100 ciclos levaram 3,33 segundos em vez de 4,1–4,3, com exatamente duas conclusões do Present cada. A CPU nas cenas de janela pequena e de mover e redimensionar ficou dentro da variação entre execuções, e nenhuma cena perdeu vblank. Os [registros](benchmarks/2026-10-03/repaint-amd-dwm/) seguem os anteriores.
 
 ## Repintura por regiões registrada: 2026-10-04
 
@@ -630,4 +628,4 @@ Execute a [sessão em hardware](#executar-as-verificações-de-desktop-em-hardwa
 
 Para a etapa 2, execute o [procedimento de transições de monitores](#amostrar-transições-de-monitores) nos dois modos de apresentação em cada ambiente proposto para suporte. Ele registra nomes dos conectores, modos, taxas de atualização e disposição dos monitores em torno de cada desconexão e reconexão física, além de verificar atualizações sobre bordas compartilhadas entre monitores. Desativação/ativação de CRTC virtual está coberta na automação e não substitui esses testes de conectores. A sessão acima cobre um ambiente AMD/XLibre.
 
-Para a etapa 3, meça CPU ociosa e ativa de Compust e servidor X, tendências de memória em operações repetidas e intervalos Present quando disponíveis. Inclua duração da carga, quantidade de janelas, opacidade/desfoque e taxas dos monitores. Compare com picom somente identificando versão/backend e usando cenas e efeitos equivalentes. Publique evidências para cada combinação servidor/gerenciador/driver antes de declará-la suportada; a distribuição da beta continua condicionada a esse escopo.
+Para a etapa 3, meça CPU ociosa e ativa de Compust e servidor X, tendências de memória em operações repetidas e intervalos Present quando disponíveis. Inclua duração da carga, quantidade de janelas, opacidade/desfoque e taxas dos monitores. Repita a mesma carga e configuração do Compust para medir variação e regressões. Publique evidências para cada combinação servidor/gerenciador/driver antes de declará-la suportada; a distribuição da beta continua condicionada a esse escopo.
