@@ -46,6 +46,9 @@ pub(super) enum Scene {
     FullscreenTranslucent,
     /// Eight overlapping half-transparent windows; the top one alternates colors.
     EightTranslucent,
+    /// The eight windows of `EightTranslucent` under an opaque window covering the screen,
+    /// which alternates colors.
+    Covered,
     /// A window moves and resizes 60 times per second.
     MoveResize,
     /// Windows open and close in turn; each waits for the first frame that shows the change.
@@ -59,6 +62,7 @@ impl Scene {
             Self::SmallUpdate => "small-update",
             Self::FullscreenTranslucent => "fullscreen-translucent",
             Self::EightTranslucent => "eight-translucent",
+            Self::Covered => "covered",
             Self::MoveResize => "move-resize",
             Self::OpenClose => "open-close",
         }
@@ -200,20 +204,20 @@ pub(super) fn run(
             (measure(Some(alternate(surface, target)))?, None)
         }
         Scene::EightTranslucent => {
-            // Cascaded so that the top window's lower right part lies over the backdrop
-            // alone; the stack fits a 1366×768 screen.
             let mut target = 0;
             for index in 0..8_i16 {
-                let area = Area {
-                    x: 48 + index * 48,
-                    y: 40 + index * 36,
-                    width: 480,
-                    height: 360,
-                };
                 let color = if index == 7 { RED } else { 0x0000_c000 };
-                target = window(surface, area, color, Some(50))?;
+                target = window(surface, cascaded(index), color, Some(50))?;
             }
             wait_pixel(surface, (840, 500), half_red, None)?;
+            (measure(Some(alternate(surface, target)))?, None)
+        }
+        Scene::Covered => {
+            for index in 0..8_i16 {
+                window(surface, cascaded(index), 0x0000_c000, Some(50))?;
+            }
+            let target = window(surface, screen, RED, None)?;
+            wait_pixel(surface, (840, 500), |pixel| pixel == RED, None)?;
             (measure(Some(alternate(surface, target)))?, None)
         }
         Scene::MoveResize => {
@@ -254,6 +258,17 @@ pub(super) fn run(
         measured.observed.damage
     );
     Ok(())
+}
+
+/// Window `index` of eight, cascaded so that the top one's lower right part lies over the
+/// backdrop alone; the stack fits a 1366×768 screen.
+fn cascaded(index: i16) -> Area {
+    Area {
+        x: 48 + index * 48,
+        y: 40 + index * 36,
+        width: 480,
+        height: 360,
+    }
 }
 
 /// Create and map an override-redirect window, with an opacity percentage if translucent.

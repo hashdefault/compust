@@ -113,10 +113,11 @@ Each scene maps a backdrop over the whole root and then override-redirect window
 | `small-update` | A 64×64 window alternating red and blue 60 times per second |
 | `fullscreen-translucent` | A 50% window covering the root, alternating the same way |
 | `eight-translucent` | Eight overlapping 480×360 windows at 50%; the top one alternates |
+| `covered` | The same eight windows under an opaque window covering the root, which alternates |
 | `move-resize` | A window moved and resized 60 times per second |
 | `open-close` | 100 windows in turn, each mapped until the overlay shows it, then destroyed until the overlay shows the backdrop |
 
-The translucent scenes run without blur and, with a `:blur` suffix, with it. All scenes fit a 1366×768 screen; on a larger one only the full-screen window grows.
+The translucent and covered scenes run without blur and, with a `:blur` suffix, with it. All scenes fit a 1366×768 screen; on a larger one only the full-screen window grows.
 
 Each scene directory holds `summary.csv` with Present intervals, CPU, RSS, open and close latencies, and GPU load; `frames.csv` with every Present completion; `processes.csv`; `latency.csv` for `open-close`; `topology.txt`; `resources.csv`; and the compositor and probe logs. The report root collects the summary rows in its own `summary.csv` and records the commit, configurations, picom version, and binary hashes. CPU is a share of one core and, as elsewhere, excludes GPU time. On amdgpu the probe also samples `gpu_busy_percent` ten times a second; `GPU_BUSY` names another load file. An open or close latency runs from the request until the probe reads the change from the overlay after a Present completion or Damage event, so it includes one `GetImage` round trip. `skipped_vblanks` counts vblanks without a completion between consecutive frames, which is meaningful only in scenes that update every vblank. On a multi-monitor root, Present can switch the CRTC it follows, and the new CRTC's MSC has another base; `msc_discontinuities` counts MSC steps that disagree with the time between the frames, whose skipped vblanks are estimated from that time. XRes counts X pixmaps but not GL buffers, so picom's glx figures understate its memory.
 

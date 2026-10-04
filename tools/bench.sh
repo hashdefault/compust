@@ -24,7 +24,8 @@ if [[ -z ${DISPLAY:-} || -z ${SERVER_PID:-} ]]; then
 fi
 read -r -a compositors <<<"${COMPOSITORS:-compust picom-xrender picom-glx}"
 read -r -a scenes <<<"${SCENES:-idle small-update fullscreen-translucent \
-fullscreen-translucent:blur eight-translucent eight-translucent:blur move-resize open-close}"
+fullscreen-translucent:blur eight-translucent eight-translucent:blur covered covered:blur \
+move-resize open-close}"
 for compositor in "${compositors[@]}"; do
     case "$compositor" in
         compust | picom-xrender | picom-glx) ;;

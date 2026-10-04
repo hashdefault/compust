@@ -113,10 +113,11 @@ Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, 
 | `small-update` | Uma janela de 64×64 alternando vermelho e azul 60 vezes por segundo |
 | `fullscreen-translucent` | Uma janela a 50% cobrindo a raiz, alternando do mesmo modo |
 | `eight-translucent` | Oito janelas de 480×360 sobrepostas a 50%; a de cima alterna |
+| `covered` | As mesmas oito janelas sob uma janela opaca que cobre a raiz e alterna |
 | `move-resize` | Uma janela movida e redimensionada 60 vezes por segundo |
 | `open-close` | 100 janelas, uma por vez, mapeadas até o overlay mostrá-las e destruídas até o overlay mostrar o fundo |
 
-As cenas translúcidas rodam sem desfoque e, com o sufixo `:blur`, com ele. Todas cabem em uma tela de 1366×768; em uma maior, só a janela de tela cheia cresce.
+As cenas translúcidas e a coberta rodam sem desfoque e, com o sufixo `:blur`, com ele. Todas cabem em uma tela de 1366×768; em uma maior, só a janela de tela cheia cresce.
 
 Cada diretório de cena contém `summary.csv`, com intervalos do Present, CPU, RSS, latências de abertura e fechamento e carga da GPU; `frames.csv`, com cada conclusão do Present; `processes.csv`; `latency.csv` em `open-close`; `topology.txt`; `resources.csv`; e os logs do compositor e da sonda. A raiz do relatório reúne as linhas de resumo no próprio `summary.csv` e registra o commit, as configurações, a versão do picom e os hashes dos binários. A CPU é uma fração de um núcleo e, como nas outras medições, exclui o tempo de GPU. No amdgpu, a sonda também amostra `gpu_busy_percent` dez vezes por segundo; `GPU_BUSY` indica outro arquivo de carga. Uma latência de abertura ou fechamento vai da requisição até a sonda ler a mudança no overlay após uma conclusão do Present ou um evento Damage, então inclui uma ida e volta de `GetImage`. `skipped_vblanks` conta vblanks sem conclusão entre quadros consecutivos e só faz sentido em cenas que atualizam a cada vblank. Em uma raiz com vários monitores, o Present pode trocar o CRTC que acompanha, e o MSC do novo CRTC tem outra base; `msc_discontinuities` conta saltos de MSC incompatíveis com o tempo entre os quadros, cujos vblanks perdidos são estimados a partir desse tempo. O XRes conta pixmaps do X, mas não buffers GL, então os números do picom com glx subestimam sua memória.
 
