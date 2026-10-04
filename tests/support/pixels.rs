@@ -60,6 +60,24 @@ impl Desktop {
         }
     }
 
+    /// The whole overlay as 32-bit pixels.
+    pub(crate) fn image(&self) -> Result<Vec<u8>> {
+        let geometry = self.conn.get_geometry(self.overlay)?.reply()?;
+        Ok(self
+            .conn
+            .get_image(
+                ImageFormat::Z_PIXMAP,
+                self.overlay,
+                0,
+                0,
+                geometry.width,
+                geometry.height,
+                u32::MAX,
+            )?
+            .reply()?
+            .data)
+    }
+
     pub(crate) fn screenshot(&self, name: &str) -> Result<()> {
         if let Some(directory) = std::env::var_os("COMPUST_ARTIFACTS") {
             std::fs::create_dir_all(&directory)?;

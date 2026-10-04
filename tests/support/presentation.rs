@@ -1,8 +1,9 @@
 use super::proxy::Proxy;
 use anyhow::{Context, Result};
 use std::{
+    collections::HashMap,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU32, Ordering},
         mpsc::{Receiver, SyncSender, sync_channel},
     },
@@ -11,9 +12,12 @@ use std::{
 use x11rb::{
     NONE,
     connection::{Connection, RequestConnection},
-    protocol::{present, sync::ConnectionExt as _, xproto::ConnectionExt as _},
+    protocol::{present, sync::ConnectionExt as _, xfixes, xproto::ConnectionExt as _},
     rust_connection::RustConnection,
 };
+
+/// Rectangles as `(x, y, width, height)`.
+pub(crate) type Area = Vec<(i16, i16, u16, u16)>;
 
 pub(crate) enum Fault {
     /// An incompatible pixmap: the server rejects the submission with `BadMatch`.
@@ -29,6 +33,8 @@ pub(crate) struct Presentation {
     commands: SyncSender<Fault>,
     intercepted: Receiver<()>,
     submissions: Arc<AtomicU32>,
+    /// Each submission's update region; `None` updates the whole window.
+    updates: Arc<Mutex<Vec<Option<Area>>>>,
     _conn: RustConnection,
 }
 
@@ -45,6 +51,10 @@ impl Presentation {
             .extension_information(present::X11_EXTENSION_NAME)?
             .context("missing Present extension")?
             .major_opcode;
+        let xfixes_opcode = conn
+            .extension_information(xfixes::X11_EXTENSION_NAME)?
+            .context("missing XFixes extension")?
+            .major_opcode;
         let incompatible = conn.generate_id()?;
         conn.create_pixmap(8, incompatible, root, 1, 1)?.check()?;
         conn.sync_initialize(3, 1)?.reply()?;
@@ -54,9 +64,26 @@ impl Presentation {
         let (send, intercepted) = sync_channel(1);
         let submissions = Arc::new(AtomicU32::new(0));
         let count = Arc::clone(&submissions);
+        let updates = Arc::new(Mutex::new(Vec::new()));
+        let record = Arc::clone(&updates);
+        let mut regions = HashMap::new();
         let (display, proxy) = Proxy::start(display, move |header, body| {
+            if header.major_opcode == xfixes_opcode
+                && [xfixes::CREATE_REGION_REQUEST, xfixes::SET_REGION_REQUEST]
+                    .contains(&header.minor_opcode)
+            {
+                regions.insert(
+                    word(body, 0)?,
+                    rectangles(body.get(4..).unwrap_or_default())?,
+                );
+            }
             if header.major_opcode == opcode && header.minor_opcode == present::PIXMAP_REQUEST {
                 count.fetch_add(1, Ordering::Relaxed);
+                let update = regions.get(&word(body, 16)?).cloned();
+                record
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("update record poisoned"))?
+                    .push(update);
                 if let Ok(fault) = receive.try_recv() {
                     let (offset, replacement) = match fault {
                         Fault::Depth => (4, incompatible),
@@ -79,9 +106,19 @@ impl Presentation {
                 commands,
                 intercepted,
                 submissions,
+                updates,
                 _conn: conn,
             },
         ))
+    }
+
+    /// The update region of every submission so far, in order.
+    pub(crate) fn updates(&self) -> Result<Vec<Option<Area>>> {
+        Ok(self
+            .updates
+            .lock()
+            .map_err(|_| anyhow::anyhow!("update record poisoned"))?
+            .clone())
     }
 
     pub(crate) fn inject(&self, fault: Fault) -> Result<()> {
@@ -103,4 +140,27 @@ impl Presentation {
     pub(crate) fn finish(&mut self) -> Result<()> {
         self.proxy.finish()
     }
+}
+
+fn word(body: &[u8], offset: usize) -> Result<u32> {
+    let bytes = body
+        .get(offset..offset + 4)
+        .context("short request")?
+        .try_into()?;
+    Ok(u32::from_ne_bytes(bytes))
+}
+
+fn rectangles(bytes: &[u8]) -> Result<Area> {
+    bytes
+        .chunks_exact(8)
+        .map(|chunk| {
+            let [x0, x1, y0, y1, w0, w1, h0, h1] = <[u8; 8]>::try_from(chunk)?;
+            Ok((
+                i16::from_ne_bytes([x0, x1]),
+                i16::from_ne_bytes([y0, y1]),
+                u16::from_ne_bytes([w0, w1]),
+                u16::from_ne_bytes([h0, h1]),
+            ))
+        })
+        .collect()
 }

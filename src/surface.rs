@@ -5,6 +5,7 @@ use crate::{
     atoms::{Atoms, cardinal},
     config::Config,
     picture::{Picture, Size},
+    region::Rect,
 };
 use anyhow::{Context, Result};
 use client::{ClientTree, window_gone};
@@ -82,7 +83,9 @@ impl Surface {
         let client_tree = ClientTree::discover(conn, window, context.atoms.wm_state)?;
         conn.shape_select_input(window, true)?.check()?;
         let damage = conn.generate_id()?;
-        conn.damage_create(damage, pixmap, ReportLevel::NON_EMPTY)?
+        // Each report carries the extents of the damage since the last subtraction, which
+        // locates it without fetching the region.
+        conn.damage_create(damage, pixmap, ReportLevel::BOUNDING_BOX)?
             .check()?;
         let mut surface = Self {
             window,
@@ -148,6 +151,21 @@ impl Surface {
             shape
         };
         Ok(())
+    }
+
+    /// Where the surface lies on the root, border included.
+    pub(crate) fn bounds(&self) -> Rect {
+        Rect::new(
+            i32::from(self.geometry.x),
+            i32::from(self.geometry.y),
+            self.size.width,
+            self.size.height,
+        )
+    }
+
+    /// The root area of `area`, given in the surface's pixmap.
+    pub(crate) fn damaged(&self, area: Rectangle) -> Rect {
+        Rect::at(area, (self.geometry.x, self.geometry.y))
     }
 
     pub(crate) fn watches(&self, window: Window) -> bool {

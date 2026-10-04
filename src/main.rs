@@ -6,6 +6,7 @@ mod compositor;
 mod config;
 mod events;
 mod picture;
+mod region;
 mod renderer;
 mod scene;
 mod session;

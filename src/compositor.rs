@@ -120,10 +120,13 @@ impl Compositor {
                     self.renderer = Renderer::new(&self.session, &self.config)?;
                     self.resizing = false;
                 }
-                self.renderer
-                    .paint(&self.session, &self.scene, &self.config)?;
+                if self
+                    .renderer
+                    .paint(&self.session, &self.scene, &self.config)?
+                {
+                    next_frame = Instant::now() + self.config.frame_interval();
+                }
                 self.dirty = false;
-                next_frame = Instant::now() + self.config.frame_interval();
             }
             if budget_exhausted {
                 continue;

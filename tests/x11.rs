@@ -32,6 +32,9 @@ mod reload;
 
 #[path = "cases/event_path.rs"]
 mod event_path;
+
+#[path = "cases/regions.rs"]
+mod regions;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

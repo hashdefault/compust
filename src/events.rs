@@ -1,5 +1,6 @@
 use crate::{
     compositor::Compositor,
+    region::Rect,
     scene::vanished,
     surface::{Capture, Surface},
 };
@@ -62,13 +63,15 @@ impl Compositor {
             Event::CirculateNotify(_) => {
                 self.dirty |= self.scene.restack(&self.session)?;
             }
-            Event::DamageNotify(event)
-                if self.scene.windows.iter().any(|s| s.damage == event.damage) =>
-            {
-                self.session
-                    .conn
-                    .damage_subtract(event.damage, NONE, NONE)?;
-                self.dirty = true;
+            Event::DamageNotify(event) => {
+                if let Some(surface) = self.scene.windows.iter().find(|s| s.damage == event.damage)
+                {
+                    self.session
+                        .conn
+                        .damage_subtract(event.damage, NONE, NONE)?;
+                    self.renderer.damage(surface.damaged(event.area));
+                    self.dirty = true;
+                }
             }
             Event::ShapeNotify(event) => self.shape_changed(event.affected_window)?,
             Event::PropertyNotify(event) => self.property_changed(event)?,
@@ -88,7 +91,13 @@ impl Compositor {
                 self.resizing = true;
                 self.dirty = true;
             }
-            Event::Expose(_) => {
+            Event::Expose(event) => {
+                self.renderer.damage(Rect::new(
+                    i32::from(event.x),
+                    i32::from(event.y),
+                    event.width,
+                    event.height,
+                ));
                 self.dirty = true;
             }
             Event::SelectionClear(event) if event.selection == self.session.atoms.selection => {
@@ -176,6 +185,7 @@ impl Compositor {
             && self.session.atoms.wallpaper.contains(&event.atom)
         {
             self.renderer.refresh_wallpaper(&self.session)?;
+            self.renderer.invalidate();
             self.dirty = true;
         }
         if event.atom == self.session.atoms.wm_state {

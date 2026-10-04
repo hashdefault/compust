@@ -1,18 +1,12 @@
 use crate::{
     rect,
-    support::{Desktop, next_event, presentation::Presentation, requests::Requests},
+    support::{Desktop, presentation::Presentation, requests::Requests},
 };
 use anyhow::Result;
-use std::time::{Duration, Instant};
 use x11rb::{
     connection::Connection,
-    protocol::{
-        Event,
-        present::{CompleteKind, ConnectionExt as _, EventMask},
-        xproto::{
-            ConfigureWindowAux, ConnectionExt as _, GET_GEOMETRY_REQUEST, QUERY_TREE_REQUEST,
-            StackMode,
-        },
+    protocol::xproto::{
+        ConfigureWindowAux, ConnectionExt as _, GET_GEOMETRY_REQUEST, QUERY_TREE_REQUEST, StackMode,
     },
 };
 
@@ -74,7 +68,7 @@ fn events_that_change_nothing_on_screen_do_not_repaint() -> Result<()> {
     desktop.until_pixel((40, 40), |p| p == [255, 0, 0])?;
     desktop.conn.unmap_window(shown)?.check()?;
     desktop.until_pixel((40, 40), |p| p == [24, 24, 32])?;
-    wait_vblanks(&desktop, 2)?;
+    desktop.wait_vblanks(2)?;
     let before = presentation.submissions();
 
     // An extra frame here would delay the next real one by a vblank.
@@ -83,7 +77,7 @@ fn events_that_change_nothing_on_screen_do_not_repaint() -> Result<()> {
         .conn
         .configure_window(hidden, &ConfigureWindowAux::new().x(180))?
         .check()?;
-    wait_vblanks(&desktop, 4)?;
+    desktop.wait_vblanks(4)?;
 
     assert_eq!(
         presentation.submissions(),
@@ -94,41 +88,4 @@ fn events_that_change_nothing_on_screen_do_not_repaint() -> Result<()> {
     desktop.until_pixel((200, 40), |p| p == [0, 0, 255])?;
     assert!(presentation.submissions() > before);
     presentation.finish()
-}
-
-/// Wait until Present reports `count` more vblanks on the overlay's CRTC.
-fn wait_vblanks(desktop: &Desktop, count: u64) -> Result<()> {
-    let id = desktop.conn.generate_id()?;
-    desktop
-        .conn
-        .present_select_input(id, desktop.overlay, EventMask::COMPLETE_NOTIFY)?
-        .check()?;
-    desktop
-        .conn
-        .present_notify_msc(desktop.overlay, 1, 0, 0, 0)?
-        .check()?;
-    let msc = notified(desktop, id, 1)?;
-    desktop
-        .conn
-        .present_notify_msc(desktop.overlay, 2, msc + count, 0, 0)?
-        .check()?;
-    notified(desktop, id, 2)?;
-    desktop
-        .conn
-        .present_select_input(id, desktop.overlay, EventMask::from(0_u32))?
-        .check()?;
-    Ok(())
-}
-
-fn notified(desktop: &Desktop, id: u32, serial: u32) -> Result<u64> {
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        if let Event::PresentCompleteNotify(event) = next_event(&desktop.conn, deadline)?
-            && event.event == id
-            && event.serial == serial
-            && event.kind == CompleteKind::NOTIFY_MSC
-        {
-            return Ok(event.msc);
-        }
-    }
 }

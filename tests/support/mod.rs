@@ -21,6 +21,7 @@ use x11rb::{
         Event,
         composite::ConnectionExt as _,
         damage::{ConnectionExt as _, ReportLevel},
+        present::{CompleteKind, ConnectionExt as _, EventMask as PresentMask},
         xproto::*,
     },
     rust_connection::RustConnection,
@@ -191,6 +192,52 @@ impl Desktop {
         self.conn.map_window(window)?.check()?;
         self.conn.flush()?;
         Ok(())
+    }
+
+    /// Draw `area` of `window` in `color`, as a client repainting part of itself.
+    pub(crate) fn fill(&self, window: Window, area: Rectangle, color: u32) -> Result<()> {
+        let gc = self.conn.generate_id()?;
+        self.conn
+            .create_gc(gc, window, &CreateGCAux::new().foreground(color))?
+            .check()?;
+        self.conn
+            .poly_fill_rectangle(window, gc, &[area])?
+            .check()?;
+        self.conn.free_gc(gc)?.check()?;
+        Ok(())
+    }
+
+    /// Wait until Present reports `count` more vblanks on the overlay's CRTC.
+    pub(crate) fn wait_vblanks(&self, count: u64) -> Result<()> {
+        let id = self.conn.generate_id()?;
+        self.conn
+            .present_select_input(id, self.overlay, PresentMask::COMPLETE_NOTIFY)?
+            .check()?;
+        self.conn
+            .present_notify_msc(self.overlay, 1, 0, 0, 0)?
+            .check()?;
+        let msc = self.notified(id, 1)?;
+        self.conn
+            .present_notify_msc(self.overlay, 2, msc + count, 0, 0)?
+            .check()?;
+        self.notified(id, 2)?;
+        self.conn
+            .present_select_input(id, self.overlay, PresentMask::from(0_u32))?
+            .check()?;
+        Ok(())
+    }
+
+    fn notified(&self, id: u32, serial: u32) -> Result<u64> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Event::PresentCompleteNotify(event) = next_event(&self.conn, deadline)?
+                && event.event == id
+                && event.serial == serial
+                && event.kind == CompleteKind::NOTIFY_MSC
+            {
+                return Ok(event.msc);
+            }
+        }
     }
 
     pub(crate) fn opacity(&self, window: Window, opacity: u32) -> Result<()> {

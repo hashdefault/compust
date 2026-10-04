@@ -1,12 +1,14 @@
 use crate::{
     config::Config,
     picture::{Format, Picture, Size},
+    region::{Rect, Region},
     session::Session,
 };
 use anyhow::{Context, Result};
 use std::{rc::Rc, time::Instant};
 use x11rb::rust_connection::RustConnection;
 mod blur;
+mod damage;
 mod paint;
 mod present;
 mod wallpaper;
@@ -15,6 +17,7 @@ use x11rb::{
     protocol::{
         present::{ConnectionExt as _, EventMask},
         render::{ConnectionExt as _, QueryPictFormatsReply, Repeat},
+        xfixes::ConnectionExt as _,
         xproto::ConnectionExt as _,
     },
 };
@@ -40,6 +43,12 @@ pub(crate) struct Renderer {
     levels: Vec<Picture>,
     /// The `blur_radius` and `vsync` settings the buffers and presentation were made for.
     built_for: (u8, bool),
+    /// Root area to repaint beyond what the scene's own changes show.
+    damage: Region,
+    /// The surfaces the last frame showed, bottom to top.
+    shown: Vec<damage::Shown>,
+    /// `XFixes` region naming the area each Present submission updates.
+    update: u32,
 }
 
 impl Renderer {
@@ -114,6 +123,10 @@ impl Renderer {
             (size, layout),
             blur::depth(radius),
         )?;
+        let update = conn.generate_id()?;
+        conn.xfixes_create_region(update, &[])?.check()?;
+        let mut damage = Region::default();
+        damage.add(Rect::new(0, 0, size.width, size.height));
         let mut renderer = Self {
             conn: Rc::clone(conn),
             overlay: session.overlay,
@@ -132,6 +145,9 @@ impl Renderer {
             submitted: None,
             levels,
             built_for: (config.blur_radius, config.vsync),
+            damage,
+            shown: Vec::new(),
+            update,
         };
         renderer.refresh_wallpaper(session)?;
         Ok(renderer)
@@ -140,5 +156,19 @@ impl Renderer {
     /// Whether a reloaded configuration can keep this renderer.
     pub(crate) fn fits(&self, config: &Config) -> bool {
         self.built_for == (config.blur_radius, config.vsync)
+    }
+
+    /// Repaint `rect` in the next frame, besides what changed in the scene.
+    pub(crate) fn damage(&mut self, rect: Rect) {
+        self.damage.add(rect);
+    }
+
+    /// Repaint the whole screen in the next frame.
+    pub(crate) fn invalidate(&mut self) {
+        self.damage.add(self.screen());
+    }
+
+    fn screen(&self) -> Rect {
+        Rect::new(0, 0, self.size.width, self.size.height)
     }
 }
