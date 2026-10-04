@@ -105,7 +105,7 @@ cargo build --release --locked --bin compust --example desktop_probe
 SERVER_PID=$(pgrep -x Xorg) WM_PID=$(pgrep -x dwm) tools/bench.sh artifacts/bench
 ```
 
-Each scene maps a backdrop over the whole root and then override-redirect windows, so no window manager places them and the geometry is the same on any desktop. After a two-second warmup the probe measures for `SECONDS_PER_PHASE`, ten seconds by default.
+Each scene maps a backdrop over the whole root and then override-redirect windows, so no window manager places them and the geometry is the same on any desktop. After a two-second warmup the probe measures for `SECONDS_PER_PHASE`, twenty seconds by default, as in every recorded run. CPU time counts in scheduler ticks of 10 ms, so a 20-second phase resolves 0.05 points of a core.
 
 | Scene | Workload |
 | --- | --- |
@@ -115,7 +115,7 @@ Each scene maps a backdrop over the whole root and then override-redirect window
 | `eight-translucent` | Eight overlapping 480×360 windows at 50%; the top one alternates |
 | `covered` | The same eight windows under an opaque window covering the root, which alternates |
 | `move-resize` | A window moved and resized 60 times per second |
-| `open-close` | 100 windows in turn, each mapped until the overlay shows it, then destroyed until the overlay shows the backdrop |
+| `open-close` | Windows in turn for the whole phase, each mapped until the overlay shows it, then destroyed until the overlay shows the backdrop; the records through 2026-10-04's occlusion record ran 100 cycles, about 3.3 seconds |
 
 The translucent and covered scenes run without blur and, with a `:blur` suffix, with it. All scenes fit a 1366×768 screen; on a larger one only the full-screen window grows.
 

@@ -135,7 +135,7 @@ for compositor in "${compositors[@]}"; do
         start "$compositor" "$blur" "$output/compositor.log"
         if timeout 120s target/release/examples/desktop_probe --display "$DISPLAY" \
             --bench "$scene" --process "compositor:$compositor_pid" "${measured[@]}" \
-            --seconds "${SECONDS_PER_PHASE:-10}" --output "$output" \
+            --seconds "${SECONDS_PER_PHASE:-20}" --output "$output" \
             >"$output/probe.log" 2>&1 && kill -0 "$compositor_pid" 2>/dev/null; then
             if [[ ! -e $summary ]]; then
                 { printf 'compositor,blur,'; head -n 1 "$output/summary.csv"; } >"$summary"

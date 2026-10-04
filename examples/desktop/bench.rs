@@ -32,8 +32,6 @@ const WARMUP: Duration = Duration::from_secs(2);
 /// Updates per second requested by the animated scenes.
 const RATE: f64 = 60.0;
 /// Windows opened and closed by the open-close scene.
-const CYCLES: u32 = 100;
-
 /// A fixed workload. Every window is override-redirect, so the geometry is the same under
 /// any window manager, and a backdrop covers the rest of the screen.
 #[derive(Clone, Copy, ValueEnum)]
@@ -244,7 +242,8 @@ pub(super) fn run(
             (measure(Some(steps))?, None)
         }
         Scene::OpenClose => {
-            let (measured, latencies) = open_close(surface, processes, args.gpu_busy.as_deref())?;
+            let gpu = args.gpu_busy.as_deref();
+            let (measured, latencies) = open_close(surface, processes, gpu, seconds)?;
             (measured, Some(latencies))
         }
     };
@@ -431,11 +430,13 @@ fn animate(
     }
 }
 
-/// Open and close `CYCLES` windows, timing each change until the overlay shows it.
+/// Open and close windows for `seconds`, timing each change until the overlay shows it. The
+/// last cycle ends after `seconds`, so every cycle counts whole.
 fn open_close(
     surface: &Surface,
     processes: &[Process],
     gpu: Option<&Path>,
+    seconds: Duration,
 ) -> Result<(Measured, Vec<(Duration, Duration)>)> {
     let area = Area {
         x: 300,
@@ -452,8 +453,10 @@ fn open_close(
     let started = Instant::now();
     let mut observed = Observed::measuring(gpu);
     let mut latencies = Vec::new();
-    for cycle in 0..CYCLES {
+    let mut cycle = 0_u32;
+    while started.elapsed() < seconds {
         latencies.push(cycle_window(surface, area, point, cycle, &mut observed)?);
+        cycle = cycle.wrapping_add(1);
     }
     let elapsed = started.elapsed();
     let measured = Measured {

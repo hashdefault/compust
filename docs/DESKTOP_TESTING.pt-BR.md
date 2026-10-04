@@ -105,7 +105,7 @@ cargo build --release --locked --bin compust --example desktop_probe
 SERVER_PID=$(pgrep -x Xorg) WM_PID=$(pgrep -x dwm) tools/bench.sh artifacts/bench
 ```
 
-Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, para que nenhum gerenciador as posicione e a geometria seja igual em qualquer desktop. Depois de dois segundos de aquecimento, a sonda mede por `SECONDS_PER_PHASE`, dez segundos por padrão.
+Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, para que nenhum gerenciador as posicione e a geometria seja igual em qualquer desktop. Depois de dois segundos de aquecimento, a sonda mede por `SECONDS_PER_PHASE`, vinte segundos por padrão, como em todas as execuções registradas. O tempo de CPU é contado em ticks de escalonamento de 10 ms, então uma fase de 20 segundos distingue 0,05 ponto de um núcleo.
 
 | Cena | Carga |
 | --- | --- |
@@ -115,7 +115,7 @@ Cada cena mapeia um fundo sobre toda a raiz e depois janelas override-redirect, 
 | `eight-translucent` | Oito janelas de 480×360 sobrepostas a 50%; a de cima alterna |
 | `covered` | As mesmas oito janelas sob uma janela opaca que cobre a raiz e alterna |
 | `move-resize` | Uma janela movida e redimensionada 60 vezes por segundo |
-| `open-close` | 100 janelas, uma por vez, mapeadas até o overlay mostrá-las e destruídas até o overlay mostrar o fundo |
+| `open-close` | Janelas, uma por vez, durante toda a fase, mapeadas até o overlay mostrá-las e destruídas até o overlay mostrar o fundo; os registros até o de oclusão de 2026-10-04, inclusive, rodaram 100 ciclos, cerca de 3,3 segundos |
 
 As cenas translúcidas e a coberta rodam sem desfoque e, com o sufixo `:blur`, com ele. Todas cabem em uma tela de 1366×768; em uma maior, só a janela de tela cheia cresce.
 
