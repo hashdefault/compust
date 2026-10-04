@@ -44,7 +44,8 @@ performance advantage over picom. The desktop scene is explicitly an illustratio
 
 The home page follows the reader's decisions: understand the project (hero), see
 the effects (interactive illustration and feature row), understand the boundary
-and current status (project section), build or contribute (documentation links),
+and current status (project section), see what is done and where it was recorded
+(progress and environment sections), build or contribute (documentation links),
 and find upstream references (footer). The guide pages prioritize reading.
 
 ## 2. Color tokens
@@ -104,6 +105,13 @@ are hidden until JavaScript attaches, while the illustrated scene remains visibl
 without JavaScript. The terminal content is decorative and hidden from assistive
 technology; the figure caption provides the equivalent explanation.
 
+The progress section lists the roadmap's milestones in order, as `link-row`s in an
+ordered list. Each row has an `eyebrow` state, a name, one sentence of results, and
+a link to its record in the roadmap. `environments` names each recorded machine in
+three unboxed columns, like the feature row, and a `section-note` beneath it states
+what the records leave out and what is untested. A milestone or machine without a
+record does not appear. States are words, never color.
+
 `doc-nav` links every guide and the current article's headings. Current pages
 use `aria-current=page` and a tonal fill. `prose` renders semantic Markdown with
 stable heading IDs, readable tables, selectable commands, and source-edit links.
@@ -111,7 +119,8 @@ The locale switch always preserves the current guide, and uses full language nam
 for accessible labels. `site-footer` groups project and upstream links.
 
 A local-only primitive showcase verifies typography, controls, focus, active
-navigation, link rows, terminal surfaces, and code before composing full pages.
+navigation, link rows with and without a state, environment columns, terminal
+surfaces, and code before composing full pages.
 
 ## 6. Interaction and motion
 

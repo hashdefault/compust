@@ -31,6 +31,11 @@ accents included; the build drops accents to match the site's heading IDs. `asse
 illustration controls, and favicon. The only build dependency is `markdown-it`;
 no dependencies or third-party requests are needed in the browser.
 
+The home page's milestones and recorded environments are entries in `content.mjs`.
+Their anchors are the roadmap's heading IDs as the site writes them, without
+accents; the tests fail if one is missing. Update the entries with the roadmap and
+both READMEs when a milestone or a recorded environment changes.
+
 Follow [DESIGN.md](../DESIGN.md) when changing the UI. The local-only component
 showcase can be previewed with `SITE_DIR=site npm run preview` at
 <http://127.0.0.1:4173/compust/primitives.html>. It is excluded from the build.

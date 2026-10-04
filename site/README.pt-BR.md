@@ -34,6 +34,12 @@ estilo, os controles opcionais da ilustração e o favicon. A única dependênci
 compilação é `markdown-it`; o navegador não precisa de dependências nem de
 requisições a terceiros.
 
+Os marcos e os ambientes registrados da página inicial são entradas em
+`content.mjs`. Suas âncoras são os IDs dos títulos do roteiro como o site os
+escreve, sem acentos; os testes falham se uma delas não existir. Atualize as
+entradas junto com o roteiro e os dois READMEs quando um marco ou um ambiente
+registrado mudar.
+
 Siga [DESIGN.md](../DESIGN.md) ao alterar a interface. A página local de componentes
 pode ser aberta com `SITE_DIR=site npm run preview`, em
 <http://127.0.0.1:4173/compust/primitives.html>. Ela não entra na publicação.

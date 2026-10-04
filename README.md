@@ -8,7 +8,30 @@ Compust is an experimental, standalone **X11 compositor written in Rust**, targe
 
 A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.
 
-**Status: third beta, version 0.2.0-beta.3, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification on two machines: an AMD desktop running XLibre with Xmonad, and an Intel laptop running Xorg with Xmonad, Openbox, and i3; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems; the [roadmap](docs/ROADMAP.md) lists the remaining work.
+**Status: third beta, version 0.2.0-beta.3, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification on two machines: an AMD desktop running XLibre with Xmonad, and an Intel laptop running Xorg with Xmonad, Openbox, and i3; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems. The `main` branch is ahead of that beta, as the [milestones](#milestones-and-verified-environments) below show, and the [1.0 milestone](docs/ROADMAP.md#10-stable-release) of the [roadmap](docs/ROADMAP.md) defines what a stable release still requires.
+
+## Milestones and verified environments
+
+Each row links to its record. What is marked `main` came after 0.2.0-beta.3 and waits for the next beta.
+
+| Milestone | State | What it established |
+| --- | --- | --- |
+| [0.1 foundation](docs/ROADMAP.md#01-foundation-implemented) | Done | XRender composition, fades, transparency, blur, shapes, and stacking, checked by pixel tests against a real X server |
+| [First beta](docs/ROADMAP.md#first-beta-four-steps) | Published as 0.2.0-beta.1, beta.2, and beta.3 | Four gates met for the declared scope: window stability, monitors and resources, real desktops, and a checked release archive |
+| [Configuration reload and rules](docs/ROADMAP.md#everyday-usability) | Done on `main` | Configuration discovery, reload with SIGUSR1, per-window rules, and blur weighted by each pixel's opacity |
+| [Rendering work](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) | Done on `main`; measured on one desktop | Benchmark scenes against picom, stacking tracked without tree queries, region repaint, blur reuse, and occlusion |
+| [GPU renderer](docs/ROADMAP.md#rendering-backend-and-protocol-expansion) | Opt-in on `main`; recorded on one desktop | OpenGL ES through DRI3, drawing the same frames as XRender within two levels of color; XRender stays the default and the fallback |
+| [1.0 stable release](docs/ROADMAP.md#10-stable-release) | Current milestone | Shadows, fullscreen unredirection, rules by focus, NVIDIA and more desktops, a picom comparison per GPU vendor, endurance runs, outside testers, and packaging |
+
+| Environment | Recorded there |
+| --- | --- |
+| Xvfb in CI, on every push | 94 X11 tests that run a real Compust process against a real server and check pixels and protocol behavior, with 33 unit tests, 6 command-line tests, and the GPU crate's 7 tests on Mesa's software device |
+| AMD Ryzen 5 5600GT (Radeon Vega) desktop: XLibre 25.1.9, Xmonad 0.18.1, one and two 1920×1080 monitors | [Desktop scenarios](docs/DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) with fades, translucency, and [blur](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03); [mode and layout changes, and both cables unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) |
+| Intel Core i3-1005G1 (Iris Plus) laptop: Xorg 21.1.11, with Xmonad 0.17.2, Openbox 3.6.1, and i3 4.23 | Desktop scenarios under [Xmonad](docs/DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03), [Openbox](docs/DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03), and [i3](docs/DESKTOP_TESTING.md#recorded-i3-sessions-2026-10-03); an [external display unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03); [suspend and resume](docs/DESKTOP_TESTING.md#recorded-suspend-and-resume-2026-10-03) |
+| AMD Ryzen 5 5600X with a Radeon RX 9060 XT: XLibre 25.1.9, dwm 6.8, one and two 1920×1080 monitors | [Configuration reloads](docs/DESKTOP_TESTING.md#recorded-reload-session-2026-10-03); [benchmark scenes against picom v13](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03); [region repaint](docs/DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](docs/DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](docs/DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and the [GPU renderer](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04) |
+| Xephyr nested in Xvfb: Xorg 21.1.24 and XLibre 25.1.9, with Xmonad 0.18.1 | [Desktop scenarios](docs/DESKTOP_TESTING.md#recorded-baseline-2026-10-03) with Present, with direct XRender, and with [effects](docs/DESKTOP_TESTING.md#recorded-effects-baseline-2026-10-03); protocol behavior only, without a driver or a display |
+
+Most hardware sessions use the probe's synthetic windows instead of applications, and the Radeon Vega and Intel machines were recorded before the rendering work. The rules and the weighted blur have automated tests but no hardware record yet. NVIDIA drivers, Xorg on AMD, XLibre on Intel, other window managers, clearly different refresh rates, more than two monitors, and HDR are untested. The [compatibility matrix](docs/ROADMAP.md#compatibility-matrix) gives each record's versions and limits.
 
 ## What works today
 

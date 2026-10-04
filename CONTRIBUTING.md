@@ -49,7 +49,7 @@ The project uses the [MIT license](LICENSE). Contributions should be compatible 
 
 ## Prepare a release
 
-Releases stay prereleases until the roadmap's gates hold for a wider scope. Update the version in `Cargo.toml` and `Cargo.lock`, the beta guide, the release notes in `docs/releases/`, and both languages of the README and roadmap. After CI passes for the release commit, package that commit and publish it with the GitHub CLI:
+Releases stay prereleases until the roadmap's [1.0 milestone](docs/ROADMAP.md#10-stable-release) holds; its release path orders the betas and release candidates before it. Update the version in `Cargo.toml` and `Cargo.lock`, the beta guide, the release notes in `docs/releases/`, both languages of the README and roadmap, and the home page's milestones in `site/content.mjs`. After CI passes for the release commit, package that commit and publish it with the GitHub CLI:
 
 ```sh
 tools/package.sh HEAD artifacts/release

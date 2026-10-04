@@ -49,7 +49,7 @@ O projeto usa a licença [MIT](LICENSE). As contribuições precisam ser compat�
 
 ## Preparar uma versão
 
-As versões continuam como pré-lançamentos até que os critérios do roteiro valham para um escopo maior. Atualize a versão em `Cargo.toml` e `Cargo.lock`, o guia da beta, as notas em `docs/releases/` e os dois idiomas do README e do roteiro. Depois que a CI passar no commit da versão, empacote esse commit e publique com a CLI do GitHub:
+As versões continuam como pré-lançamentos até que o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) do roteiro seja cumprido; o caminho descrito nele ordena as betas e as versões candidatas que vêm antes. Atualize a versão em `Cargo.toml` e `Cargo.lock`, o guia da beta, as notas em `docs/releases/`, os dois idiomas do README e do roteiro e os marcos da página inicial em `site/content.mjs`. Depois que a CI passar no commit da versão, empacote esse commit e publique com a CLI do GitHub:
 
 ```sh
 tools/package.sh HEAD artifacts/release
