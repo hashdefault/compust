@@ -10,6 +10,9 @@ repository = "https://github.com/hashdefault/compust"
 keywords = ["x11", "compositor", "xorg", "xlibre"]
 categories = ["gui"]
 
+[workspace]
+members = ["crates/gl"]
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

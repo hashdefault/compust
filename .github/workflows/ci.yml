@@ -19,13 +19,15 @@ jobs:
         with:
           toolchain: 1.95.0
           components: rustfmt, clippy
-      - name: Install Xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install Xvfb and Mesa's EGL
+        run: sudo apt-get update && sudo apt-get install -y xvfb libegl1 libegl-mesa0 libgl1-mesa-dri
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Lint
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
-      - name: Unit and real X11 integration tests
-        run: cargo test --locked
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - name: Unit, GPU, and real X11 integration tests
+        env:
+          COMPUST_GPU_TESTS: "1"
+        run: cargo test --locked --workspace
       - name: Release build
-        run: cargo build --release --locked
+        run: cargo build --release --locked --workspace

@@ -1,0 +1,35 @@
+[package]
+name = "compust-gl"
+version = "0.2.0-beta.3"
+edition = "2024"
+rust-version = "1.95"
+description = "The GPU access of the Compust compositor: EGL, OpenGL ES, and dma-buf textures behind a safe API"
+license = "MIT"
+repository = "https://github.com/hashdefault/compust"
+publish = false
+
+[dependencies]
+anyhow = "1"
+glow = "0.18"
+khronos-egl = { version = "6", features = ["dynamic"] }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+indexing_slicing = "deny"
+let_underscore_must_use = "deny"
+allow_attributes = "deny"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
