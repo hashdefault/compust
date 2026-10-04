@@ -34,6 +34,12 @@ trap 'kill "$keepalive" 2>/dev/null || true' EXIT
 
 xrandr --current >"$root/outputs-initial.txt"
 output=${SESSION_OUTPUT:-$(xrandr --current | awk '$2 == "connected" { print $1; exit }')}
+# xrandr ignores a name it does not know, and the loop below would then turn every output off.
+if ! xrandr --current | awk -v name="$output" '$1 == name && $2 == "connected" { found = 1 } END { exit !found }'; then
+    printf 'Output %s is not connected. Connected outputs: %s\n' "${output:-(none)}" \
+        "$(xrandr --current | awk '$2 == "connected" { printf "%s ", $1 }')" >&2
+    exit 2
+fi
 layout=(--output "$output" --auto --primary --pos 0x0)
 while read -r other; do
     layout+=(--output "$other" --off)
