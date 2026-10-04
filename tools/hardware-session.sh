@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage="Usage: startx \"\$PWD/tools/hardware-session.sh\" NEW_REPORT_ROOT -- :1"
+usage="Usage: startx \"\$PWD/tools/hardware-session.sh\" NEW_REPORT_ROOT [--features] -- :1"
 if [[ ${1:-} == --help ]]; then
     printf '%s\n' "$usage"
     printf 'Run the present, direct, and effects desktop checks as the client of a dedicated\n'
     printf 'X session. SESSION_OUTPUT selects the one output left enabled. Build release binaries first.\n'
+    printf 'With --features, check shadows, focus, and fullscreen suspension in XRender and GL instead.\n'
     exit 0
 fi
-if (( $# != 1 )); then
+if (( $# < 1 || $# > 2 )) || { (( $# == 2 )) && [[ $2 != --features ]]; }; then
     printf '%s\n' "$usage" >&2
     exit 2
 fi
@@ -54,14 +55,20 @@ fi
 xset s off s noblank -dpms
 
 status=0
-for mode in present direct effects; do
-    if DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/desktop-check.sh "$root/$mode" "$mode"; then
-        printf '%s: passed\n' "$mode"
-    else
-        printf '%s: failed\n' "$mode"
+if [[ ${2:-} == --features ]]; then
+    if ! DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/features-check.sh "$root/features" both; then
         status=1
     fi
-done
+else
+    for mode in present direct effects; do
+        if DESKTOP_DISPLAY=$DISPLAY SERVER_PID=$server_pid tools/desktop-check.sh "$root/$mode" "$mode"; then
+            printf '%s: passed\n' "$mode"
+        else
+            printf '%s: failed\n' "$mode"
+            status=1
+        fi
+    done
+fi
 number=${DISPLAY#*:}
 number=${number%%.*}
 for log in "$HOME/.local/share/xorg/Xorg.$number.log" "/var/log/Xorg.$number.log"; do

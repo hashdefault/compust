@@ -12,11 +12,19 @@ use x11rb::{
 
 impl Surface {
     pub(in super::super) fn pixel(&self, point: (i16, i16)) -> Result<u32> {
+        self.pixel_of(self.overlay, point)
+    }
+
+    pub(in super::super) fn screen_pixel(&self, point: (i16, i16)) -> Result<u32> {
+        self.pixel_of(self.root, point)
+    }
+
+    fn pixel_of(&self, drawable: u32, point: (i16, i16)) -> Result<u32> {
         let image = self
             .conn
             .get_image(
                 ImageFormat::Z_PIXMAP,
-                self.overlay,
+                drawable,
                 point.0,
                 point.1,
                 1,

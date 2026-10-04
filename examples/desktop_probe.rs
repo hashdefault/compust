@@ -1,5 +1,7 @@
 #[path = "desktop/bench.rs"]
 mod bench;
+#[path = "desktop/features.rs"]
+mod features;
 #[path = "desktop/hotplug.rs"]
 mod hotplug;
 #[path = "desktop/metrics.rs"]
@@ -76,6 +78,8 @@ struct Args {
     /// screen to this PPM file, to compare renderers. It needs no window manager.
     #[arg(long, conflicts_with = "bench")]
     snapshot: Option<PathBuf>,
+    #[command(flatten)]
+    features: features::Options,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -88,7 +92,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let surface = Surface::connect(
         &args.display,
-        args.bench.is_none() && args.snapshot.is_none(),
+        args.bench.is_none() && args.snapshot.is_none() && !args.features.enabled,
     )?;
     println!(
         "vendor={} release={} geometry={}x{} depth=24",
@@ -99,6 +103,9 @@ fn main() -> Result<()> {
     );
     let mut processes = args.process.clone();
     processes.push(Process::probe());
+    if args.features.enabled {
+        return features::run(&surface, &args, &processes);
+    }
     if let Some(scene) = args.bench {
         return bench::run(&surface, &args, scene, &processes);
     }
