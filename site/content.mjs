@@ -21,7 +21,7 @@ export const locales = {
     inspiration: 'Inspired by picom and the tradition of standalone X11 compositors, Compust explores an approachable Rust implementation. Reliability, resource use, and frame pacing are improvements to measure as the project grows.',
     scope: 'X11 first. Built for Xorg and XLibre; native Wayland is outside the current scope.',
     statusTitle: 'Fourth beta published. Next: 1.0.',
-    status: 'Version 0.3.0-beta.1 brings configuration reload, per-window rules, region repaint, blur reuse, occlusion, and an opt-in GPU renderer. One recorded desktop has run its rendering code so far. The 1.0 milestone lists what a stable release still needs.',
+    status: 'Version 0.3.0-beta.1 brings configuration reload, per-window rules, region repaint, blur reuse, occlusion, and an opt-in GPU renderer. One recorded desktop has run it so far, under five window managers. The 1.0 milestone lists what a stable release still needs.',
     statusLink: 'Read the 1.0 milestone', stableAnchor: '10-stable-release',
     progressLabel: '02 / Progress', progressHeading: 'What is done, and what 1.0 still needs.',
     milestones: [
@@ -36,7 +36,7 @@ export const locales = {
     environments: [
       ['AMD · XLibre', 'Radeon Vega desktop', 'Xmonad on one and two monitors. Desktop scenarios with fades, translucency, and blur, monitor changes, and both cables unplugged and reconnected.'],
       ['Intel · Xorg', 'Iris Plus laptop', 'Xmonad, Openbox, and i3. Desktop scenarios, an external display unplugged and reconnected, and suspend and resume.'],
-      ['AMD · XLibre', 'Radeon RX 9060 XT desktop', 'dwm on one and two monitors. Configuration reloads, benchmark scenes against picom, and the GPU renderer.'],
+      ['AMD · XLibre', 'Radeon RX 9060 XT desktop', 'Xmonad, Openbox, i3, bspwm, and dwm. Desktop scenarios with 0.3.0-beta.1, configuration reloads, benchmark scenes against picom, and the GPU renderer.'],
     ],
     environmentsNote: 'Every push also runs 94 X11 tests against Xvfb. Most hardware sessions use synthetic test windows, and the first two machines were recorded with the 0.2.0 betas, before the rendering work. NVIDIA drivers, Xorg on AMD, and other window managers are untested.',
     environmentsLink: 'See every record in the compatibility matrix', matrixAnchor: 'compatibility-matrix',
@@ -78,7 +78,7 @@ export const locales = {
     inspiration: 'Inspirado no picom e na tradição dos compositores X11 independentes, o Compust explora uma implementação acessível em Rust. Confiabilidade, uso de recursos e cadência dos quadros são melhorias a medir conforme o projeto evolui.',
     scope: 'X11 primeiro. Voltado a Xorg e XLibre; Wayland nativo está fora do escopo atual.',
     statusTitle: 'Quarta beta publicada. Próximo passo: 1.0.',
-    status: 'A versão 0.3.0-beta.1 traz recarga de configuração, regras por janela, repintura por regiões, reaproveitamento do desfoque, oclusão e um renderizador de GPU opcional. Até agora, um desktop registrado rodou seu código de renderização. O marco 1.0 lista o que ainda falta para uma versão estável.',
+    status: 'A versão 0.3.0-beta.1 traz recarga de configuração, regras por janela, repintura por regiões, reaproveitamento do desfoque, oclusão e um renderizador de GPU opcional. Até agora, um desktop registrado a rodou, com cinco gerenciadores de janelas. O marco 1.0 lista o que ainda falta para uma versão estável.',
     statusLink: 'Leia o marco 1.0', stableAnchor: '10-versao-estavel',
     progressLabel: '02 / Progresso', progressHeading: 'O que está pronto e o que falta para a 1.0.',
     milestones: [
@@ -93,7 +93,7 @@ export const locales = {
     environments: [
       ['AMD · XLibre', 'Desktop com Radeon Vega', 'Xmonad em um e dois monitores. Cenários de desktop com fades, translucidez e desfoque, mudanças de monitores e os dois cabos desconectados e reconectados.'],
       ['Intel · Xorg', 'Laptop com Iris Plus', 'Xmonad, Openbox e i3. Cenários de desktop, um monitor externo desconectado e reconectado e suspensão e retomada.'],
-      ['AMD · XLibre', 'Desktop com Radeon RX 9060 XT', 'dwm em um e dois monitores. Recargas de configuração, cenas de benchmark comparadas com o picom e o renderizador de GPU.'],
+      ['AMD · XLibre', 'Desktop com Radeon RX 9060 XT', 'Xmonad, Openbox, i3, bspwm e dwm. Cenários de desktop com a 0.3.0-beta.1, recargas de configuração, cenas de benchmark comparadas com o picom e o renderizador de GPU.'],
     ],
     environmentsNote: 'Cada push também roda 94 testes X11 no Xvfb. A maioria das sessões em hardware usa janelas sintéticas de teste, e as duas primeiras máquinas foram registradas com as betas 0.2.0, antes do trabalho de renderização. Drivers NVIDIA, Xorg com AMD e outros gerenciadores de janelas não foram testados.',
     environmentsLink: 'Veja cada registro na matriz de compatibilidade', matrixAnchor: 'matriz-de-compatibilidade',

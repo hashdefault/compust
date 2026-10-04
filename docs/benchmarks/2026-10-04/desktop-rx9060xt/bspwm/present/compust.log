@@ -1,0 +1,3 @@
+[2m2026-10-04T20:00:28.986519Z[0m [32m INFO[0m configuration loaded [3mpath[0m[2m=[0m/home/lucas/compust/artifacts/hardware-bspwm-3/present/compust.toml
+[2m2026-10-04T20:00:28.987664Z[0m [32m INFO[0m compositor started [3mpresent[0m[2m=[0mtrue [3mwindows[0m[2m=[0m0
+[2m2026-10-04T20:00:51.358694Z[0m [32m INFO[0m compositor stopped

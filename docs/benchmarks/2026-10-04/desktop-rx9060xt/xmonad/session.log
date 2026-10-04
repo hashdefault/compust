@@ -1,0 +1,9 @@
+   3080 Xorg
+xprop:  no such property "_NET_SUPPORTING_WM_CHECK"
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-xmonad-2/present
+present: passed
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-xmonad-2/direct
+direct: passed
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-xmonad-2/effects
+effects: passed
+Hardware session finished: /home/lucas/compust/artifacts/hardware-xmonad-2

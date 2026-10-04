@@ -546,6 +546,37 @@ The GPU renderer moves work from the X server to Compust. Compust's own CPU rose
 
 A first run, at `a137a7db`, failed once: in its second two-monitor run, a window that the GPU renderer opened stayed black until the probe gave up. glamor holds back its GPU commands until the server idles or a fence triggers, so on a busy server the GPU could read a newly painted window, or the copy that sharing it needed, before those commands were sent, and no later damage repainted it. The fix triggers a SYNC fence before each frame; the opt-in [`tests/gpu.rs`](../tests/gpu.rs) reproduces the race with another client keeping the server busy, which left 4–14 of 100 shared pixmaps stale without the fence and none with it. The [failing run's records](benchmarks/2026-10-04/gl-first-amd-dwm/) are kept.
 
+## Recorded desktop sessions on the RX 9060 XT: 2026-10-04
+
+The [RX 9060 XT desktop](#recorded-reload-session-2026-10-03) ran the [hardware procedure](#run-the-desktop-checks-on-hardware) under four window managers. Each session was a dedicated XLibre 25.1.9 server on vt3, started by `startx` while the usual session stayed on vt2, with DP-2 as the only active output at 1920×1080 and 60 Hz. Every [server log](benchmarks/2026-10-04/desktop-rx9060xt/xmonad/xorg.log) reports glamor on radeonsi with OpenGL 4.6 and TearFree enabled. The Xmonad 0.18.1, Openbox 3.6.1, and i3 4.25.1 sessions ran the clean commit `2311948f700930ee1f9f3b9ba9e6ec8e66c180cb`, which prepares 0.3.0-beta.1. The bspwm 0.9.12 session ran `526eb96`, two commits later, which changes the runner and the probe and leaves the compositor's source as it was. The compositor binaries were two builds of that source: `d455cea47e220def…` under Xmonad, and `05961c098ae05c04…`, which Cargo built together with the probe, under the others. The [records](benchmarks/2026-10-04/desktop-rx9060xt/) keep each session's reports without the screen captures.
+
+Every run in the table passed every scenario.
+
+| Window manager | Mode | Active Compust CPU | Active X server CPU | Frames in 10 s | Interval median / p95 / max |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Xmonad | [Present](benchmarks/2026-10-04/desktop-rx9060xt/xmonad/present/processes.csv) | 0.2% | 1.6% | 600 | 16.667 / 16.674 / 16.677 ms |
+| Xmonad | [Direct](benchmarks/2026-10-04/desktop-rx9060xt/xmonad/direct/processes.csv) | 0.1% | 1.5% | 600 Damage | — |
+| Xmonad | [Effects](benchmarks/2026-10-04/desktop-rx9060xt/xmonad/effects/processes.csv) | 0.2% | 1.7% | 600 | 16.666 / 16.674 / 16.677 ms |
+| Openbox | [Present](benchmarks/2026-10-04/desktop-rx9060xt/openbox/present/processes.csv) | 0.2% | 2.0% | 600 | 16.667 / 16.675 / 16.678 ms |
+| Openbox | [Direct](benchmarks/2026-10-04/desktop-rx9060xt/openbox/direct/processes.csv) | 0.2% | 1.5% | 600 Damage | — |
+| Openbox | [Effects](benchmarks/2026-10-04/desktop-rx9060xt/openbox/effects/processes.csv) | 0.3% | 2.1% | 600 | 16.667 / 16.675 / 16.678 ms |
+| i3 | [Present](benchmarks/2026-10-04/desktop-rx9060xt/i3/present/processes.csv) | 0.3% | 2.1% | 600 | 16.667 / 16.675 / 16.677 ms |
+| i3 | [Direct](benchmarks/2026-10-04/desktop-rx9060xt/i3/direct/processes.csv) | 0.2% | 1.6% | 600 Damage | — |
+| i3 | [Effects](benchmarks/2026-10-04/desktop-rx9060xt/i3/effects/processes.csv) | 0.3% | 2.1% | 600 | 16.667 / 16.669 / 16.676 ms |
+| bspwm | [Present](benchmarks/2026-10-04/desktop-rx9060xt/bspwm/present/processes.csv) | 0.3% | 1.6% | 600 | 16.667 / 16.675 / 16.677 ms |
+| bspwm | [Direct](benchmarks/2026-10-04/desktop-rx9060xt/bspwm/direct/processes.csv) | 0.1% | 1.5% | 600 Damage | — |
+| bspwm | [Effects](benchmarks/2026-10-04/desktop-rx9060xt/bspwm/effects/processes.csv) | 0.3% | 1.8% | 600 | 16.667 / 16.675 / 16.676 ms |
+
+Present followed vblank exactly: every active-phase MSC advanced by one in all eight runs that present. In idle phases, Compust and the X server recorded no CPU ticks. Compust RSS stayed at 4,128–4,276 KiB and the X server's at 91,116–95,256 KiB, unchanged within each phase. The effects mode adds 180 ms fades, blur radius 4, and a surviving window at 50% opacity; it cost the X server at most 0.2 points more than the Present run.
+
+The bspwm session ran twice, and the table shows the second run. In the first, the Present and direct runs passed and the effects run finished: its 600 frames are recorded, and its X server logged a normal exit at 16:20:31. Within the next minute the screen went black and the machine stopped responding. It was reset, and the files written in that session's last seconds never reached the disk: the probe's result line, the CPU record, and the end of the session log are empty. The logs do not say why. The journal ends as the next X server starts, and the shell history shows two `startx` attempts in those seconds, each with a report directory that the script cannot create, which stops it before it starts Compust. The [first session's records](benchmarks/2026-10-04/desktop-rx9060xt/bspwm-interrupted/) are kept as they were found. The second session ran forty minutes later without incident.
+
+bspwm 0.9.12 sometimes keeps the tile of a window that no longer exists: one of the 32 that the probe destroys right after their map requests. On Xorg's Xvfb that happened in 2 of 8 rehearsals, where `xprop` confirmed that the window of the remaining node was gone. On hardware it happened in one of the five bspwm runs whose final capture survives: in the first session's Present run the surviving window kept half of the screen to the end, and in the other four it filled the screen. The probe accepts the leftover tile under bspwm as long as it shows the background.
+
+A first Xmonad session was started with `SESSION_OUTPUT=DP=2`. `xrandr` ignored the unknown name, and the script turned both outputs off, so the session ran on a 320×200 root with no active CRTC. Every scenario still passed there: Present completed once per second, and Compust logged its one-second recovery, "Present did not finish a submission; replacing its buffers", twice in the Present run and three times in the effects run. The [records](benchmarks/2026-10-04/desktop-rx9060xt/outputs-off/) keep that session as the only one with every output off, and the script now stops when the named output is not connected.
+
+These sessions use the probe's synthetic windows, one monitor, and ten-second phases. dwm, which this desktop's own session uses, has no private configuration in the runner, and physical hotplug, suspend and resume, and the GPU renderer were not part of them. With the same build in an ordinary session on this desktop, the frosted halo around Brave's right-click menus was gone, as the [weighted blur](ROADMAP.md#everyday-usability-per-window-rules-and-weighted-blur) intends; that check was by eye and has no record.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

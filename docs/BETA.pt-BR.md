@@ -8,17 +8,19 @@ Esta beta pinta de forma diferente das betas 0.2.0: ela repinta apenas a área q
 
 ## Escopo declarado
 
-Uma máquina registrada rodou o código de renderização desta beta: um desktop AMD com Radeon RX 9060 XT, no XLibre com dwm.
+Uma máquina registrada rodou esta beta: um desktop AMD com Radeon RX 9060 XT, no XLibre.
 
-| Área | Registrado com o código de renderização desta beta | Evidências |
+| Área | Registrado com o código desta beta | Evidências |
 | --- | --- | --- |
-| Servidor X | XLibre 25.1.9 em sessão nativa | Sessões de [repintura por regiões](DESKTOP_TESTING.pt-BR.md#repintura-por-regiões-registrada-2026-10-04), [reaproveitamento do desfoque](DESKTOP_TESTING.pt-BR.md#reaproveitamento-do-desfoque-registrado-2026-10-04), [oclusão](DESKTOP_TESTING.pt-BR.md#oclusão-registrada-2026-10-04) e [renderizador de GPU](DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04) |
-| Gerenciador de janelas | dwm 6.8 | Mesmas sessões |
-| GPU e driver | AMD Radeon RX 9060 XT com radeonsi no Mesa 26.2.4 e o driver modesetting | Mesmas sessões |
-| Monitores | Uma ou duas saídas em 1920×1080 a 60 Hz | Mesmas sessões |
-| Renderização | Present com repintura por regiões, reaproveitamento do desfoque e oclusão; o renderizador de GPU opcional ao lado do XRender | Mesmas sessões |
+| Servidor X | XLibre 25.1.9 em sessão nativa | [Sessões de desktop](DESKTOP_TESTING.pt-BR.md#sessões-de-desktop-registradas-na-rx-9060-xt-2026-10-04) |
+| Gerenciador de janelas | Xmonad 0.18.1, Openbox 3.6.1, i3 4.25.1 ou bspwm 0.9.12 | Mesmas sessões |
+| GPU e driver | AMD Radeon RX 9060 XT com radeonsi no Mesa 26.2.4, o driver modesetting e glamor | Mesmas sessões |
+| Monitores | Uma saída em 1920×1080 a 60 Hz | Mesmas sessões |
+| Renderização | Present e XRender direto, fades, transparência e desfoque | Mesmas sessões |
 
-Essas sessões rodam cenas de benchmark com janelas sintéticas, em commits anteriores à versão; nenhuma foi repetida com o binário desta versão. Os cenários de desktop do probe, a cópia direta via XRender, o hotplug físico e a suspensão e retomada não foram registrados nessa máquina, e as regras por janela e o desfoque ponderado têm apenas testes automatizados. Uma [sessão de recarga](DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-recarga-2026-10-03) na mesma máquina, registrada antes das mudanças de renderização, cobre recargas de configuração enquanto uma saída é ligada e desligada e o layout muda.
+Essas sessões rodaram o código do compositor desta versão, em uma compilação local e com janelas sintéticas; nenhuma foi repetida com o binário empacotado.
+
+Commits anteriores do código de renderização desta beta também rodaram cenas de benchmark nessa máquina com o dwm 6.8, em um e dois monitores: [repintura por regiões](DESKTOP_TESTING.pt-BR.md#repintura-por-regiões-registrada-2026-10-04), [reaproveitamento do desfoque](DESKTOP_TESTING.pt-BR.md#reaproveitamento-do-desfoque-registrado-2026-10-04), [oclusão](DESKTOP_TESTING.pt-BR.md#oclusão-registrada-2026-10-04) e o [renderizador de GPU](DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04) opcional ao lado do XRender. Uma [sessão de recarga](DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-recarga-2026-10-03), registrada antes das mudanças de renderização, cobre recargas de configuração enquanto uma saída é ligada e desligada e o layout muda. O hotplug físico e a suspensão e retomada não foram registrados nessa máquina. As regras por janela têm apenas testes automatizados; o desfoque ponderado também foi conferido visualmente nos menus do Brave.
 
 As duas máquinas validadas na 0.2.0-beta.3 não rodaram esta beta: o desktop AMD com Radeon Vega e Xmonad, e o laptop Intel com Iris Plus e Xmonad, Openbox e i3. Seus registros, listados na [matriz de compatibilidade](ROADMAP.pt-BR.md#matriz-de-compatibilidade), cobrem gerenciamento de janelas, hotplug físico e suspensão e retomada com o pintor anterior. GPUs NVIDIA, outros gerenciadores de janelas, Xorg com AMD, XLibre com Intel, taxas de atualização claramente diferentes, mais de dois monitores e HDR não foram testados. Relatos de qualquer uma dessas configurações são especialmente úteis.
 

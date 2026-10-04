@@ -1,0 +1,7 @@
+vendor=XLibre release=12501009 geometry=1920x1080 depth=24
+frame=0x600141 client=0xa00002 title_height=22
+frame=0x600182 client=0xa00003 title_height=22
+fullscreen client=1920x1080 border=0
+phase=idle seconds=10.010003 updates=0 completions=1 damage_events=1
+phase=active seconds=10.000062 updates=600 completions=600 damage_events=600
+PASS: managed windows, decorated frames, restacking, iconify restore, popup removal, fullscreen restore, workspace return, wallpaper change, rapid lifecycle, survivor redraw at 50% opacity

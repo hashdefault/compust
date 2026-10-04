@@ -1,0 +1,4 @@
+d455cea47e220def9d1192058cd5596ec8171aae3ca044fef772b133a85b0a21  target/release/compust
+5d15f726db761273c3b386db679fc0ec24cf8c119a5f3f932e35b158deae19e1  target/release/examples/desktop_probe
+8760ca000057c499c1f8f2d9886f1634a4110f826e3af82aa77dad3dc351d097  tools/desktop/xmonad.hs
+ce2f01a1a46c0898e6fd67e982a711340904e1d641e6a5204447575084c232b5  /tmp/compust-desktop.cjVNXC/xmonad-x86_64-linux

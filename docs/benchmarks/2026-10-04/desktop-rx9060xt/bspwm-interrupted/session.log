@@ -1,0 +1,6 @@
+2473853 Xorg
+xprop:  no such property "_NET_SUPPORTING_WM_CHECK"
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-bspwm-2/present
+present: passed
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-bspwm-2/direct
+direct: passed

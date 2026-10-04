@@ -1,0 +1,5 @@
+[2m2026-10-04T18:17:48.306294Z[0m [32m INFO[0m configuration loaded [3mpath[0m[2m=[0m/home/lucas/compust/artifacts/hardware-xmonad/present/compust.toml
+[2m2026-10-04T18:17:48.307700Z[0m [32m INFO[0m compositor started [3mpresent[0m[2m=[0mtrue [3mwindows[0m[2m=[0m1
+[2m2026-10-04T18:17:49.981401Z[0m [33m WARN[0m Present did not finish a submission; replacing its buffers
+[2m2026-10-04T18:18:05.981395Z[0m [33m WARN[0m Present did not finish a submission; replacing its buffers
+[2m2026-10-04T18:18:25.002267Z[0m [32m INFO[0m compositor stopped

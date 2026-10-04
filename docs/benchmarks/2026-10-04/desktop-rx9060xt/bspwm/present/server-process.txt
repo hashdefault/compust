@@ -1,0 +1,1 @@
+  22068 /usr/lib/Xorg :20 vt3 -keeptty -auth /tmp/serverauth.6Uxj99SNPR

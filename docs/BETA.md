@@ -8,17 +8,19 @@ This beta paints differently from the 0.2.0 betas: it repaints only the area tha
 
 ## Declared scope
 
-One recorded machine has run this beta's rendering code: an AMD desktop with a Radeon RX 9060 XT, on XLibre with dwm.
+One recorded machine has run this beta: an AMD desktop with a Radeon RX 9060 XT, on XLibre.
 
-| Area | Recorded with this beta's rendering code | Evidence |
+| Area | Recorded with this beta's source | Evidence |
 | --- | --- | --- |
-| X server | XLibre 25.1.9 in a native session | [Region repaint](DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and [GPU renderer](DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04) sessions |
-| Window manager | dwm 6.8 | Same sessions |
-| GPU and driver | AMD Radeon RX 9060 XT with radeonsi in Mesa 26.2.4 and the modesetting driver | Same sessions |
-| Monitors | One or two outputs at 1920×1080 and 60 Hz | Same sessions |
-| Rendering | Present with region repaint, blur reuse, and occlusion; the opt-in GPU renderer beside XRender | Same sessions |
+| X server | XLibre 25.1.9 in a native session | [Desktop sessions](DESKTOP_TESTING.md#recorded-desktop-sessions-on-the-rx-9060-xt-2026-10-04) |
+| Window manager | Xmonad 0.18.1, Openbox 3.6.1, i3 4.25.1, or bspwm 0.9.12 | Same sessions |
+| GPU and driver | AMD Radeon RX 9060 XT with radeonsi in Mesa 26.2.4, the modesetting driver, and glamor | Same sessions |
+| Monitors | One output at 1920×1080 and 60 Hz | Same sessions |
+| Rendering | Present and direct XRender, fades, transparency, and blur | Same sessions |
 
-Those sessions run benchmark scenes with synthetic windows, at commits before the release; none was repeated with the release binary. The probe's desktop scenarios, direct XRender copying, physical hotplug, and suspend and resume were not recorded on this machine, and the per-window rules and the weighted blur have automated tests only. A [reload session](DESKTOP_TESTING.md#recorded-reload-session-2026-10-03) on the same machine, recorded before the rendering changes, covers configuration reloads while an output turns on and off and the layout changes.
+Those sessions ran the release's compositor source in a local build with synthetic windows; none was repeated with the packaged binary.
+
+Earlier commits of this beta's rendering code also ran benchmark scenes on that machine under dwm 6.8, on one and two monitors: [region repaint](DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and the opt-in [GPU renderer](DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04) beside XRender. A [reload session](DESKTOP_TESTING.md#recorded-reload-session-2026-10-03), recorded before the rendering changes, covers configuration reloads while an output turns on and off and the layout changes. Physical hotplug and suspend and resume were not recorded on this machine. The per-window rules have automated tests only; the weighted blur was also checked by eye on Brave's menus.
 
 The two machines qualified for 0.2.0-beta.3 have not run this beta: the AMD Radeon Vega desktop with Xmonad, and the Intel Iris Plus laptop with Xmonad, Openbox, and i3. Their records, listed in the [compatibility matrix](ROADMAP.md#compatibility-matrix), cover window management, physical hotplug, and suspend and resume with the earlier painter. NVIDIA GPUs, other window managers, Xorg with AMD, XLibre with Intel, clearly different refresh rates, more than two monitors, and HDR are untested. Reports from any of these setups are especially useful.
 

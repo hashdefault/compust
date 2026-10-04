@@ -1,0 +1,9 @@
+3389672 Xorg
+xprop:  no such property "_NET_SUPPORTING_WM_CHECK"
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-openbox/present
+present: passed
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-openbox/direct
+direct: passed
+Desktop checks passed: /home/lucas/compust/artifacts/hardware-openbox/effects
+effects: passed
+Hardware session finished: /home/lucas/compust/artifacts/hardware-openbox
