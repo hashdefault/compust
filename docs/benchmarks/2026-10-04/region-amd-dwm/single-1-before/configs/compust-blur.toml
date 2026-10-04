@@ -1,0 +1,5 @@
+opacity = 100
+fade_ms = 0
+blur_radius = 4
+max_fps = 120
+vsync = true

@@ -1,0 +1,4 @@
+07:00.0 VGA compatible controller [0300]: Advanced Micro Devices, Inc. [AMD/ATI] Navi 44 [Radeon RX 9050 / 9060 XT] [1002:7590] (rev c0)
+	Subsystem: XFX Limited RX-96TS316W7 [SWIFT RX 9060 XT OC White Triple Fan Gaming Edition 16GB] [1eae:8601]
+	Kernel driver in use: amdgpu
+	Kernel modules: amdgpu

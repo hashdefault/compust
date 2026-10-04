@@ -419,6 +419,35 @@ Os [registros de benchmark](#cenas-de-benchmark-registradas-2026-10-03) mostrara
 
 O Compust agora só redesenha para eventos que alteram uma superfície exibida ou a ordem delas. No commit limpo `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, as mesmas três cenas rodaram duas vezes por disposição de monitores. Todas as 400 novas janelas apareceram um quadro depois do pedido de mapeamento, em no máximo 17,3 ms, contra 46–58 a cada 100 antes e nenhuma com o picom; os fechamentos continuaram levando um quadro. Os 100 ciclos levaram 3,33 segundos em vez de 4,1–4,3, com exatamente duas conclusões do Present cada. A CPU nas cenas de janela pequena e de mover e redimensionar ficou dentro da variação entre execuções, e nenhuma cena perdeu vblank. Os [registros](benchmarks/2026-10-03/repaint-amd-dwm/) seguem os anteriores.
 
+## Repintura por regiões registrada: 2026-10-04
+
+Depois da [etapa 3 do marco de renderização](ROADMAP.pt-BR.md#3-repintura-por-regiões), o executor mediu todas as cenas no mesmo desktop com o commit anterior `da928ad9f424736f28caf4a3317bcdf40de82a48` e o commit da repintura por regiões `a7efd319870ee808252bd649ebcdbac12007a4d3`, alternando as duas versões, duas vezes com os dois monitores e duas com somente DP-2. As duas versões tinham o código limpo e usaram o mesmo binário da sonda. Cada célula de CPU traz a CPU do Compust mais a do servidor X, como média de duas execuções; GPU é a ocupação média da amdgpu. Os [registros](benchmarks/2026-10-04/region-amd-dwm/) incluem a [sequência](benchmarks/2026-10-04/region-amd-dwm/sequence.sh) que os executou.
+
+| Cena | Monitores | Antes | Depois | GPU antes | GPU depois |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Ociosa | Dois | 0,00 + 5,97% | 0,00 + 5,35% | 0,1% | 0,0% |
+| Ociosa | Um | 0,00 + 5,35% | 0,00 + 5,35% | 0,0% | 0,0% |
+| Janela pequena atualizando | Dois | 0,30 + 8,03% | 0,28 + 7,30% | 8,6% | 7,5% |
+| Janela pequena atualizando | Um | 0,30 + 7,45% | 0,28 + 7,30% | 7,8% | 7,0% |
+| Translúcida em tela cheia | Dois | 0,32 + 8,03% | 0,30 + 8,00% | 9,4% | 9,6% |
+| Translúcida em tela cheia | Um | 0,32 + 7,43% | 0,30 + 7,43% | 8,2% | 7,8% |
+| Translúcida em tela cheia, desfoque | Dois | 0,53 + 8,45% | 0,55 + 8,47% | 10,8% | 11,0% |
+| Translúcida em tela cheia, desfoque | Um | 0,50 + 7,82% | 0,53 + 7,78% | 8,8% | 8,6% |
+| Oito translúcidas | Dois | 0,45 + 8,53% | 0,43 + 7,62% | 9,2% | 8,4% |
+| Oito translúcidas | Um | 0,40 + 7,97% | 0,40 + 7,67% | 8,2% | 7,7% |
+| Oito translúcidas, desfoque | Dois | 1,08 + 9,47% | 1,05 + 9,50% | 10,7% | 10,6% |
+| Oito translúcidas, desfoque | Um | 1,10 + 9,07% | 1,12 + 8,90% | 9,6% | 9,1% |
+| Mover e redimensionar | Dois | 1,00 + 8,68% | 0,97 + 8,22% | 8,5% | 7,5% |
+| Mover e redimensionar | Um | 1,00 + 8,40% | 0,95 + 8,22% | 7,7% | 7,2% |
+| Abrir e fechar | Dois | 0,45 + 9,30% | 0,45 + 8,70% | 8,9% | 8,6% |
+| Abrir e fechar | Um | 0,40 + 9,10% | 0,45 + 8,55% | 7,8% | 7,2% |
+
+Onde só parte da tela muda, o servidor X trabalhou menos. Com dois monitores, economizou 0,7 ponto com a janela pequena, 0,9 com oito janelas translúcidas e 0,5 ao mover e redimensionar; abrir e fechar economizou 0,5–0,6 ponto nas duas disposições. Com um monitor, em que o redesenho completo antigo cobria metade da área, a janela pequena economizou apenas 0,15 ponto, e mover e redimensionar, 0,2. A carga da GPU caiu 0,5–1,1 ponto nessas cenas, não pela metade: uma atualização de 64×64 ainda mantém a GPU 7–7,5% ocupada, então a maior parte dessa carga é um custo por quadro, não por pixel. Uma janela translúcida em tela cheia muda a tela inteira, e um dano sob qualquer uma de oito janelas desfocadas sobrepostas junta todas as suas áreas de alcance, então essas cenas repintam tanto quanto antes e custam o mesmo. A CPU do próprio Compust não variou mais de 0,05 ponto em nenhuma cena. Todas as cenas mantiveram 60 quadros por segundo; a versão antiga perdeu 4 vblanks uma vez com oito janelas desfocadas em um monitor, e a nova não perdeu nenhum.
+
+A versão nova não apresentou nenhum quadro em nenhuma execução ociosa. A primeira execução ociosa da versão antiga, primeira cena da sequência, apresentou 20 quadros nos três primeiros segundos, enquanto clientes do desktop ainda redesenhavam depois que o compositor em uso foi parado; o número do servidor X nela, 6,55%, eleva a média ociosa dessa versão com dois monitores. Abrir e fechar foi a cena que mais variou entre execuções de uma mesma versão, até 0,8 ponto para o servidor X: em uma execução da versão antiga, 19 dos primeiros ciclos levaram dois quadros para abrir e fechar, contra um quadro em todas as outras aberturas e fechamentos das duas versões.
+
+O desfoque é agora o maior custo restante da cena de oito janelas. Com a repintura por regiões, ele acrescenta 0,6 ponto ao Compust e 1,9 ao servidor X com dois monitores, e 0,7 e 1,2 com um, porque uma mudança na janela de cima repinta toda a pilha de janelas desfocadas. É esse o custo que a [etapa 4](ROADMAP.pt-BR.md#4-oclusão-e-reaproveitamento-do-desfoque) reduziria.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

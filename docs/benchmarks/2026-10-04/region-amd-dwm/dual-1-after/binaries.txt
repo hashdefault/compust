@@ -1,0 +1,2 @@
+870e0bd411c40f2bda25c92cd691b986288528d1e0e81d7c14d1f5935c2a1b43  target/release/compust
+6f74a97a3b418f3e8739d4520c390675b791ae4544d22d630fd25d60cda48186  target/release/examples/desktop_probe

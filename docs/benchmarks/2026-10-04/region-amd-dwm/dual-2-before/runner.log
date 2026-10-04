@@ -1,0 +1,9 @@
+compust idle: PASS scene=idle seconds=20.001 completions=0 damage_events=0
+compust small-update: PASS scene=small-update seconds=20.001 completions=1200 damage_events=1200
+compust fullscreen-translucent: PASS scene=fullscreen-translucent seconds=20.000 completions=1200 damage_events=1200
+compust fullscreen-translucent-blur: PASS scene=fullscreen-translucent seconds=20.001 completions=1200 damage_events=1200
+compust eight-translucent: PASS scene=eight-translucent seconds=20.001 completions=1200 damage_events=1200
+compust eight-translucent-blur: PASS scene=eight-translucent seconds=20.001 completions=1200 damage_events=1200
+compust move-resize: PASS scene=move-resize seconds=20.001 completions=1200 damage_events=1200
+compust open-close: PASS scene=open-close seconds=3.333 completions=200 damage_events=200
+Benchmark report: <reports>/dual-2-before

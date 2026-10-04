@@ -419,6 +419,35 @@ The [benchmark records](#recorded-benchmark-scenes-2026-10-03) showed about half
 
 Compust now repaints only for events that change a shown surface or their order. At the clean commit `338bb0777e2fe1ab87986ea71d130393a7ce70b2`, the same three scenes ran twice per monitor layout. Every one of the 400 new windows appeared one frame after its map request, in at most 17.3 ms, against 46–58 per 100 before and none under picom; closes still took one frame. The 100 cycles took 3.33 seconds instead of 4.1–4.3, with exactly two Present completions each. CPU in the small-window and move-and-resize scenes stayed within the variation between runs, and no scene skipped a vblank. The [records](benchmarks/2026-10-03/repaint-amd-dwm/) follow the earlier ones.
 
+## Recorded region repaint: 2026-10-04
+
+After [step 3 of the rendering milestone](ROADMAP.md#3-region-based-repaint), the runner measured every scene on the same desktop with the previous commit `da928ad9f424736f28caf4a3317bcdf40de82a48` and the region-repaint commit `a7efd319870ee808252bd649ebcdbac12007a4d3`, alternating the two builds, twice with both monitors and twice with DP-2 alone. Both builds had clean sources and used the same probe binary. Each CPU cell is Compust's CPU plus the X server's, as a mean of two runs; GPU is the mean amdgpu busy percentage. The [records](benchmarks/2026-10-04/region-amd-dwm/) include the [sequence](benchmarks/2026-10-04/region-amd-dwm/sequence.sh) that ran them.
+
+| Scene | Monitors | Before | After | GPU before | GPU after |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Idle | Two | 0.00 + 5.97% | 0.00 + 5.35% | 0.1% | 0.0% |
+| Idle | One | 0.00 + 5.35% | 0.00 + 5.35% | 0.0% | 0.0% |
+| Small window updating | Two | 0.30 + 8.03% | 0.28 + 7.30% | 8.6% | 7.5% |
+| Small window updating | One | 0.30 + 7.45% | 0.28 + 7.30% | 7.8% | 7.0% |
+| Full-screen translucent | Two | 0.32 + 8.03% | 0.30 + 8.00% | 9.4% | 9.6% |
+| Full-screen translucent | One | 0.32 + 7.43% | 0.30 + 7.43% | 8.2% | 7.8% |
+| Full-screen translucent, blur | Two | 0.53 + 8.45% | 0.55 + 8.47% | 10.8% | 11.0% |
+| Full-screen translucent, blur | One | 0.50 + 7.82% | 0.53 + 7.78% | 8.8% | 8.6% |
+| Eight translucent | Two | 0.45 + 8.53% | 0.43 + 7.62% | 9.2% | 8.4% |
+| Eight translucent | One | 0.40 + 7.97% | 0.40 + 7.67% | 8.2% | 7.7% |
+| Eight translucent, blur | Two | 1.08 + 9.47% | 1.05 + 9.50% | 10.7% | 10.6% |
+| Eight translucent, blur | One | 1.10 + 9.07% | 1.12 + 8.90% | 9.6% | 9.1% |
+| Move and resize | Two | 1.00 + 8.68% | 0.97 + 8.22% | 8.5% | 7.5% |
+| Move and resize | One | 1.00 + 8.40% | 0.95 + 8.22% | 7.7% | 7.2% |
+| Open and close | Two | 0.45 + 9.30% | 0.45 + 8.70% | 8.9% | 8.6% |
+| Open and close | One | 0.40 + 9.10% | 0.45 + 8.55% | 7.8% | 7.2% |
+
+Where only part of the screen changes, the X server worked less. On two monitors it saved 0.7 points for the small window, 0.9 for eight translucent windows, and 0.5 for moving and resizing; opening and closing saved 0.5–0.6 points on either layout. On one monitor, where the old full repaint covered half the area, the small window saved only 0.15 points and moving and resizing 0.2. GPU load fell by 0.5–1.1 points in those scenes, not by half: a 64×64 update still keeps the GPU 7–7.5% busy, so most of that load is a cost per frame, not per pixel. A full-screen translucent window changes the whole screen, and damage under any of eight overlapping blurred windows joins all their footprints, so those scenes repaint as much as before and cost the same. Compust's own CPU did not change in any scene beyond 0.05 points. Every scene held 60 frames per second; the old build skipped 4 vblanks once with eight blurred windows on one monitor, and the new build skipped none.
+
+The new build presented no frame in any idle run. The old build's first idle run, the first scene of the sequence, presented 20 frames in its first three seconds, while desktop clients were still redrawing after the running compositor was stopped; its X server figure, 6.55%, raises that build's two-monitor idle mean. Open and close varied most between runs of one build, by up to 0.8 points for the X server: in one old-build run, 19 of the first cycles took two frames to open and close, against one frame for every other open and close in both builds.
+
+Blur is now the largest remaining cost of the eight-window scene. With region repaint it adds 0.6 points to Compust and 1.9 to the X server on two monitors, and 0.7 and 1.2 on one, because a change in the top window repaints the whole stack of blurred windows. That is the cost [step 4](ROADMAP.md#4-occlusion-and-blur-reuse) would reduce.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.
