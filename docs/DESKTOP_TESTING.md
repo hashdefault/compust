@@ -620,6 +620,14 @@ Each measured phase lasted ten seconds after two seconds of warmup and requested
 CPU percentages use one core. At 100 accounting ticks per second, one tick over ten seconds is 0.1 percentage point; zero means no accumulated Compust ticks in that interval. RSS was unchanged during each measured phase. This record covers short synthetic fixtures on one display. Real fullscreen applications, window-manager focus behavior, other drivers and servers, multiple active monitors, shadow performance, and long-duration resource stability still require their own records.
 
 
+## Recorded mixed-refresh monitors (2026-10-04)
+
+The live RX 9060 XT / XLibre 25.1.9 / Xmonad 0.18.1 desktop passed nine monitor samples with HDMI-1 at 1920×1080 60 Hz and DP-2 at 1920×1080 180 Hz, for a 3840×1080 root. DP-2 was actually at 60 Hz before the test and was switched to 180 Hz. XRender with Present, direct XRender, and GL with Present each checked both monitors' opposite corners, the shared seam, and a managed window repaint while the primary output changed DP-2 → HDMI-1 → DP-2. The [record](benchmarks/2026-10-04/mixed-refresh-rx9060xt/README.md) identifies the source at `a3e6f31`, binaries, configurations, raw timings, CPU/RSS, XRes, and output states.
+
+All pixels passed, all three compositor processes stopped cleanly, and the GL log confirmed hardware rendering without fallback. XRes counts stayed identical within each profile and owned pixmaps held 24,962,725 bytes in every sample. Present's MSC/UST clock followed the primary output, about 180 Hz or 60 Hz; the largest active completion interval was 16.675 ms. The original compositor binary and configuration were restored, leaving DP-2 primary at 180 Hz and HDMI-1 at 60 Hz.
+
+Each sample measured three idle and three active seconds after warmup. Ordinary applications kept drawing, so idle phases still had frames. The marker requests only 60 updates/s and Compust's cap was 120 fps; this checks operation with different monitor rates, without certifying independent 180-fps output scheduling or panel latency. GL RSS rose by 2,640 KiB across renderer recreations despite stable XRes counts; three transitions cannot establish a long-term memory trend. This session did not repeat physical hotplug or qualify effects across the mixed-refresh layout.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

@@ -1,0 +1,6 @@
+2026-10-04T22:45:39.199405Z  INFO configuration loaded path=/home/lucas/compust/artifacts/mixed-refresh-20261004/observed/configs/gl-present.toml
+2026-10-04T22:45:39.228133Z  INFO drawing with the GPU renderer="AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)"
+2026-10-04T22:45:39.231924Z  INFO compositor started present=true windows=6
+2026-10-04T22:45:47.357946Z  INFO drawing with the GPU renderer="AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)"
+2026-10-04T22:45:55.786042Z  INFO drawing with the GPU renderer="AMD Radeon RX 9060 XT (radeonsi, gfx1200, ACO, DRM 3.64, 7.2.8-arch1-1)"
+2026-10-04T22:46:03.894467Z  INFO compositor stopped

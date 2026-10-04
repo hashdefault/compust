@@ -1,0 +1,3 @@
+2026-10-04T22:44:50.229713Z  INFO configuration loaded path=/home/lucas/compust/artifacts/mixed-refresh-20261004/observed/configs/xrender-present.toml
+2026-10-04T22:44:50.237522Z  INFO compositor started present=true windows=6
+2026-10-04T22:45:14.855031Z  INFO compositor stopped

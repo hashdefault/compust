@@ -1,0 +1,11 @@
+ M README.md
+ M README.pt-BR.md
+ M docs/DESKTOP_TESTING.md
+ M docs/DESKTOP_TESTING.pt-BR.md
+ M docs/ROADMAP.md
+ M docs/ROADMAP.pt-BR.md
+ M site/content.mjs
+ M tools/bench.sh
+ D tools/bench/picom-blur-glx.conf
+ D tools/bench/picom-blur-xrender.conf
+ D tools/bench/picom.conf

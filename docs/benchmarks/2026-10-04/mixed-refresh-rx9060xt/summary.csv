@@ -1,0 +1,10 @@
+profile,sample,active_present_completions,idle_present_completions,interval_median_ms,interval_p95_ms,interval_max_ms,estimated_present_clock_hz,active_compust_cpu_percent_one_core,active_server_cpu_percent_one_core,compust_rss_kib
+gl-present,001-dp-primary,271,124,11.111,16.669,16.671,179.996,1.3333,2.3333,68556
+gl-present,002-hdmi-primary,180,123,16.667,16.674,16.675,59.999,1.0000,2.0000,70236
+gl-present,003-dp-primary-restored,271,123,11.111,16.669,16.671,179.996,1.0000,2.6666,71196
+xrender-direct,001-dp-primary,0,0,,,,,0.3333,2.6666,4120
+xrender-direct,002-hdmi-primary,0,0,,,,,0.6667,2.3333,4124
+xrender-direct,003-dp-primary-restored,0,0,,,,,0.3333,2.6666,4128
+xrender-present,001-dp-primary,274,119,11.111,16.669,16.671,179.996,0.6667,2.6666,4128
+xrender-present,002-hdmi-primary,180,126,16.667,16.674,16.675,59.999,0.3333,2.3333,4132
+xrender-present,003-dp-primary-restored,271,122,11.111,16.668,16.670,180.002,0.3333,2.9999,4136

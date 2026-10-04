@@ -1,0 +1,142 @@
+diff --git a/tools/bench.sh b/tools/bench.sh
+index 03d1225..ebb6ef6 100755
+--- a/tools/bench.sh
++++ b/tools/bench.sh
+@@ -6,10 +6,10 @@ usage() {
+ }
+ if [[ ${1:-} == --help ]]; then
+     usage
+-    printf 'Measure the benchmark scenes on DISPLAY under each compositor in turn. Stop the\n'
++    printf 'Measure Compust benchmark scenes on DISPLAY. Stop the\n'
+     printf "display's compositor first and build release binaries, including the probe.\n"
+-    printf 'COMPOSITORS defaults to "compust picom-xrender picom-glx"; compust-gl adds Compust'"'"'s\n'
+-    printf 'GPU renderer. SCENES defaults to every scene,\n'
++    printf 'COMPOSITORS selects compust (the default) or compust-gl for the GPU renderer.\n'
++    printf 'SCENES defaults to every scene,\n'
+     printf 'where a ":blur" suffix selects the blur configurations. SECONDS_PER_PHASE: 1-30.\n'
+     printf 'GPU_BUSY names a GPU load file to sample; the first amdgpu one is used by default.\n'
+     exit 0
+@@ -23,13 +23,13 @@ if [[ -z ${DISPLAY:-} || -z ${SERVER_PID:-} ]]; then
+     printf 'DISPLAY and SERVER_PID must identify the X server to measure.\n' >&2
+     exit 2
+ fi
+-read -r -a compositors <<<"${COMPOSITORS:-compust picom-xrender picom-glx}"
++read -r -a compositors <<<"${COMPOSITORS:-compust}"
+ read -r -a scenes <<<"${SCENES:-idle small-update fullscreen-translucent \
+ fullscreen-translucent:blur eight-translucent eight-translucent:blur covered covered:blur \
+ move-resize open-close}"
+ for compositor in "${compositors[@]}"; do
+     case "$compositor" in
+-        compust | compust-gl | picom-xrender | picom-glx) ;;
++        compust | compust-gl) ;;
+         *) printf 'Unknown compositor: %s\n' "$compositor" >&2; exit 2 ;;
+     esac
+ done
+@@ -96,29 +96,16 @@ xrandr --listproviders >"$report/providers.txt"
+ xrandr --verbose | awk '/^\t[^\t]/ { edid = /^\tEDID:/ } !(edid && /^\t\t/)' >"$report/outputs.txt"
+ target/release/compust --diagnose >"$report/diagnose.txt"
+ mkdir "$report/configs"
+-cp tools/bench/*.toml tools/bench/*.conf "$report/configs/"
++cp tools/bench/*.toml "$report/configs/"
+ binaries=(target/release/compust target/release/examples/desktop_probe)
+-if [[ " ${compositors[*]} " == *" picom-"* ]]; then
+-    picom --version >"$report/picom-version.txt"
+-    binaries+=("$(command -v picom)")
+-fi
+ sha256sum "${binaries[@]}" >"$report/binaries.txt"
+ date -Is >"$report/started.txt"
+ 
+ start() {
+     local compositor=$1 blur=$2 log=$3 suffix=
+     [[ $blur == 1 ]] && suffix=-blur
+-    case "$compositor" in
+-        compust | compust-gl)
+-            target/release/compust --display "$DISPLAY" \
+-                --config "$report/configs/$compositor$suffix.toml" >"$log" 2>&1 &
+-            ;;
+-        picom-*)
+-            local backend=${compositor#picom-} config=picom.conf
+-            [[ $blur == 1 ]] && config=picom-blur-$backend.conf
+-            picom --config "$report/configs/$config" --backend "$backend" >"$log" 2>&1 &
+-            ;;
+-    esac
++    target/release/compust --display "$DISPLAY" \
++        --config "$report/configs/$compositor$suffix.toml" >"$log" 2>&1 &
+     compositor_pid=$!
+ }
+ 
+@@ -156,11 +143,11 @@ for compositor in "${compositors[@]}"; do
+         fi
+         if kill -0 "$compositor_pid" 2>/dev/null; then
+             kill -TERM "$compositor_pid"
+-            # picom does not handle SIGTERM, so 143 is its normal end here.
+             exit_status=0
+             wait "$compositor_pid" || exit_status=$?
+-            if (( exit_status != 0 && exit_status != 143 )); then
++            if (( exit_status != 0 )); then
+                 printf '%s exited with status %s\n' "$compositor" "$exit_status"
++                status=1
+             fi
+         else
+             wait "$compositor_pid" || true
+diff --git a/tools/bench/picom-blur-glx.conf b/tools/bench/picom-blur-glx.conf
+deleted file mode 100644
+index d87141f..0000000
+--- a/tools/bench/picom-blur-glx.conf
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# picom settings matching tools/bench/compust-blur.toml with the glx backend.
+-# No shadows, fades, rounded corners, dimming, or unredirection, which Compust lacks.
+-vsync = true;
+-use-damage = true;
+-shadow = false;
+-fading = false;
+-corner-radius = 0;
+-inactive-opacity = 1.0;
+-active-opacity = 1.0;
+-frame-opacity = 1.0;
+-unredir-if-possible = false;
+-blur-background = true;
+-# Dual Kawase, the usual glx choice; strength 0 approximates a size-9 box (radius 4).
+-blur-method = "dual_kawase";
+-blur-size = 9;
+-blur-strength = 0;
+diff --git a/tools/bench/picom-blur-xrender.conf b/tools/bench/picom-blur-xrender.conf
+deleted file mode 100644
+index d7d0efd..0000000
+--- a/tools/bench/picom-blur-xrender.conf
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# picom settings matching tools/bench/compust-blur.toml with the xrender backend.
+-# No shadows, fades, rounded corners, dimming, or unredirection, which Compust lacks.
+-vsync = true;
+-use-damage = true;
+-shadow = false;
+-fading = false;
+-corner-radius = 0;
+-inactive-opacity = 1.0;
+-active-opacity = 1.0;
+-frame-opacity = 1.0;
+-unredir-if-possible = false;
+-blur-background = true;
+-# A box kernel of size 9 spans the same 4-pixel radius; xrender lacks dual_kawase.
+-blur-method = "box";
+-blur-size = 9;
+diff --git a/tools/bench/picom.conf b/tools/bench/picom.conf
+deleted file mode 100644
+index ba0a366..0000000
+--- a/tools/bench/picom.conf
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# picom settings matching tools/bench/compust.toml; the runner passes --backend.
+-# No shadows, fades, rounded corners, dimming, or unredirection, which Compust lacks.
+-vsync = true;
+-use-damage = true;
+-shadow = false;
+-fading = false;
+-corner-radius = 0;
+-inactive-opacity = 1.0;
+-active-opacity = 1.0;
+-frame-opacity = 1.0;
+-unredir-if-possible = false;
+-blur-background = false;
