@@ -134,6 +134,27 @@ impl Session {
         self.conn.flush()?;
         Ok(())
     }
+    /// Stop redirecting windows, which then draw to the screen directly, and take the overlay
+    /// out of their way. The screen shows the same image until a window draws.
+    pub(crate) fn suspend(&self) -> Result<()> {
+        let conn = &*self.conn;
+        conn.composite_unredirect_subwindows(self.screen.root, Redirect::MANUAL)?
+            .check()?;
+        conn.unmap_window(self.overlay)?.check()?;
+        Ok(())
+    }
+
+    /// Redirect windows again, each into a new pixmap that starts with what the window shows,
+    /// and bring the overlay back above them.
+    pub(crate) fn resume(&self) -> Result<()> {
+        let conn = &*self.conn;
+        conn.composite_redirect_subwindows(self.screen.root, Redirect::MANUAL)?
+            .check()
+            .context("redirecting windows again; another compositor may have started")?;
+        conn.map_window(self.overlay)?.check()?;
+        Ok(())
+    }
+
     fn prepare_overlay(&mut self) -> Result<()> {
         let conn = &*self.conn;
         self.overlay = conn

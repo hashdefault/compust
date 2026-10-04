@@ -53,6 +53,14 @@ Version 0.2.0-beta.1 completed these four acceptance gates for its declared scop
 
 ## Progress and verification
 
+### 1.0 step 1: fullscreen unredirection
+
+With `unredirect_fullscreen = true`, compositing is suspended while the topmost window shown is opaque, unshaped, and covers the whole screen: Compust stops redirecting windows, which then draw to the screen directly, and unmaps its overlay. It resumes when a viewable window maps, when the cover moves, changes size, shape, or opacity, is restacked beneath another window, or closes, and when the setting is reloaded off. The plan had allowed opaque windows above the cover. Anything above it now resumes compositing, so that a menu or a notification keeps its shadow and fade, and the rule stays that one window hides everything else. A window that receives no drawing changes nothing when it maps above the cover. The setting is off by default.
+
+Resuming redirects every window into a new pixmap that starts with what the window shows, so each mapped surface is captured again, and a window that closed while compositing was suspended goes without a fade, because Compust holds only its image from before. While suspended, Compust keeps its buffers and the surfaces' old pixmaps; freeing them is left for later.
+
+Eight X11 tests in [unredirect.rs](../tests/cases/unredirect.rs) cover a cover that maps and unmaps, with Present and with XRender; what a window drew while suspended, shown once a window maps above it; every change that uncovers the screen, each followed by the right pixels; windows with an alpha channel, one pixel short of the screen, and input-only; a cover that fades in; a cover destroyed while suspended; and resource counts over five cycles. Each of 14 changes to the implementation, made one at a time and reverted, failed at least one of them. All of this ran on Xvfb: no hardware session has recorded a suspension, what it saves, or how an actual fullscreen application enters and leaves it. With Xorg's Xvfb, all 114 X11 tests, 35 unit tests, and 6 CLI tests pass, as do the GPU crate's 9 tests, with formatting and strict Clippy.
+
 ### 1.0 step 1: shadows
 
 Windows cast a shadow once `shadow_radius` is above zero: a black copy of the window's rectangle, moved by `shadow_offset_x` and `shadow_offset_y`, blurred over the radius, and as dark as `shadow_opacity` times the window's opacity. Shadows are off by default, so an upgrade changes no desktop. A window casts one when its type is normal, dialog, utility, splash, or toolbar. A window that names no type and that the window manager leaves alone casts none, nor does one whose `_GTK_FRAME_EXTENTS` declares margins for a shadow of its own, and `shadow` in a rule decides either way. Shaped windows never cast one: a shadow that follows a shape waits for rounded corners, after 1.0.
@@ -352,7 +360,7 @@ Step 3 kept the single Present buffer: outside the update region its contents al
 
 | Step | Status | Required result |
 | --- | --- | --- |
-| 1. Features picom users rely on | Per-window rules and [shadows](#10-step-1-shadows) done; fullscreen unredirection and rules by focus not started | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
+| 1. Features picom users rely on | Per-window rules, [shadows](#10-step-1-shadows), and [fullscreen unredirection](#10-step-1-fullscreen-unredirection) done; rules by focus not started | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
 | 2. Hardware and desktops | One AMD/XLibre desktop recorded with 0.3.0-beta.1 under five window managers; another AMD/XLibre desktop and Intel/Xorg recorded with earlier builds; NVIDIA and Xorg on AMD pending | A release candidate recorded on AMD, Intel, and NVIDIA, on Xorg and XLibre, under six window managers with real applications |
 | 3. Performance against picom | One machine, recorded before region repaint | On one machine per GPU vendor, Compust keeps picom glx's frame rate in every benchmark scene, within one point of a core of its total CPU |
 | 4. Endurance | Not started | 10,000 automated window cycles, and a week of daily use on two machines, without a crash or growing resources |
@@ -362,7 +370,7 @@ Step 3 kept the single Present buffer: outside the update region its contents al
 ### 1. Features picom users rely on
 
 - **Shadows, [done](#10-step-1-shadows):** a soft shadow beneath windows, with global settings for its radius, offset, and opacity and a `shadow` setting for rules. Docks and desktop windows get none by default, and neither does a window that draws its own, such as a browser menu or a client-side-decorated GTK window. A shadow widens the area its window changes, never hides what lies beneath it, and fades with its window.
-- **Fullscreen unredirection:** an opt-in setting. While one opaque window covers the whole root and nothing above it is translucent, Compust stops compositing: windows draw to the screen directly and the overlay is hidden. Compositing resumes as soon as that changes. One overlay covers every monitor, so a window that fills one of several monitors stays composited, and the documentation says so.
+- **Fullscreen unredirection, [done](#10-step-1-fullscreen-unredirection):** an opt-in setting. While the topmost window is opaque and covers the whole root, Compust stops compositing: windows draw to the screen directly and the overlay is hidden. Compositing resumes as soon as that changes. One overlay covers every monitor, so a window that fills one of several monitors stays composited, and the documentation says so.
 - **Rules by focus:** a `focused` selector, from the root's `_NET_ACTIVE_WINDOW`, so that rules can make inactive windows translucent, as picom's `inactive-opacity` does. The documentation lists window managers that do not set the property.
 
 **Acceptance:** pixel tests cover each feature, in both painters where it draws, comparing frames with a fresh renderer's: shadow extent, offset, and shape; shadows of moving, fading, covered, and excluded windows; unredirection entered and left by mapping, unmapping, and resizing the fullscreen window and by stacking a translucent one above it, with correct pixels afterward; and focus moving between windows. The region repaint, blur reuse, and occlusion tests keep passing. Each new setting is documented in both languages.

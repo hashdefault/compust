@@ -19,6 +19,8 @@ pub(crate) struct Config {
     pub(crate) max_fps: u16,
     pub(crate) vsync: bool,
     pub(crate) backend: Backend,
+    /// Stop compositing while one opaque window covers the whole screen.
+    pub(crate) unredirect_fullscreen: bool,
     /// Per-window rules, from `[[rules]]` tables in order.
     pub(crate) rules: Vec<Rule>,
 }
@@ -48,6 +50,7 @@ impl Default for Config {
             max_fps: 120,
             vsync: true,
             backend: Backend::Xrender,
+            unredirect_fullscreen: false,
             rules: Vec::new(),
         }
     }
@@ -186,6 +189,7 @@ mod tests {
             "opactiy = 80",
             "backend = \"vulkan\"",
             "backend = \"GL\"",
+            "unredirect_fullscreen = 1",
         ] {
             assert!(Config::parse(input).is_err(), "accepted {input}");
         }
@@ -247,6 +251,12 @@ mod tests {
         assert_eq!(config.shadow_radius, 0);
         assert_eq!(config.shadow_opacity, 50);
         assert!(config.vsync);
+        assert!(!config.unredirect_fullscreen);
+        assert!(
+            Config::parse("unredirect_fullscreen = true")
+                .unwrap()
+                .unredirect_fullscreen
+        );
         assert_eq!(config.backend, Backend::Xrender);
         assert_eq!(
             Config::parse("backend = \"gl\"").unwrap().backend,

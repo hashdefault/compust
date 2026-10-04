@@ -9,16 +9,48 @@ use x11rb::{
     connection::Connection,
     protocol::{
         damage::ConnectionExt as _,
-        xproto::{ConnectionExt as _, ImageFormat, ImageOrder},
+        xproto::{ConnectionExt as _, Drawable, ImageFormat, ImageOrder, MapState},
     },
 };
 impl Desktop {
+    /// The pixel the compositor shows at `point`, read from its overlay.
     pub(crate) fn pixel(&self, point: (i16, i16)) -> Result<[u8; 3]> {
+        self.pixel_of(self.overlay, point)
+    }
+
+    /// The pixel the screen shows at `point`, read from the root: what windows draw there
+    /// themselves while compositing is suspended.
+    pub(crate) fn screen_pixel(&self, point: (i16, i16)) -> Result<[u8; 3]> {
+        self.pixel_of(self.root, point)
+    }
+
+    /// Whether the compositor has suspended compositing, which takes its overlay off the
+    /// screen.
+    pub(crate) fn suspended(&self) -> Result<bool> {
+        let overlay = self.conn.get_window_attributes(self.overlay)?.reply()?;
+        Ok(overlay.map_state == MapState::UNMAPPED)
+    }
+
+    /// Wait until compositing is suspended, or composited again.
+    pub(crate) fn until_suspended(&self, suspended: bool) -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while self.suspended()? != suspended {
+            anyhow::ensure!(
+                Instant::now() < deadline,
+                "compositing stayed {}",
+                if suspended { "on" } else { "suspended" }
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Ok(())
+    }
+
+    fn pixel_of(&self, drawable: Drawable, point: (i16, i16)) -> Result<[u8; 3]> {
         let reply = self
             .conn
             .get_image(
                 ImageFormat::Z_PIXMAP,
-                self.overlay,
+                drawable,
                 point.0,
                 point.1,
                 1,

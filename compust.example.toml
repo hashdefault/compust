@@ -21,6 +21,9 @@ vsync = true
 # "xrender" draws through the X server. "gl" draws with OpenGL ES on the server's GPU through
 # DRI3 1.2 and falls back to XRender, with a warning, where it cannot.
 backend = "xrender"
+# Stop compositing while one opaque window covers the whole screen, as a fullscreen game or
+# video does; windows then draw to the screen directly.
+unredirect_fullscreen = false
 
 # Per-window rules go after the settings above. Each chooses windows by `wm_class` (the second
 # WM_CLASS string), `window_type` (an EWMH type such as "normal", "dialog", "menu", "popup_menu",

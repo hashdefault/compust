@@ -216,12 +216,16 @@ impl Surface {
     /// its client's type and decorations suggest. A shaped window casts none, because its
     /// shadow would be that of its bounding rectangle.
     pub(crate) fn casts_shadow(&self) -> bool {
-        let whole = matches!(
+        self.overrides.shadow.unwrap_or(self.identity.shadow) && self.rectangular()
+    }
+
+    /// Whether the surface's shape is its whole rectangle, border included.
+    pub(crate) fn rectangular(&self) -> bool {
+        matches!(
             self.shape.as_slice(),
             [only] if (only.x, only.y) == (0, 0)
                 && (only.width, only.height) == (self.size.width, self.size.height)
-        );
-        self.overrides.shadow.unwrap_or(self.identity.shadow) && whole
+        )
     }
 
     /// Whether the identity comes from `window`.

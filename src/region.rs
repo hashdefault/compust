@@ -47,7 +47,7 @@ impl Rect {
         (!rect.is_empty()).then_some(rect)
     }
 
-    fn contains(self, other: Self) -> bool {
+    pub(crate) fn contains(self, other: Self) -> bool {
         self.left <= other.left
             && self.top <= other.top
             && self.right >= other.right

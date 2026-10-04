@@ -21,11 +21,11 @@ Each row links to its record.
 | [Configuration reload and rules](docs/ROADMAP.md#everyday-usability) | Released in 0.3.0-beta.1 | Configuration discovery, reload with SIGUSR1, per-window rules, and blur weighted by each pixel's opacity |
 | [Rendering work](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) | Released in 0.3.0-beta.1; measured on one desktop | Benchmark scenes against picom, stacking tracked without tree queries, region repaint, blur reuse, and occlusion |
 | [GPU renderer](docs/ROADMAP.md#rendering-backend-and-protocol-expansion) | Opt-in since 0.3.0-beta.1; recorded on one desktop | OpenGL ES through DRI3, drawing the same frames as XRender within two levels of color; XRender stays the default and the fallback |
-| [1.0 stable release](docs/ROADMAP.md#10-stable-release) | Current milestone; [shadows](docs/ROADMAP.md#10-step-1-shadows) done on `main` | Fullscreen unredirection, rules by focus, NVIDIA and more desktops, a picom comparison per GPU vendor, endurance runs, outside testers, and packaging |
+| [1.0 stable release](docs/ROADMAP.md#10-stable-release) | Current milestone; [shadows](docs/ROADMAP.md#10-step-1-shadows) and [fullscreen unredirection](docs/ROADMAP.md#10-step-1-fullscreen-unredirection) done on `main` | Rules by focus, NVIDIA and more desktops, a picom comparison per GPU vendor, endurance runs, outside testers, and packaging |
 
 | Environment | Recorded there |
 | --- | --- |
-| Xvfb in CI, on every push | 106 X11 tests that run a real Compust process against a real server and check pixels and protocol behavior, with 35 unit tests, 6 command-line tests, and the GPU crate's 9 tests on Mesa's software device |
+| Xvfb in CI, on every push | 114 X11 tests that run a real Compust process against a real server and check pixels and protocol behavior, with 35 unit tests, 6 command-line tests, and the GPU crate's 9 tests on Mesa's software device |
 | AMD Ryzen 5 5600GT (Radeon Vega) desktop: XLibre 25.1.9, Xmonad 0.18.1, one and two 1920×1080 monitors | [Desktop scenarios](docs/DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) with fades, translucency, and [blur](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03); [mode and layout changes, and both cables unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) |
 | Intel Core i3-1005G1 (Iris Plus) laptop: Xorg 21.1.11, with Xmonad 0.17.2, Openbox 3.6.1, and i3 4.23 | Desktop scenarios under [Xmonad](docs/DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03), [Openbox](docs/DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03), and [i3](docs/DESKTOP_TESTING.md#recorded-i3-sessions-2026-10-03); an [external display unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03); [suspend and resume](docs/DESKTOP_TESTING.md#recorded-suspend-and-resume-2026-10-03) |
 | AMD Ryzen 5 5600X with a Radeon RX 9060 XT: XLibre 25.1.9, with Xmonad 0.18.1, Openbox 3.6.1, i3 4.25.1, bspwm 0.9.12, and dwm 6.8, one and two 1920×1080 monitors | [Desktop scenarios](docs/DESKTOP_TESTING.md#recorded-desktop-sessions-on-the-rx-9060-xt-2026-10-04) with 0.3.0-beta.1's source under Xmonad, Openbox, i3, and bspwm, with fades, translucency, and blur. Under dwm: [configuration reloads](docs/DESKTOP_TESTING.md#recorded-reload-session-2026-10-03); [benchmark scenes against picom v13](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03); [region repaint](docs/DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](docs/DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](docs/DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and the [GPU renderer](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04) |
@@ -85,7 +85,7 @@ Choose an unused display number. This example disables X authentication only for
 
 The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11.
 
-Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity`, `max_fps`, the shadow settings, and the opacity, blur, and shadow that rules give apply from the next frame, to windows already open too. A new `fade_ms`, global or in a rule, applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
+Send SIGUSR1 to reload the configuration without restarting, for example with `pkill -USR1 -x compust`. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity`, `max_fps`, `unredirect_fullscreen`, the shadow settings, and the opacity, blur, and shadow that rules give apply from the next frame, to windows already open too. A new `fade_ms`, global or in a rule, applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
 
 ```toml
 opacity = 100
@@ -98,6 +98,7 @@ shadow_opacity = 50
 max_fps = 120
 vsync = true
 backend = "xrender"
+unredirect_fullscreen = false
 ```
 
 | Setting | Meaning |
@@ -110,6 +111,7 @@ backend = "xrender"
 | `shadow_opacity` | How dark a shadow is where it is darkest, as a percentage, 0–100, multiplied by its window's opacity |
 | `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
+| `unredirect_fullscreen` | `true` stops compositing while one opaque window covers the whole screen; `false`, the default, always composites |
 | `backend` | `"xrender"` draws through the X server; `"gl"` draws with OpenGL ES on the server's GPU, and falls back to XRender with a warning where it cannot |
 
 Blur applies behind translucent or ARGB windows, as strongly as each of the window's pixels is opaque: the transparent shadow margin around a browser's menu gets almost none, and the blur fades in and out with the window. If the server has no bilinear filter, Compust logs a warning and runs without blur. `max_fps` does not force idle repaints; the event loop wakes at most once per second while idle to observe shutdown and reload signals.
@@ -121,6 +123,12 @@ Shadows are on `main` and will be in the next beta; 0.3.0-beta.1 rejects their s
 A window casts a shadow when its type is `normal`, `dialog`, `utility`, `splash`, or `toolbar`. Desktops, docks, menus, tooltips, notifications, combo boxes, and drag icons cast none. Neither does a window that names no type and that the window manager leaves alone, such as a status bar or the menu of an older toolkit, nor one that declares margins for a shadow of its own in `_GTK_FRAME_EXTENTS`, as client-side-decorated GTK windows do. `shadow` in a [rule](#per-window-rules) decides for the windows it chooses, either way. A window with a non-rectangular shape never casts one, because the shadow would be that of its bounding rectangle.
 
 Under a tiling window manager each window's shadow falls on its neighbors. A rule with `window_type = "normal"` and `shadow = false` leaves shadows to dialogs and other floating windows that name their type.
+
+### Fullscreen unredirection
+
+With `unredirect_fullscreen = true`, Compust stops compositing while one window hides everything else: the topmost window, when it is opaque, has no shape, and covers the whole screen. Windows then draw to the screen directly, as without a compositor, which spares a fullscreen game or video the copy through Compust. Compositing resumes as soon as that stops being true: another window appears above it, such as a menu or a notification, or it moves, shrinks, turns translucent, or closes. Shadows, blur, and fades return with it.
+
+One overlay covers every monitor, so with several monitors a window that fills one of them does not cover the screen and stays composited. Like shadows, this setting is on `main` and will be in the next beta.
 
 ### Per-window rules
 
@@ -180,7 +188,7 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [rendering milestone](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) measured these costs; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine, before the repaint changes. Shadows are black and rectangular, and shaped windows cast none; they have pixel tests with XRender on Xvfb and a test of their GPU draw, but no hardware session has recorded them yet. Compust has no rounded corners, movement/scale animations, fullscreen unredirection, or picom configuration compatibility; the [1.0 milestone](docs/ROADMAP.md#10-stable-release) adds fullscreen unredirection.
+This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [rendering milestone](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) measured these costs; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) compare Compust with picom on one machine, before the repaint changes. Shadows are black and rectangular, and shaped windows cast none; they have pixel tests with XRender on Xvfb and a test of their GPU draw, but no hardware session has recorded them yet. Fullscreen unredirection needs one window over the whole root, so it never applies to one monitor of several, and it has only been tested on Xvfb. Compust has no rounded corners, movement/scale animations, or picom configuration compatibility; the [1.0 milestone](docs/ROADMAP.md#10-stable-release) adds rules that choose windows by focus.
 
 The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, and easing, chosen per window. Its configuration examples describe future work and are not accepted by the current binary.
 

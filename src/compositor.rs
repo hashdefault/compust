@@ -1,9 +1,9 @@
 use crate::{
     config::{Config, Source},
     renderer::Renderer,
-    scene::Scene,
+    scene::{Scene, vanished},
     session::Session,
-    surface::Capture,
+    surface::{Capture, Surface},
 };
 use anyhow::Result;
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
@@ -22,6 +22,16 @@ use x11rb::connection::Connection;
 const PRESENT_TIMEOUT: Duration = Duration::from_secs(1);
 const IDLE_POLL: Duration = Duration::from_secs(1);
 
+/// Who draws the screen.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Output {
+    /// Compust composites the windows into its overlay.
+    Composited,
+    /// Compositing is suspended: one window hides everything else, and windows draw to the
+    /// screen directly.
+    Direct,
+}
+
 pub(crate) struct Compositor {
     pub(crate) scene: Scene,
     pub(crate) renderer: Renderer,
@@ -30,6 +40,7 @@ pub(crate) struct Compositor {
     pub(crate) session: Session,
     pub(crate) dirty: bool,
     pub(crate) resizing: bool,
+    pub(crate) output: Output,
     pub(crate) running: bool,
     shutdown: Arc<AtomicBool>,
     reload: Arc<AtomicBool>,
@@ -72,6 +83,7 @@ impl Compositor {
             session,
             dirty: true,
             resizing: false,
+            output: Output::Composited,
             running: true,
             shutdown,
             reload,
@@ -96,6 +108,9 @@ impl Compositor {
             if self.reload.swap(false, Ordering::Relaxed) {
                 self.reload_config();
             }
+            if self.output == Output::Direct && !self.unredirects()? {
+                self.resume()?;
+            }
             let now = Instant::now();
             if self.renderer.submitted.is_some() && !self.resizing && self.can_paint() {
                 stalled = false;
@@ -116,16 +131,22 @@ impl Compositor {
             self.dirty |= previous_count != self.scene.windows.len() || animating || was_animating;
             was_animating = animating;
             if self.dirty && now >= next_frame && self.can_paint() {
-                // A reload that changes blur or vsync waits for the buffer like any paint.
-                if self.resizing || !self.renderer.fits(&self.config) {
-                    self.renderer = Renderer::new(&self.session, &self.config)?;
-                    self.resizing = false;
+                if self.output == Output::Composited && self.unredirects()? {
+                    self.suspend()?;
                 }
-                if self
-                    .renderer
-                    .paint(&self.session, &self.scene, &self.config)?
-                {
-                    next_frame = Instant::now() + self.config.frame_interval();
+                // While windows draw to the screen themselves, there is nothing to paint.
+                if self.output == Output::Composited {
+                    // A reload that changes blur or vsync waits for the buffer like any paint.
+                    if self.resizing || !self.renderer.fits(&self.config) {
+                        self.renderer = Renderer::new(&self.session, &self.config)?;
+                        self.resizing = false;
+                    }
+                    if self
+                        .renderer
+                        .paint(&self.session, &self.scene, &self.config)?
+                    {
+                        next_frame = Instant::now() + self.config.frame_interval();
+                    }
                 }
                 self.dirty = false;
             }
@@ -173,6 +194,60 @@ impl Compositor {
         } else {
             tracing::info!("no configuration file found; reloaded built-in defaults");
         }
+    }
+
+    /// Whether compositing can be suspended: `unredirect_fullscreen` asks for it, and one
+    /// surface hides everything else.
+    fn unredirects(&self) -> Result<bool> {
+        Ok(
+            self.config.unredirect_fullscreen
+                && self.renderer.covered(&self.scene, &self.config)?,
+        )
+    }
+
+    /// Stop compositing. Windows draw to the screen directly until `resume`.
+    fn suspend(&mut self) -> Result<()> {
+        self.session.suspend()?;
+        self.output = Output::Direct;
+        tracing::debug!("compositing suspended behind a window that covers the screen");
+        Ok(())
+    }
+
+    /// Composite again. Redirection gives every window a new pixmap, so each surface is
+    /// captured again, which repaints all of the screen: the surface that covered it either
+    /// changed or left. A surface that closed meanwhile has only its pixmap from before the
+    /// suspension, which shows an old image, so it goes without fading.
+    pub(crate) fn resume(&mut self) -> Result<()> {
+        self.session.resume()?;
+        self.output = Output::Composited;
+        tracing::debug!("compositing resumed");
+        let mut gone = Vec::new();
+        for surface in self.scene.windows.iter_mut().filter(|s| s.mapped) {
+            let capture = Surface::capture(
+                surface.window,
+                &Capture {
+                    conn: &self.session.conn,
+                    formats: &self.renderer.formats,
+                    atoms: &self.session.atoms,
+                    config: &self.config,
+                    replaces: Some(surface),
+                },
+            );
+            match capture {
+                Ok(Some(mut replacement)) => {
+                    std::mem::swap(&mut replacement.fade, &mut surface.fade);
+                    *surface = replacement;
+                }
+                Ok(None) => gone.push(surface.window),
+                Err(error) if vanished(&error) => gone.push(surface.window),
+                Err(error) => return Err(error),
+            }
+        }
+        self.scene
+            .windows
+            .retain(|surface| surface.mapped && !gone.contains(&surface.window));
+        self.dirty = true;
+        Ok(())
     }
 
     /// Present must release a buffer before it is painted again. A monitor reconfiguration can

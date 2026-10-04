@@ -50,6 +50,9 @@ mod rules;
 
 #[path = "cases/shadows.rs"]
 mod shadows;
+
+#[path = "cases/unredirect.rs"]
+mod unredirect;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

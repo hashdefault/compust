@@ -92,6 +92,21 @@ impl Renderer {
         Ok(true)
     }
 
+    /// Whether one surface hides everything else, so that compositing changes nothing on
+    /// the screen: the topmost surface shown, when it is still mapped, opaque, wholly
+    /// rectangular, and covers the screen.
+    pub(crate) fn covered(&self, scene: &Scene, config: &Config) -> Result<bool> {
+        let visible = visible(scene, config)?;
+        Ok(visible.last().is_some_and(|top| {
+            let surface = top.surface;
+            surface.mapped
+                && top.opacity == u16::MAX
+                && !surface.has_alpha
+                && surface.rectangular()
+                && surface.bounds().contains(self.screen())
+        }))
+    }
+
     /// Find what changed and plan the frame that shows it, with the area it repaints; `None`
     /// when nothing changed.
     fn plan<'a>(&mut self, visible: &[Seen<'a>]) -> Option<(Region, Plan<'a>)> {
