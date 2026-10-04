@@ -8,19 +8,19 @@ Compust é um **compositor independente para X11, escrito em Rust**, ainda exper
 
 O compositor combina as janelas dos aplicativos para formar a imagem final da área de trabalho. O Compust funciona **sobre um servidor X já em execução**, junto ao seu gerenciador de janelas. Ele não inicia nem substitui o Xorg/XLibre, não organiza as janelas e não oferece uma sessão Wayland nativa.
 
-**Estado atual: terceira beta, versão 0.2.0-beta.3, para testes controlados.** O backend XRender possui testes automatizados de pixels no Xvfb e validação registrada em duas máquinas: um desktop AMD com XLibre e Xmonad, e um laptop Intel com Xorg e Xmonad, Openbox e i3; outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas. O branch `main` está à frente dessa beta, como mostram os [marcos](#marcos-e-ambientes-verificados) abaixo, e o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) do [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) define o que uma versão estável ainda exige.
+**Estado atual: quarta beta, versão 0.3.0-beta.1, para testes controlados.** Testes automatizados de pixels rodam no Xvfb, e há sessões registradas em três máquinas. Um desktop AMD com XLibre e dwm é a única que rodou o código de renderização desta beta; um desktop AMD com XLibre e Xmonad e um laptop Intel com Xorg e Xmonad, Openbox e i3 foram registrados com as betas anteriores. Outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. O Compust ainda não substitui o picom em todas as suas funções, e nenhuma vantagem de desempenho sobre ele foi demonstrada. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas. Os [marcos](#marcos-e-ambientes-verificados) abaixo mostram o que está pronto, e o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) do [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) define o que uma versão estável ainda exige.
 
 ## Marcos e ambientes verificados
 
-Cada linha leva ao seu registro. O que está marcado com `main` veio depois da 0.2.0-beta.3 e aguarda a próxima beta.
+Cada linha leva ao seu registro.
 
 | Marco | Situação | O que estabeleceu |
 | --- | --- | --- |
 | [Base 0.1](docs/ROADMAP.pt-BR.md#base-01-implementada) | Concluído | Composição com XRender, fades, transparência, desfoque, formatos e empilhamento, conferidos por testes de pixels em um servidor X real |
 | [Primeira beta](docs/ROADMAP.pt-BR.md#primeira-beta-quatro-etapas) | Publicada como 0.2.0-beta.1, beta.2 e beta.3 | Quatro critérios cumpridos para o escopo declarado: estabilidade das janelas, monitores e recursos, desktops reais e um arquivo de versão verificado |
-| [Recarga de configuração e regras](docs/ROADMAP.pt-BR.md#uso-cotidiano) | Concluído no `main` | Descoberta da configuração, recarga com SIGUSR1, regras por janela e desfoque ponderado pela opacidade de cada pixel |
-| [Trabalho de renderização](docs/ROADMAP.pt-BR.md#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) | Concluído no `main`; medido em um desktop | Cenas de benchmark comparadas com o picom, empilhamento acompanhado sem consultas à árvore, repintura por regiões, reaproveitamento do desfoque e oclusão |
-| [Renderizador de GPU](docs/ROADMAP.pt-BR.md#backend-e-expansão-do-protocolo) | Opcional no `main`; registrado em um desktop | OpenGL ES por DRI3, desenhando os mesmos quadros que o XRender com diferença de até dois níveis de cor; o XRender continua como padrão e como retorno |
+| [Recarga de configuração e regras](docs/ROADMAP.pt-BR.md#uso-cotidiano) | Publicado na 0.3.0-beta.1 | Descoberta da configuração, recarga com SIGUSR1, regras por janela e desfoque ponderado pela opacidade de cada pixel |
+| [Trabalho de renderização](docs/ROADMAP.pt-BR.md#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop) | Publicado na 0.3.0-beta.1; medido em um desktop | Cenas de benchmark comparadas com o picom, empilhamento acompanhado sem consultas à árvore, repintura por regiões, reaproveitamento do desfoque e oclusão |
+| [Renderizador de GPU](docs/ROADMAP.pt-BR.md#backend-e-expansão-do-protocolo) | Opcional desde a 0.3.0-beta.1; registrado em um desktop | OpenGL ES por DRI3, desenhando os mesmos quadros que o XRender com diferença de até dois níveis de cor; o XRender continua como padrão e como retorno |
 | [Versão estável 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) | Marco atual | Sombras, suspensão da composição em tela cheia, regras pelo foco, NVIDIA e mais desktops, uma comparação com o picom por fabricante de GPU, testes de uso prolongado, testadores externos e empacotamento |
 
 | Ambiente | O que foi registrado |

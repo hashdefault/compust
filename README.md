@@ -8,19 +8,19 @@ Compust is an experimental, standalone **X11 compositor written in Rust**, targe
 
 A compositor combines application windows into the final desktop image. Compust runs **on an existing X server**, alongside your window manager. It does not start or replace Xorg/XLibre, manage window placement, or provide a native Wayland session.
 
-**Status: third beta, version 0.2.0-beta.3, for controlled testing.** The XRender backend has automated pixel tests on Xvfb and recorded qualification on two machines: an AMD desktop running XLibre with Xmonad, and an Intel laptop running Xorg with Xmonad, Openbox, and i3; other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems. The `main` branch is ahead of that beta, as the [milestones](#milestones-and-verified-environments) below show, and the [1.0 milestone](docs/ROADMAP.md#10-stable-release) of the [roadmap](docs/ROADMAP.md) defines what a stable release still requires.
+**Status: fourth beta, version 0.3.0-beta.1, for controlled testing.** Automated pixel tests run on Xvfb, and sessions are recorded on three machines. An AMD desktop running XLibre with dwm is the only one that has run this beta's rendering code; an AMD desktop running XLibre with Xmonad and an Intel laptop running Xorg with Xmonad, Openbox, and i3 were recorded with the earlier betas. Other drivers, servers, and window managers still need community testing. Compust is not yet a drop-in replacement for picom, and no performance advantage over picom has been demonstrated. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems. The [milestones](#milestones-and-verified-environments) below show what is done, and the [1.0 milestone](docs/ROADMAP.md#10-stable-release) of the [roadmap](docs/ROADMAP.md) defines what a stable release still requires.
 
 ## Milestones and verified environments
 
-Each row links to its record. What is marked `main` came after 0.2.0-beta.3 and waits for the next beta.
+Each row links to its record.
 
 | Milestone | State | What it established |
 | --- | --- | --- |
 | [0.1 foundation](docs/ROADMAP.md#01-foundation-implemented) | Done | XRender composition, fades, transparency, blur, shapes, and stacking, checked by pixel tests against a real X server |
 | [First beta](docs/ROADMAP.md#first-beta-four-steps) | Published as 0.2.0-beta.1, beta.2, and beta.3 | Four gates met for the declared scope: window stability, monitors and resources, real desktops, and a checked release archive |
-| [Configuration reload and rules](docs/ROADMAP.md#everyday-usability) | Done on `main` | Configuration discovery, reload with SIGUSR1, per-window rules, and blur weighted by each pixel's opacity |
-| [Rendering work](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) | Done on `main`; measured on one desktop | Benchmark scenes against picom, stacking tracked without tree queries, region repaint, blur reuse, and occlusion |
-| [GPU renderer](docs/ROADMAP.md#rendering-backend-and-protocol-expansion) | Opt-in on `main`; recorded on one desktop | OpenGL ES through DRI3, drawing the same frames as XRender within two levels of color; XRender stays the default and the fallback |
+| [Configuration reload and rules](docs/ROADMAP.md#everyday-usability) | Released in 0.3.0-beta.1 | Configuration discovery, reload with SIGUSR1, per-window rules, and blur weighted by each pixel's opacity |
+| [Rendering work](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) | Released in 0.3.0-beta.1; measured on one desktop | Benchmark scenes against picom, stacking tracked without tree queries, region repaint, blur reuse, and occlusion |
+| [GPU renderer](docs/ROADMAP.md#rendering-backend-and-protocol-expansion) | Opt-in since 0.3.0-beta.1; recorded on one desktop | OpenGL ES through DRI3, drawing the same frames as XRender within two levels of color; XRender stays the default and the fallback |
 | [1.0 stable release](docs/ROADMAP.md#10-stable-release) | Current milestone | Shadows, fullscreen unredirection, rules by focus, NVIDIA and more desktops, a picom comparison per GPU vendor, endurance runs, outside testers, and packaging |
 
 | Environment | Recorded there |

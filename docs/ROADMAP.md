@@ -12,7 +12,7 @@ This milestone establishes a base for experiments. It does not establish desktop
 
 ## First beta: four steps
 
-The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 was that beta, and 0.2.0-beta.2 and 0.2.0-beta.3 follow it; the [beta guide](BETA.md) lists the current declared scope.
+The first beta uses the XRender backend and declares support only for environments with recorded test evidence. It is intended for controlled community testing. Version 0.2.0-beta.1 was that beta, 0.2.0-beta.2 and 0.2.0-beta.3 follow it, and [0.3.0-beta.1](#fourth-beta-prerelease) starts the path to 1.0; the [beta guide](BETA.md) lists the current declared scope.
 
 | Step | Status | Required result |
 | --- | --- | --- |
@@ -221,6 +221,14 @@ Those records predate the fix and use synthetic windows; the fix itself was conf
 
 Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identical archives. The packaged binary printed its version, needs no glibc symbol newer than 2.34, refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. With that binary in place, the nested desktop checks passed in all three modes with Xmonad, Openbox, and i3 on Xorg Xephyr 21.1.11, using three-second phases.
 
+### Fourth beta prerelease
+
+Version 0.3.0-beta.1 carries everything since 0.2.0-beta.3: configuration discovery and reload, per-window rules, weighted blur, the event-path and repaint changes, region repaint, blur reuse, occlusion, and the opt-in GPU renderer. It is the first release on the [path to 1.0](#release-path). The [beta guide](BETA.md) lists the scope, and the [release notes](releases/v0.3.0-beta.1.md) list the changes.
+
+Its declared scope is narrower than that of 0.2.0-beta.3. Only the RX 9060 XT desktop has run this beta's rendering code, in benchmark scenes with synthetic windows at commits before the release. The Radeon Vega desktop and the Intel laptop were recorded with the earlier painter, and the laptop is no longer available. The per-window rules and the weighted blur have automated tests only, and no hardware session was repeated with the release binary.
+
+Two [`package.sh`](../tools/package.sh) runs on the RX 9060 XT desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34; it links no EGL library, which the GPU renderer loads when it starts. On Xorg's Xvfb 21.1.24 it refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -237,6 +245,7 @@ Two [`package.sh`](../tools/package.sh) runs on the Intel laptop produced identi
 | XLibre 25.1.9 native, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP-to-VGA at 1920×1080 60 Hz | Mode, layout, and output changes; physical unplugging and reconnection of both connectors; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with fade/blur disabled while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). The desktop scenario probe was not run in this session. |
 | Dedicated XLibre 25.1.9 session on the same AMD machine, HDMI-1 alone at 1920×1080 60 Hz, glamor, default TearFree | Probe desktop scenarios with wallpaper change; Present, direct XRender, and effects (fades, translucency, blur); CPU, RSS, and Present pacing | Recorded 2026-10-03 with synthetic windows. [Results and limitations](DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03). Convolution blur fell to about five frames per second behind a full-screen translucent window; the [pyramid blur](DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03) keeps 60. |
 | XLibre 25.1.9 native, modesetting, AMD Ryzen 5 5600X + Radeon RX 9060 XT (Navi 44, radeonsi, Mesa 26.2.4), dwm 6.8, DP-2 + HDMI-1 at 1920×1080 60 Hz | Output on/off and layout changes with configuration reloads of blur, fades, and vsync; Present and direct XRender; CPU, RSS, XRes, and Present pacing | Recorded 2026-10-03 with synthetic windows while the desktop's own applications ran. [Results and limitations](DESKTOP_TESTING.md#recorded-reload-session-2026-10-03). No physical unplugging; the desktop scenario probe was not run. |
+| Same RX 9060 XT desktop, one and two monitors | Benchmark scenes under Compust and picom v13, then with region repaint, blur reuse, occlusion, and the GPU renderer beside XRender; CPU, GPU load, RSS, Present pacing, and open and close latencies | Recorded 2026-10-03 and 2026-10-04 with synthetic windows: [picom comparison](DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03), [region repaint](DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and [GPU renderer](DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04). The only hardware records of the 0.3.0-beta.1 painter; no desktop scenario probe. |
 
 Reproduce the lifecycle checks with the repository's pinned toolchain and Xvfb installed. The [CI runs](https://github.com/hashdefault/compust/actions/workflows/ci.yml) record results against each exact commit; include the revision printed below in local reports.
 
@@ -373,7 +382,7 @@ Run the benchmark scenes with a release candidate on one machine per GPU vendor,
 
 ### 5. Outside testing
 
-Publish betas as features land, starting with everything since 0.2.0-beta.3, and announce each release candidate where X11 users gather.
+Publish betas as features land; [0.3.0-beta.1](#fourth-beta-prerelease) started with everything since 0.2.0-beta.3. Announce each release candidate where X11 users gather.
 
 **Acceptance:** at least three testers other than the maintainer report running a release candidate through the issue templates, and that candidate then goes two weeks without a new report of a crash, a stale or invisible window, or a leak. Every report is fixed or listed as a known limit with its environment.
 
@@ -383,7 +392,7 @@ Publish betas as features land, starting with everything since 0.2.0-beta.3, and
 
 ### Release path
 
-1. **0.3.0-beta.1:** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing starts now.
+1. **0.3.0-beta.1, [published](#fourth-beta-prerelease):** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing can start.
 2. **Further 0.3 betas** as step 1's features land.
 3. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
 4. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.

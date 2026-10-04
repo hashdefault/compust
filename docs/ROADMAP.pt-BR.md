@@ -12,7 +12,7 @@ Esse marco cria uma base para experimentação. Ele não comprova compatibilidad
 
 ## Primeira beta: quatro etapas
 
-A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 foi essa beta, e a 0.2.0-beta.2 e a 0.2.0-beta.3 vêm em seguida; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado atual.
+A primeira beta usa o backend XRender e declara suporte somente aos ambientes com evidências registradas de teste. Ela é voltada a testes controlados da comunidade. A versão 0.2.0-beta.1 foi essa beta, a 0.2.0-beta.2 e a 0.2.0-beta.3 vêm em seguida, e a [0.3.0-beta.1](#quarta-pré-versão-beta) inicia o caminho até a 1.0; o [guia da beta](BETA.pt-BR.md) lista o escopo declarado atual.
 
 | Etapa | Estado | Resultado necessário |
 | --- | --- | --- |
@@ -221,6 +221,14 @@ Esses registros são anteriores à correção e usam janelas sintéticas; a corr
 
 Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produziram arquivos idênticos. O binário empacotado exibiu sua versão, não exige símbolos da glibc mais novos que a 2.34, recusou-se a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou. Com esse binário, as verificações de desktop aninhadas passaram nos três modos com Xmonad, Openbox e i3 no Xorg Xephyr 21.1.11, com fases de três segundos.
 
+### Quarta pré-versão beta
+
+A versão 0.3.0-beta.1 traz tudo o que veio depois da 0.2.0-beta.3: descoberta e recarga de configuração, regras por janela, desfoque ponderado, as mudanças no caminho de eventos e no redesenho, repintura por regiões, reaproveitamento do desfoque, oclusão e o renderizador de GPU opcional. É a primeira versão no [caminho até a 1.0](#caminho-até-a-versão). O [guia da beta](BETA.pt-BR.md) lista o escopo, e as [notas da versão](releases/v0.3.0-beta.1.md) listam as mudanças.
+
+Seu escopo declarado é mais estreito que o da 0.2.0-beta.3. Somente o desktop com RX 9060 XT rodou o código de renderização desta beta, em cenas de benchmark com janelas sintéticas e em commits anteriores à versão. O desktop com Radeon Vega e o laptop Intel foram registrados com o pintor anterior, e o laptop não está mais disponível. As regras por janela e o desfoque ponderado têm apenas testes automatizados, e nenhuma sessão em hardware foi repetida com o binário desta versão.
+
+Duas execuções do [`package.sh`](../tools/package.sh) no desktop com RX 9060 XT produziram arquivos idênticos. O binário empacotado exibiu sua versão e não exige símbolos da glibc mais novos que a 2.34; ele não se liga a nenhuma biblioteca EGL, que o renderizador de GPU carrega ao iniciar. No Xvfb 21.1.24 do Xorg, ele se recusou a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -237,6 +245,7 @@ Duas execuções do [`package.sh`](../tools/package.sh) no laptop Intel produzir
 | XLibre 25.1.9 nativo, modesetting + amdgpu, AMD Ryzen 5 5600GT (Radeon Vega, Mesa 26.2.4), Xmonad 0.18.1, HDMI + DP para VGA em 1920×1080 a 60 Hz | Mudanças de modo, disposição e saídas; desconexão e reconexão física dos dois conectores; Present e XRender direto; CPU, RSS, XRes e ritmo Present | Registro de 2026-10-03 com fade/desfoque desativados e os aplicativos do próprio desktop em execução. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-registrada-em-hardware-2026-10-03). O probe de cenários de desktop não foi executado nesta sessão. |
 | Sessão dedicada do XLibre 25.1.9 na mesma máquina AMD, somente HDMI-1 em 1920×1080 a 60 Hz, glamor, TearFree padrão | Cenários de desktop do probe com troca de papel de parede; Present, XRender direto e efeitos (fades, translucidez, desfoque); CPU, RSS e ritmo Present | Registro de 2026-10-03 com janelas sintéticas. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-de-desktop-registrada-em-hardware-2026-10-03). O desfoque por convolução caiu para cerca de cinco quadros por segundo atrás de uma janela translúcida em tela cheia; o [desfoque em pirâmide](DESKTOP_TESTING.pt-BR.md#sessão-registrada-do-desfoque-em-pirâmide-2026-10-03) mantém 60. |
 | XLibre 25.1.9 nativo, modesetting, AMD Ryzen 5 5600X + Radeon RX 9060 XT (Navi 44, radeonsi, Mesa 26.2.4), dwm 6.8, DP-2 + HDMI-1 em 1920×1080 a 60 Hz | Saídas ligadas/desligadas e mudanças de disposição com recargas de configuração de desfoque, fades e vsync; Present e XRender direto; CPU, RSS, XRes e ritmo Present | Registro de 2026-10-03 com janelas sintéticas e os aplicativos do próprio desktop em execução. [Resultados e limitações](DESKTOP_TESTING.pt-BR.md#sessão-registrada-de-recarga-2026-10-03). Sem desconexão física; o probe de cenários de desktop não foi executado. |
+| O mesmo desktop com RX 9060 XT, um e dois monitores | Cenas de benchmark com o Compust e com o picom v13 e, depois, com repintura por regiões, reaproveitamento do desfoque, oclusão e o renderizador de GPU ao lado do XRender; CPU, carga da GPU, RSS, ritmo Present e latências de abertura e fechamento | Registros de 2026-10-03 e 2026-10-04 com janelas sintéticas: [comparação com o picom](DESKTOP_TESTING.pt-BR.md#cenas-de-benchmark-registradas-2026-10-03), [repintura por regiões](DESKTOP_TESTING.pt-BR.md#repintura-por-regiões-registrada-2026-10-04), [reaproveitamento do desfoque](DESKTOP_TESTING.pt-BR.md#reaproveitamento-do-desfoque-registrado-2026-10-04), [oclusão](DESKTOP_TESTING.pt-BR.md#oclusão-registrada-2026-10-04) e [renderizador de GPU](DESKTOP_TESTING.pt-BR.md#renderizador-de-gpu-registrado-2026-10-04). São os únicos registros em hardware do pintor da 0.3.0-beta.1; o probe de cenários de desktop não foi executado. |
 
 Reproduza as verificações com a toolchain fixada pelo repositório e o Xvfb instalado. As [execuções de CI](https://github.com/hashdefault/compust/actions/workflows/ci.yml) registram resultados para cada commit exato; inclua a revisão exibida abaixo nos relatos locais.
 
@@ -373,7 +382,7 @@ Rodar as cenas de benchmark com uma versão candidata em uma máquina por fabric
 
 ### 5. Testes externos
 
-Publicar betas à medida que os recursos ficarem prontos, começando por tudo o que veio depois da 0.2.0-beta.3, e anunciar cada versão candidata onde usuários do X11 se reúnem.
+Publicar betas à medida que os recursos ficarem prontos; a [0.3.0-beta.1](#quarta-pré-versão-beta) começou com tudo o que veio depois da 0.2.0-beta.3. Anunciar cada versão candidata onde usuários do X11 se reúnem.
 
 **Aceitação:** pelo menos três testadores além do mantenedor relatam, pelos modelos de issue, o uso de uma versão candidata, e essa versão passa depois duas semanas sem novo relato de falha, de janela parada ou invisível ou de vazamento. Todo relato é corrigido ou listado como limite conhecido com seu ambiente.
 
@@ -383,7 +392,7 @@ Publicar betas à medida que os recursos ficarem prontos, começando por tudo o 
 
 ### Caminho até a versão
 
-1. **0.3.0-beta.1:** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos comecem agora.
+1. **0.3.0-beta.1, [publicada](#quarta-pré-versão-beta):** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos possam começar.
 2. **Outras betas 0.3** à medida que os recursos da etapa 1 ficarem prontos.
 3. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
 4. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
