@@ -55,6 +55,67 @@ O Compust acompanha empilhamento, movimento, redimensionamento, formato das jane
 
 Se um envio Present for rejeitado com `BadMatch` e os buffers originais de renderização continuarem válidos, o Compust registra um aviso e usa cópia direta via XRender até reiniciar. Após uma mudança RandR, o Compust recria seus buffers sem esperar por uma apresentação pendente, porque uma reconfiguração de monitores em hardware AMD descartou os eventos de conclusão dela. Se o Present não informar nada sobre um envio em um segundo, o Compust também recria seus buffers e repinta, para que uma notificação perdida não congele a tela. O servidor ainda pode exibir depois um envio dos buffers substituídos, até mesmo após o quadro novo; quando ele informa um, o Compust exibe de novo seu quadro atual. Os demais erros de protocolo mantêm seus tratamentos existentes.
 
+## Instalação
+
+O [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) gera pacotes x86_64 para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed a partir de um snapshot testado da `main` posterior à 0.3.0-beta.1, e roda a suíte de testes em cada build. As [notas de empacotamento](packaging/obs/README.md) dizem qual é o snapshot. O pacote instala apenas o programa `compust` e a documentação dele: nenhuma entrada de inicialização automática e nenhuma alteração na configuração do seu desktop.
+
+### Arch Linux e derivados
+
+Ainda não há pacote para Arch, então compile a partir do código-fonte. Os mesmos comandos valem para derivados que usam `pacman`, como CachyOS, EndeavourOS e Manjaro.
+
+```sh
+sudo pacman -S --needed git rust
+git clone https://github.com/hashdefault/compust.git
+cd compust
+cargo build --release --locked
+sudo install -Dm755 target/release/compust /usr/local/bin/compust
+```
+
+O pacote `rust` do Arch é mais novo que o 1.95 exigido. Se você usa rustup em vez desse pacote, o Cargo usa o toolchain 1.95.0 fixado pelo repositório. Para atualizar depois, rode `git pull` e repita os dois últimos comandos.
+
+### Debian, Ubuntu e Linux Mint
+
+Um único repositório serve aos três. O pacote é gerado no Debian 13 e só precisa da glibc 2.34; ele foi instalado no Debian 13, no Ubuntu 22.04 e 24.04 e no Linux Mint 22.
+
+```sh
+sudo apt install curl gnupg
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://download.opensuse.org/repositories/home:hashdefault/Debian_13/Release.key | gpg --dearmor | sudo tee /etc/apt/keyrings/compust.gpg > /dev/null
+echo 'deb [signed-by=/etc/apt/keyrings/compust.gpg] https://download.opensuse.org/repositories/home:/hashdefault/Debian_13/ /' | sudo tee /etc/apt/sources.list.d/compust.list
+sudo apt update
+sudo apt install compust
+```
+
+O repositório se chama `Debian_13` também no Ubuntu e no Mint.
+
+### Fedora e derivados
+
+Há repositórios para o Fedora 43 e o 44. `rpm -E %fedora` mostra o número da sua versão, então o comando escolhe o repositório correspondente. Derivados que usam `dnf` e se baseiam nessas versões devem funcionar da mesma forma; eles não foram testados.
+
+```sh
+sudo dnf config-manager addrepo --from-repofile="https://download.opensuse.org/repositories/home:/hashdefault/Fedora_$(rpm -E %fedora)/home:hashdefault.repo"
+sudo dnf install compust
+```
+
+### openSUSE Tumbleweed
+
+```sh
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/hashdefault/openSUSE_Tumbleweed/home:hashdefault.repo
+sudo zypper refresh
+sudo zypper install compust
+```
+
+### Depois de instalar
+
+Confira o servidor e inicie o Compust na sua sessão X11, depois de encerrar o compositor que já atende aquela tela:
+
+```sh
+compust --diagnose
+compust
+```
+
+Para partir da configuração de exemplo, copie `compust.example.toml` para `~/.config/compust/compust.toml`. O arquivo está no repositório, e os pacotes o instalam em `/usr/share/doc`; `dpkg -L compust` ou `rpm -ql compust` mostra onde. A seção [Configuração](#configuração) descreve as opções, e o [guia da beta](docs/BETA.pt-BR.md) explica como voltar ao compositor anterior e relatar problemas.
+
 ## Compilar e executar
 
 Você precisa de Linux, Rust 1.95.0 (selecionado pelo arquivo de toolchain), Cargo, um linker C e um servidor X com as extensões obrigatórias. Se usa rustup, confira se `~/.cargo/bin` está no `PATH`. A conexão X11 usa a implementação Rust do `x11rb`; não é necessário instalar cabeçalhos de desenvolvimento da Xlib. Quem for testar a beta pode baixar um binário verificado, como explica o [guia da beta](docs/BETA.pt-BR.md).

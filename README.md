@@ -55,6 +55,67 @@ Compust tracks window stacking, movement, resizing, bounding shapes, redraws, an
 
 If a Present submission is rejected with `BadMatch` and the original rendering buffers remain valid, Compust logs a warning and uses direct XRender copying until restart. After a RandR change, Compust rebuilds its buffers without waiting for a pending presentation, because a monitor reconfiguration on AMD hardware discarded its completion events. If Present reports nothing for a submission within one second, Compust likewise rebuilds its buffers and repaints, so a lost notification cannot freeze the screen. The server can still show a submission from the replaced buffers afterwards, even after the new frame; when it reports one, Compust shows its current frame again. Other protocol errors retain their existing handling.
 
+## Install
+
+The [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) builds x86_64 packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed from a tested snapshot of `main` after 0.3.0-beta.1, and runs the test suite in every build. The [packaging notes](packaging/obs/README.md) name the snapshot. A package installs the `compust` program and its documentation only: no autostart entry, and no change to your desktop configuration.
+
+### Arch Linux and derivatives
+
+There is no Arch package yet, so build from source. The same commands apply to derivatives that use `pacman`, such as CachyOS, EndeavourOS, and Manjaro.
+
+```sh
+sudo pacman -S --needed git rust
+git clone https://github.com/hashdefault/compust.git
+cd compust
+cargo build --release --locked
+sudo install -Dm755 target/release/compust /usr/local/bin/compust
+```
+
+Arch's `rust` package is newer than the required 1.95. If you use rustup instead of that package, Cargo takes the 1.95.0 toolchain that the repository pins. To update later, run `git pull` and repeat the last two commands.
+
+### Debian, Ubuntu, and Linux Mint
+
+One repository serves all three. The package is built on Debian 13 and needs only glibc 2.34; it was installed on Debian 13, Ubuntu 22.04 and 24.04, and Linux Mint 22.
+
+```sh
+sudo apt install curl gnupg
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://download.opensuse.org/repositories/home:hashdefault/Debian_13/Release.key | gpg --dearmor | sudo tee /etc/apt/keyrings/compust.gpg > /dev/null
+echo 'deb [signed-by=/etc/apt/keyrings/compust.gpg] https://download.opensuse.org/repositories/home:/hashdefault/Debian_13/ /' | sudo tee /etc/apt/sources.list.d/compust.list
+sudo apt update
+sudo apt install compust
+```
+
+The repository is named `Debian_13` on Ubuntu and Mint too.
+
+### Fedora and derivatives
+
+Repositories exist for Fedora 43 and 44. `rpm -E %fedora` prints your release number, so the command picks the matching one. Derivatives that use `dnf` and are based on those releases should work the same way; they were not tested.
+
+```sh
+sudo dnf config-manager addrepo --from-repofile="https://download.opensuse.org/repositories/home:/hashdefault/Fedora_$(rpm -E %fedora)/home:hashdefault.repo"
+sudo dnf install compust
+```
+
+### openSUSE Tumbleweed
+
+```sh
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/hashdefault/openSUSE_Tumbleweed/home:hashdefault.repo
+sudo zypper refresh
+sudo zypper install compust
+```
+
+### After installing
+
+Check the server, then start Compust from your X11 session after stopping the compositor already serving that screen:
+
+```sh
+compust --diagnose
+compust
+```
+
+To start from the example configuration, copy `compust.example.toml` to `~/.config/compust/compust.toml`. The file is in the repository, and the packages install it under `/usr/share/doc`; `dpkg -L compust` or `rpm -ql compust` shows where. [Configuration](#configuration) describes the settings, and the [beta guide](docs/BETA.md) explains how to return to your previous compositor and report problems.
+
 ## Build and run
 
 You need Linux, Rust 1.95.0 (the toolchain file selects it), Cargo, a C linker, and an X server with the required extensions. With a rustup installation, make sure `~/.cargo/bin` is in your `PATH`. The X11 connection uses `x11rb`'s Rust implementation; Compust does not require Xlib development headers. Beta testers can download a checked binary instead, as the [beta guide](docs/BETA.md) explains.
