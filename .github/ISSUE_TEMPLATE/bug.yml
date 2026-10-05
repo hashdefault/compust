@@ -6,7 +6,7 @@ body:
     attributes:
       label: Compust version / Versão do Compust
       description: Output of compust --version, and the release or commit you built / Saída de compust --version e a versão ou o commit compilado.
-      placeholder: compust 0.3.0-beta.1 (release v0.3.0-beta.1)
+      placeholder: compust 0.3.0-beta.2 (release v0.3.0-beta.2)
     validations:
       required: true
   - type: textarea

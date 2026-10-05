@@ -261,6 +261,12 @@ Seu escopo declarado cobre uma máquina. No desktop com RX 9060 XT, [sessões de
 
 Duas execuções do [`package.sh`](../tools/package.sh) no desktop com RX 9060 XT produziram arquivos idênticos. O binário empacotado exibiu sua versão e não exige símbolos da glibc mais novos que a 2.34; ele não se liga a nenhuma biblioteca EGL, que o renderizador de GPU carrega ao iniciar. No Xvfb 21.1.24 do Xorg, ele se recusou a iniciar ao lado de outro compositor, encerrou com sucesso após SIGTERM e encerrou com erro de conexão quando seu servidor X parou.
 
+### Quinta pré-versão beta
+
+A versão 0.3.0-beta.2 traz tudo o que veio depois da 0.3.0-beta.1: os três recursos da [etapa 1 da 1.0](#1-recursos-de-que-usuários-do-picom-dependem), sombras, suspensão da composição em tela cheia e regras pelo foco; [cantos arredondados](#cantos-arredondados-implementados); [recarga quando a configuração é salva](#uso-cotidiano-recarga-ao-salvar); e duas correções, para um buffer substituído apresentado com atraso e para os recortes sobrepostos do renderizador de GPU. O [guia da beta](BETA.pt-BR.md) traz o escopo, e as [notas da versão](releases/v0.3.0-beta.2.md) listam as mudanças.
+
+Seu escopo declarado cobre uma máquina: o desktop com Radeon Vega, agora no Xorg 21.1.24. Suas [sessões de desktop](DESKTOP_TESTING.pt-BR.md#sessões-xorg-registradas-no-desktop-com-radeon-vega-2026-10-05) com o i3 passaram em todos os cenários em `ed2cdb0`, antes dos cantos arredondados e da correção da GPU, e suas [verificações de recursos](DESKTOP_TESTING.pt-BR.md#cantos-arredondados-registrados-no-desktop-com-radeon-vega-2026-10-05) passaram nos dois pintores em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Os registros do desktop com RX 9060 XT cobrem a 0.3.0-beta.1 e commits anteriores. Todos usaram compilações locais, não o binário empacotado.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -428,13 +434,14 @@ Publicar betas à medida que os recursos ficarem prontos; a [0.3.0-beta.1](#quar
 ### Caminho até a versão
 
 1. **0.3.0-beta.1, [publicada](#quarta-pré-versão-beta):** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos possam começar.
-2. **Outras betas 0.3** à medida que os recursos da etapa 1 ficarem prontos.
-3. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
-4. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
+2. **0.3.0-beta.2, [publicada](#quinta-pré-versão-beta):** os três recursos da etapa 1, cantos arredondados e recarga ao salvar, para que os testes externos cubram o que a 1.0 promete.
+3. **Outras betas 0.3** à medida que correções e registros chegarem.
+4. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
+5. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
 
 ### Fora da 1.0
 
-Os marcos de [Cantos arredondados](#cantos-arredondados-planejados) e de [Animações de janelas](#animações-de-janelas-planejadas), múltiplos buffers do Present, sincronização explícita, gerenciamento de cores, HDR, VRR e mais de uma tela X por processo podem vir em versões 1.x que mantenham as promessas da 1.0. Compatibilidade com a configuração do picom e Wayland estão fora do escopo do projeto.
+O marco de [Animações de janelas](#animações-de-janelas-planejadas), múltiplos buffers do Present, sincronização explícita, gerenciamento de cores, HDR, VRR e mais de uma tela X por processo podem vir em versões 1.x que mantenham as promessas da 1.0. Compatibilidade com a configuração do picom e Wayland estão fora do escopo do projeto.
 
 ## Backend e expansão do protocolo
 
@@ -448,7 +455,7 @@ Gerenciamento de cores, HDR, VRR, extensões específicas do XLibre e agendament
 
 ## Uso cotidiano
 
-O uso da beta mostrou que mudar `fade_ms` exigia reiniciar o compositor e que uma configuração só era lida quando `--config` a indicava; a [descoberta e a recarga de configuração](#uso-cotidiano-descoberta-e-recarga-de-configuração) resolvem os dois pontos. A [1.0](#10-versão-estável) exige diagnóstico mais claro e empacotamento para distribuições. [Regras por janela](#uso-cotidiano-regras-por-janela-e-desfoque-ponderado) já definem opacidade, desfoque e duração do fade por classe, tipo ou título; o marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e permitiria que as regras escolhessem animações também. Reutilize esse modelo de regras em efeitos futuros. Sombras fazem parte da 1.0; o marco de [Cantos arredondados](#cantos-arredondados-planejados) abaixo pode vir depois dela, com tratamento correto de formato e dano.
+O uso da beta mostrou que mudar `fade_ms` exigia reiniciar o compositor e que uma configuração só era lida quando `--config` a indicava; a [descoberta e a recarga de configuração](#uso-cotidiano-descoberta-e-recarga-de-configuração) resolvem os dois pontos. A [1.0](#10-versão-estável) exige diagnóstico mais claro e empacotamento para distribuições. [Regras por janela](#uso-cotidiano-regras-por-janela-e-desfoque-ponderado) já definem opacidade, desfoque e duração do fade por classe, tipo ou título; o marco Animações de janelas abaixo detalha a proposta existente de movimento/escala e permitiria que as regras escolhessem animações também. Reutilize esse modelo de regras em efeitos futuros. Sombras fazem parte da 1.0, e o marco de [Cantos arredondados](#cantos-arredondados-implementados) abaixo chegou com elas na 0.3.0-beta.2.
 
 **Aceitação:** o comportamento é configurável, documentado nos dois idiomas e testável, sem anunciar implicitamente compatibilidade com a configuração ou a linguagem de animação do picom.
 
@@ -556,9 +563,9 @@ O responsável pelo projeto ainda precisa confirmar o esquema proposto `[animati
 
 Animar movimento/redimensionamento de janelas existentes e transições de slide da área de trabalho inteira está fora do escopo e permanece como trabalho futuro do roteiro. Modelo de mola, sombras, cantos arredondados e suspensão da composição em tela cheia continuam separados.
 
-## Cantos arredondados: planejados
+## Cantos arredondados: implementados
 
-**Objetivo:** arredondar os cantos das janelas, com um `corner_radius` global e o mesmo campo nas regras por janela, para que a janela, o desfoque atrás dela, sua sombra e o que ela esconde sigam um único contorno arredondado nos dois pintores. Os cantos arredondados [não fazem parte da 1.0](#fora-da-10); um campo de configuração novo mantém as promessas da 1.0, então este marco pode entrar em uma versão 1.x. Ele não tem versão nem data atribuída.
+**Objetivo:** arredondar os cantos das janelas, com um `corner_radius` global e o mesmo campo nas regras por janela, para que a janela, o desfoque atrás dela, sua sombra e o que ela esconde sigam um único contorno arredondado nos dois pintores. Os cantos arredondados estavam planejados para depois da 1.0 e chegaram na [0.3.0-beta.2](#quinta-pré-versão-beta), então `corner_radius` está entre as opções que a 1.0 revisa e congela. Falta a tarefa 6, que os valida.
 
 ### Ponto de partida
 
@@ -735,7 +742,7 @@ dim = 0
 - **Troca de área de trabalho:** o foco muda a cada troca, então as janelas da nova área se suavizam ao mesmo tempo. O número de transições é limitado pelas janelas mostradas; medir os quadros durante trocas com várias janelas.
 - **Vários monitores:** uma janela inativa em outro monitor também escurece. Isso segue o picom e fica documentado, não configurável, neste marco.
 - **Sombras:** a intensidade de uma sombra já acompanha a opacidade da janela, então uma janela inativa translúcida projeta uma sombra mais clara; o escurecimento deixa a sombra como está.
-- **Animações de janelas e cantos arredondados:** o escurecimento precisa acompanhar as transformações do marco de [Animações de janelas](#animações-de-janelas-planejadas) e a máscara dos cantos de [Cantos arredondados](#cantos-arredondados-planejados); o que chegar depois roda os testes de pixels do outro com a sua mudança. A opacidade suavizada pode compartilhar o estado de animação generalizado que Animações de janelas propõe.
+- **Animações de janelas e cantos arredondados:** o escurecimento precisa acompanhar as transformações do marco de [Animações de janelas](#animações-de-janelas-planejadas) e a máscara dos cantos de [Cantos arredondados](#cantos-arredondados-implementados); o que chegar depois roda os testes de pixels do outro com a sua mudança. A opacidade suavizada pode compartilhar o estado de animação generalizado que Animações de janelas propõe.
 - **Foco de entrada:** ao acompanhar o foco de entrada do X, o foco na raiz, `PointerRoot`, numa moldura ou numa janela que sumiu antes de o evento de foco ser lido precisa contar como nenhum cliente ativo, sem nunca escurecer o desktop inteiro por engano.
 
 ### Verificação e aceitação

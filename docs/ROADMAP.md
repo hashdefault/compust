@@ -261,6 +261,12 @@ Its declared scope covers one machine. On the RX 9060 XT desktop, [dedicated ses
 
 Two [`package.sh`](../tools/package.sh) runs on the RX 9060 XT desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34; it links no EGL library, which the GPU renderer loads when it starts. On Xorg's Xvfb 21.1.24 it refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped.
 
+### Fifth beta prerelease
+
+Version 0.3.0-beta.2 carries everything since 0.3.0-beta.1: the three features of [1.0 step 1](#1-features-picom-users-rely-on), shadows, fullscreen unredirection, and rules by focus; [rounded corners](#rounded-corners-implemented); [reloads when the configuration is saved](#everyday-usability-reload-on-save); and two fixes, for a replaced buffer presented late and for the GPU renderer's overlapping clips. The [beta guide](BETA.md) lists the scope, and the [release notes](releases/v0.3.0-beta.2.md) list the changes.
+
+Its declared scope covers one machine: the Radeon Vega desktop, now on Xorg 21.1.24. Its [desktop sessions](DESKTOP_TESTING.md#recorded-xorg-sessions-on-the-radeon-vega-desktop-2026-10-05) under i3 passed every scenario at `ed2cdb0`, before rounded corners and the GPU fix, and its [feature checks](DESKTOP_TESTING.md#recorded-rounded-corners-on-the-radeon-vega-desktop-2026-10-05) passed in both painters at `1fc0a1c`, whose compositor source differs from the release's only in its version number. The RX 9060 XT desktop's records cover 0.3.0-beta.1 and earlier commits. All of them used local builds, not the packaged binary.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -428,13 +434,14 @@ Publish betas as features land; [0.3.0-beta.1](#fourth-beta-prerelease) started 
 ### Release path
 
 1. **0.3.0-beta.1, [published](#fourth-beta-prerelease):** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing can start.
-2. **Further 0.3 betas** as step 1's features land.
-3. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
-4. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.
+2. **0.3.0-beta.2, [published](#fifth-beta-prerelease):** step 1's three features, rounded corners, and reload on save, so that outside testing covers what 1.0 promises.
+3. **Further 0.3 betas** as fixes and records land.
+4. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
+5. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.
 
 ### Not in 1.0
 
-The [Rounded Corners](#rounded-corners-planned) and [Window Animations](#window-animations-planned) milestones, multiple Present buffers, explicit synchronization, color management, HDR, VRR, and more than one X screen per process can come in 1.x releases that keep the 1.0 promises. Picom configuration compatibility and Wayland are outside the project's scope.
+The [Window Animations](#window-animations-planned) milestone, multiple Present buffers, explicit synchronization, color management, HDR, VRR, and more than one X screen per process can come in 1.x releases that keep the 1.0 promises. Picom configuration compatibility and Wayland are outside the project's scope.
 
 ## Rendering backend and protocol expansion
 
@@ -448,7 +455,7 @@ Color management, HDR, VRR, XLibre-specific extensions, and per-output schedulin
 
 ## Everyday usability
 
-Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. [1.0](#10-stable-release) requires clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Shadows are part of 1.0; the [Rounded Corners](#rounded-corners-planned) milestone below can follow it, with proper shape and damage semantics.
+Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. [1.0](#10-stable-release) requires clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Shadows are part of 1.0, and the [Rounded Corners](#rounded-corners-implemented) milestone below arrived with them in 0.3.0-beta.2.
 
 **Acceptance:** behavior is configurable, documented in both languages, testable, and does not silently claim compatibility with picom's configuration or scripting language.
 
@@ -556,9 +563,9 @@ Owner confirmation is still needed for the proposed `[animations]` schema, wheth
 
 Animating move/resize geometry of existing windows and whole-workspace slide transitions are out of scope and remain future roadmap items. A spring model, shadows, rounded corners, and fullscreen unredirection remain separate work.
 
-## Rounded Corners: planned
+## Rounded Corners: implemented
 
-**Goal:** round the corners of windows, with a global `corner_radius` and the same field in per-window rules, so that a window, the blur behind it, its shadow, and what it hides follow one rounded outline in both painters. Rounded corners are [not part of 1.0](#not-in-10); a new configuration field keeps 1.0's promises, so this milestone can land in a 1.x release. It has no assigned release or date.
+**Goal:** round the corners of windows, with a global `corner_radius` and the same field in per-window rules, so that a window, the blur behind it, its shadow, and what it hides follow one rounded outline in both painters. Rounded corners were planned after 1.0 and landed in [0.3.0-beta.2](#fifth-beta-prerelease) instead, so `corner_radius` is among the settings that 1.0 reviews and freezes. Task 6, which qualifies them, remains.
 
 ### Starting point
 
@@ -735,7 +742,7 @@ dim = 0
 - **Workspace switches:** focus moves on every switch, so the windows of the new workspace ease at once. The number of transitions is bounded by the windows shown; measure frames during switches with several windows.
 - **Multiple monitors:** an inactive window on another monitor dims too. That matches picom and is documented, not configurable, in this milestone.
 - **Shadows:** a shadow's darkness already follows its window's opacity, so an inactive translucent window casts a lighter shadow; dimming leaves the shadow as it is.
-- **Window Animations and Rounded Corners:** dimming must follow the transforms of the [Window Animations](#window-animations-planned) milestone and the corner mask of [Rounded Corners](#rounded-corners-planned); whichever lands second runs the other's pixel tests through its change. Eased opacity may share the generalized animation state that Window Animations proposes.
+- **Window Animations and Rounded Corners:** dimming must follow the transforms of the [Window Animations](#window-animations-planned) milestone and the corner mask of [Rounded Corners](#rounded-corners-implemented); whichever lands second runs the other's pixel tests through its change. Eased opacity may share the generalized animation state that Window Animations proposes.
 - **Input focus:** following X input focus, focus on the root, `PointerRoot`, a frame, or a window gone before its focus event is read must each count as no active client, never dimming the whole desktop by mistake.
 
 ### Verification and acceptance
