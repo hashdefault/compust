@@ -8,7 +8,7 @@ use crate::{
     animation::multiply_alpha,
     capabilities,
     config::Config,
-    region::{Rect, Region},
+    region::{Rect, Region, without},
     scene::Scene,
     session::Session,
     surface::Surface,
@@ -515,16 +515,6 @@ impl Renderer {
     }
 }
 
-/// `rects` without any part of `cut`.
-fn without(rects: Vec<Rect>, cut: &[Rect]) -> Vec<Rect> {
-    cut.iter().fold(rects, |rects, cut| {
-        rects
-            .into_iter()
-            .flat_map(|rect| rect.minus(*cut))
-            .collect()
-    })
-}
-
 /// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
 /// rule's or else the global one, times their fade. Each casts the shadow `config` gives it,
 /// and has its corners rounded as `config` says.
@@ -539,11 +529,12 @@ fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
             surface.fade.sample(now),
         );
         if opacity > 0 {
+            let corners = corner::radius(surface, config);
             visible.push(Seen {
                 surface,
                 opacity,
-                shadow: Shadow::cast(surface, opacity, config),
-                corners: corner::radius(surface, config),
+                shadow: Shadow::cast(surface, opacity, config, corners),
+                corners,
             });
         }
     }

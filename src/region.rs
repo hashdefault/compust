@@ -172,6 +172,16 @@ impl Region {
     }
 }
 
+/// `rects` without any part of `cut`.
+pub(crate) fn without(rects: Vec<Rect>, cut: &[Rect]) -> Vec<Rect> {
+    cut.iter().fold(rects, |rects, cut| {
+        rects
+            .into_iter()
+            .flat_map(|rect| rect.minus(*cut))
+            .collect()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

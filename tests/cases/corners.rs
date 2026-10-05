@@ -10,8 +10,8 @@ use x11rb::{
     protocol::{
         shape::{ConnectionExt as _, SK, SO},
         xproto::{
-            AtomEnum, ClipOrdering, ConnectionExt as _, CreateWindowAux, PropMode, Rectangle,
-            Window, WindowClass,
+            AtomEnum, ClipOrdering, ConfigureWindowAux, ConnectionExt as _, CreateWindowAux,
+            PropMode, Rectangle, Window, WindowClass,
         },
     },
     wrapper::ConnectionExt as _,
@@ -447,5 +447,120 @@ fn changing_radii_leaks_nothing() -> Result<()> {
     }
     cycle(8)?;
     assert_eq!(desktop.resources()?, baseline);
+    Ok(())
+}
+
+/// The weights of three box filters in a row reaching `radius` pixels each way, as the
+/// documentation describes shadows: their widths add up to `2 × radius + 3`.
+fn box_kernel(radius: i32) -> Vec<f64> {
+    let span = 2 * radius + 3;
+    let (each, rest) = (span / 3, span % 3);
+    let widths = [each + i32::from(rest > 0), each + i32::from(rest > 1), each];
+    let mut kernel = vec![1.0];
+    for width in widths {
+        let width = usize::try_from(width).unwrap_or(1);
+        let mut spread = vec![0.0; kernel.len() + width - 1];
+        for (index, weight) in kernel.iter().enumerate() {
+            for slot in spread.iter_mut().skip(index).take(width) {
+                *slot += weight;
+            }
+        }
+        kernel = spread;
+    }
+    kernel
+}
+
+#[test]
+fn shadows_follow_rounded_corners_and_fill_their_gaps() -> Result<()> {
+    let desktop = Desktop::new(
+        "fade_ms = 0\nblur_radius = 0\ncorner_radius = 13\n\
+         shadow_radius = 12\nshadow_opacity = 100\nshadow_offset_x = 4\nshadow_offset_y = 6\n",
+    )?;
+    paper(&desktop)?;
+    desktop.map(desktop.window(rect(100, 60), 0x00ff_0000)?)?;
+    desktop.until_pixel((150, 110), |p| p == RED)?;
+    desktop.until_pixel((203, 110), |[r, _, _]| r < 255)?;
+    let image = desktop.image()?;
+    desktop.screenshot("rounded-shadow")?;
+    // The shadow blurs the rounded window moved by the offset, (104, 66), over 12 pixels.
+    let kernel = box_kernel(12);
+    let total: f64 = kernel.iter().sum();
+    let window = (100, 60, 100, 100);
+    // The window's coverage, integrated once for its 100 × 100 pixels.
+    let coverage: Vec<f64> = (0..100)
+        .flat_map(|row| (0..100).map(move |column| covered((0, 0, 100, 100), 13, column, row)))
+        .collect();
+    let moved = |x: i32, y: i32| -> f64 {
+        // The rounded window moved by the offset, to (104, 66).
+        let (column, row) = (x - 104, y - 66);
+        if !(0..100).contains(&column) || !(0..100).contains(&row) {
+            return 0.0;
+        }
+        usize::try_from(row * 100 + column)
+            .ok()
+            .and_then(|at| coverage.get(at).copied())
+            .unwrap_or(0.0)
+    };
+    for y in 50..186 {
+        for x in 86..222 {
+            let mut dark = 0.0;
+            for (k, across) in kernel.iter().enumerate() {
+                for (l, down) in kernel.iter().enumerate() {
+                    let (dx, dy) = (i32::try_from(k)? - 12, i32::try_from(l)? - 12);
+                    dark += across * down * moved(x + dx, y + dy);
+                }
+            }
+            dark /= total * total;
+            let share = covered(window, 13, x, y);
+            if share >= 1.0 {
+                continue;
+            }
+            // The shadow fills a corner gap as much as the window leaves it uncovered.
+            let beneath = (100..200).contains(&x) && (60..160).contains(&y);
+            let darkness = if beneath { dark * (1.0 - share) } else { dark };
+            let paper = 255.0 * (1.0 - darkness) * (1.0 - share);
+            let wanted = [255.0 * share + paper, paper, paper];
+            let shown = at(&image, x, y)?;
+            for (channel, (shown, wanted)) in shown.iter().zip(wanted).enumerate() {
+                ensure!(
+                    (f64::from(*shown) - wanted).abs() <= 4.0,
+                    "({x}, {y}): channel {channel} is {shown}, not {wanted:.1}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn rounded_shadows_stay_out_of_translucent_windows_and_match_a_full_repaint() -> Result<()> {
+    let settings = "fade_ms = 0\nblur_radius = 4\ncorner_radius = 13\n\
+                    shadow_radius = 12\nshadow_opacity = 100\n";
+    let desktop = Desktop::new(settings)?;
+    paper(&desktop)?;
+    let window = desktop.window(rect(100, 60), 0x00ff_0000)?;
+    desktop.opacity(window, 0x8000_0000)?;
+    desktop.map(window)?;
+    desktop.until_pixel((203, 110), |[r, _, _]| r < 255)?;
+    // Half red over white inside, as bright as without a shadow.
+    for point in [(150, 110), (110, 70), (189, 149)] {
+        let [r, g, b] = desktop.pixel(point)?;
+        ensure!(
+            r == 255 && (126..=129).contains(&g) && g == b,
+            "{point:?}: {r} {g} {b}"
+        );
+    }
+    desktop
+        .conn
+        .configure_window(window, &ConfigureWindowAux::new().x(130).y(80))?
+        .check()?;
+    desktop.until_pixel((235, 130), |[r, _, _]| r == 255)?;
+    desktop.wait_vblanks(2)?;
+    let image = desktop.image()?;
+    assert_same(
+        &image,
+        &full_repaint(&desktop, settings)?,
+        "a moved rounded window with a shadow",
+    );
     Ok(())
 }
