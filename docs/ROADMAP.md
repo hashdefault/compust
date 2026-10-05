@@ -427,7 +427,7 @@ Publish betas as features land; [0.3.0-beta.1](#fourth-beta-prerelease) started 
 
 ### Not in 1.0
 
-Rounded corners, the [Window Animations](#window-animations-planned) milestone, multiple Present buffers, explicit synchronization, color management, HDR, VRR, and more than one X screen per process can come in 1.x releases that keep the 1.0 promises. Picom configuration compatibility and Wayland are outside the project's scope.
+The [Rounded Corners](#rounded-corners-planned) and [Window Animations](#window-animations-planned) milestones, multiple Present buffers, explicit synchronization, color management, HDR, VRR, and more than one X screen per process can come in 1.x releases that keep the 1.0 promises. Picom configuration compatibility and Wayland are outside the project's scope.
 
 ## Rendering backend and protocol expansion
 
@@ -441,7 +441,7 @@ Color management, HDR, VRR, XLibre-specific extensions, and per-output schedulin
 
 ## Everyday usability
 
-Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. [1.0](#10-stable-release) requires clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Shadows are part of 1.0; rounded corners can follow it, with proper shape and damage semantics.
+Beta use showed that changing `fade_ms` required restarting the compositor and that a configuration was read only when `--config` named it; [configuration discovery and reload](#everyday-usability-configuration-discovery-and-reload) now address both. [1.0](#10-stable-release) requires clearer troubleshooting and distribution packaging. [Per-window rules](#everyday-usability-per-window-rules-and-weighted-blur) now set opacity, blur, and fade duration by class, type, or title; the Window Animations milestone below expands the existing movement/scale proposal and would let rules choose animations too. Reuse that rule model for later effects. Shadows are part of 1.0; the [Rounded Corners](#rounded-corners-planned) milestone below can follow it, with proper shape and damage semantics.
 
 **Acceptance:** behavior is configurable, documented in both languages, testable, and does not silently claim compatibility with picom's configuration or scripting language.
 
@@ -548,5 +548,93 @@ Each item is one reviewable issue. Its fields follow the feature template: **Pro
 Owner confirmation is still needed for the proposed `[animations]` schema, whether animation settings join `[[rules]]` or a separate `[[animation_rules]]` table, and the opt-in 220/150 ms presets; first-match exact-text matching was confirmed for `[[rules]]`. The plan preserves the 180 ms legacy fade default and proposes enabling workspace suppression. No new release date or beta gate is assigned.
 
 Animating move/resize geometry of existing windows and whole-workspace slide transitions are out of scope and remain future roadmap items. A spring model, shadows, rounded corners, and fullscreen unredirection remain separate work.
+
+## Rounded Corners: planned
+
+**Goal:** round the corners of windows, with a global `corner_radius` and the same field in per-window rules, so that a window, the blur behind it, its shadow, and what it hides follow one rounded outline in both painters. Rounded corners are [not part of 1.0](#not-in-10); a new configuration field keeps 1.0's promises, so this milestone can land in a 1.x release. It has no assigned release or date.
+
+### Starting point
+
+| Area | Current implementation and consequence for this milestone |
+| --- | --- |
+| Shape | [surface.rs](../src/surface.rs) keeps a window's bounding shape as rectangles, border included, and knows whether that shape is its whole rectangle. Clips and the repaint area are lists of rectangles. A rounded edge needs partial coverage at each pixel, which rectangles cannot express without jagged edges, so it belongs in a mask while clips stay rectangular. |
+| XRender painting | [paint.rs](../src/renderer/paint.rs) composites each surface `OVER` the back buffer through a 1×1 repeating A8 picture that holds its opacity, and shows a blurred backdrop through weights of the window's alpha times that opacity. Neither mask holds a coverage that varies across the window. |
+| GPU painting | [gpu.rs](../src/renderer/gpu.rs) draws through `compust-gl`'s `draw`, `draw_masked`, and `shade`, which sample a source, and a mask where there is one, at `(target pixel + offset) × scale`. The two painters draw the same frames within two levels of color, and rounded corners must keep that. |
+| Shadows | [shadow.rs](../src/renderer/shadow.rs) blurs the window's rectangle with three integer box filters, which separates into one strip per axis; a rounded rectangle does not separate near its corners. The shadow is painted around the window's bounds and never beneath them, so the gaps a rounded corner leaves inside the bounds would show none. Shaped windows cast no shadow. |
+| Occlusion | [cover.rs](../src/renderer/cover.rs) lets a surface without alpha, at full opacity, hide its shape from everything beneath it. A rounded window no longer covers its corners, where the scene beneath must still be painted. |
+| Damage | [damage.rs](../src/renderer/damage.rs) compares each surface's shown bounds, shape, picture, opacity, and blur with the previous frame's. Corners lie inside the bounds, so a radius that a reload or a focus rule changes only needs adding to that state. |
+| Fullscreen unredirection | [compositor.rs](../src/compositor.rs) suspends compositing only for a topmost surface that is opaque, wholly rectangular, and covers the screen. A rounded window is not wholly rectangular, so a fullscreen window must stay square or unredirection would never apply to it. Compust does not read `_NET_WM_STATE` today. |
+| Rules | [rules.rs](../src/rules.rs) resolves ordered `[[rules]]` by class, type, title, and focus, and sets opacity, blur, fade duration, and shadow. A client's type and its `_GTK_FRAME_EXTENTS` margins decide whether it casts a shadow unless a rule says otherwise; the same identity can decide which windows are rounded. |
+
+### Proposed configuration
+
+**These fields are a proposal and are not accepted by the current binary.** The owner confirms the schema before coding, following the [feature proposal template](../.github/ISSUE_TEMPLATE/feature.yml).
+
+- `corner_radius`: a global radius in pixels, 0–64. Zero, the default, rounds nothing, so an upgrade changes no desktop, as with shadows.
+- A rule's `corner_radius`, in the same range, sets the radius of the windows it chooses whatever their type or margins; `corner_radius = 0` keeps them square. Each setting comes from the first matching rule that sets it, as for the existing fields, and a reload resolves it again.
+- Without a rule, a window is rounded when it would cast a shadow: its type is `normal`, `dialog`, `utility`, `splash`, or `toolbar`, and it declares no `_GTK_FRAME_EXTENTS` margins, inside which a client-side-decorated window draws its own corners. Docks, desktops, menus, tooltips, and notifications stay square unless a rule rounds them.
+- A window whose bounding shape is not its whole rectangle keeps that shape and is not rounded. A window whose client the window manager marks `_NET_WM_STATE_FULLSCREEN` stays square, so fullscreen unredirection still applies to it.
+- When painting, the radius is limited to half the window's shorter side, border included, so a small window's arcs never overlap.
+
+Proposed example, not a current configuration:
+
+```toml
+corner_radius = 8
+
+# Square terminals.
+[[rules]]
+wm_class = "Alacritty"
+corner_radius = 0
+
+# Rounded notifications, which their type would leave square.
+[[rules]]
+window_type = "notification"
+corner_radius = 12
+```
+
+### Proposed rendering
+
+1. **Coverage table.** For each radius in use, compute one corner's coverage, the share of each pixel inside the quarter circle, as an `r × r` table of integers, the way shadow profiles are computed, so both painters read the same values. The other three corners mirror it. Keep one table per radius in use, and release it once no surface uses that radius.
+2. **XRender.** Paint the window without its four corner squares as today, through the opacity mask. Paint each corner square through coverage times opacity, for example a scratch A8 picture filled with the opacity and multiplied by the coverage with `IN`; the first task confirms the method by counting requests per frame. Multiply the backdrop's weights by the same coverage, so blur never shows in the cut corners.
+3. **GPU.** Upload the table as a texture, and add a draw that multiplies it into the corner squares of both the window and its backdrop; the rest of the window keeps its current draws. A distance computed in the shader would be simpler, but would not match XRender's values.
+4. **Occlusion.** A rounded opaque surface hides its shape without its four corner squares, which never hides more than it covers. The scene beneath the corners is painted as beneath a translucent window.
+5. **Shadows.** Edges keep their strips. Each corner gets a square tile, `corner_radius + 2 × shadow_radius` pixels on a side, of the rounded corner blurred by the same three box filters in two dimensions, computed once per pair of radii. The shadow also fills the corner gaps inside the window's bounds, through the complement of the coverage, so no background shows between a window and its shadow and a translucent window is still no darker for its own shadow.
+6. **Damage.** Add the radius to what a frame showed of each surface. A change repaints the surface's bounds and, with a shadow, its extent.
+
+### Interaction and risks
+
+- **Borders:** X window borders, which Xmonad draws, are part of the window's rectangle. Rounding cuts their outer edge while their inner edge stays square, so a thick border looks uneven at the corners. Rounding the inner edge too needs the border width in the mask and is later work; document the limit.
+- **Tiling layouts:** windows that touch their neighbors show the wallpaper or the window beneath in each corner. A rule with `window_type = "normal"` and `corner_radius = 0` keeps tiled windows square.
+- **Window Animations:** the [planned transforms](#window-animations-planned) must carry the corner mask with the window, as they carry its shape and blur. Whichever milestone lands second runs the other's pixel tests through its own change.
+- **Translucent and ARGB windows:** coverage multiplies the window's own alpha, so a menu's transparent margin stays transparent while its rounded edge stays smooth.
+- **Cost:** each frame that repaints a rounded surface composites four more corner squares for the window, its backdrop, and its shadow. Measure Compust's and the X server's CPU with corners on and off before claiming a cost.
+
+### Verification and acceptance
+
+- [ ] With `corner_radius = 0` and no rule setting it, both painters draw exactly the frames they draw today, and every existing test passes unchanged.
+- [ ] Unit tests cover the coverage table: full inside the arc, empty outside it, symmetric, monotonic along each row and column, and a radius limited to half the shorter side, including 1×1 surfaces.
+- [ ] X11 pixel tests in XRender check each corner of opaque, translucent, and ARGB windows, with and without a border and during fades, against an independent reference, with the interior and the edges away from the corners unchanged.
+- [ ] Blur is cut at the corners. The scene beneath a rounded opaque window shows through its corners after moves, restacks, and reloads, matching a fresh renderer's frames.
+- [ ] Shadows fill the corner gaps without darkening a translucent window, match a two-dimensional reference blur at the corners, and keep their current values along the edges.
+- [ ] Rules round and square windows by class, type, title, and focus; a focus change or a reload that changes a radius repaints the right area. Client-side-decorated, shaped, and fullscreen windows stay as they are, and fullscreen unredirection still applies.
+- [ ] The GPU painter draws the same frames as XRender within two levels of color, on Mesa's software device and in the hardware probe.
+- [ ] After warmup and 1,000 open and close cycles with rounded corners, XRes counts and owned pixmap bytes return to their settled values; a reload that changes the radius releases the tables no surface uses.
+- [ ] The benchmark scenes record Compust's and the X server's CPU with corners on and off, in both painters, on a recorded desktop.
+- [ ] Formatting, strict Clippy, the full suite, the release build, and documentation in both languages, including the README's settings and rules tables and `compust.example.toml`, pass before the milestone is advertised as implemented.
+
+### Ordered tasks
+
+Each item is one reviewable issue, with the feature template's fields: **Problem or use case**, **Proposed behavior**, and **How to verify it**. The last field is the done criterion.
+
+1. **Confirm the schema and the mask method.** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field's name, range, and default by type, the fullscreen and shaped-window policies, and the XRender corner method, after counting its requests per frame. **How to verify it:** each open question in this section has a recorded decision.
+2. **Add the setting and the coverage table.** **Problem or use case:** nothing chooses or computes a radius. **Proposed behavior:** add `corner_radius` to `config.rs` and `rules.rs`, read the client's fullscreen state with its identity, and compute the table in a new `renderer/corner.rs`. **How to verify it:** parsing, precedence, identity, and table tests pass, and frames with the default configuration do not change.
+3. **Round corners in XRender.** **Problem or use case:** the opacity mask and the backdrop weights are uniform across the corners. **Proposed behavior:** corner masks for the window and its backdrop in `paint.rs`, the radius in `damage.rs`, and corners left out of what `cover.rs` hides. **How to verify it:** the pixel, blur, occlusion, and region repaint tests above pass on Xvfb.
+4. **Round shadows.** **Problem or use case:** shadow strips cannot draw a rounded corner, and nothing fills the gaps. **Proposed behavior:** corner tiles and gap fill in `shadow.rs`, in both painters. **How to verify it:** the shadow tests above pass, and existing shadow tests pass unchanged.
+5. **Round corners in the GPU painter.** **Problem or use case:** `compust-gl` has no draw that multiplies a coverage texture. **Proposed behavior:** the coverage texture and corner draws in `gpu.rs` and `crates/gl`. **How to verify it:** parity tests pass on Mesa's software device and in the hardware probe.
+6. **Qualify and document.** **Problem or use case:** pixel tests alone do not show cost or resource stability. **Proposed behavior:** resource cycles in `tests/cases/`, benchmark runs on a recorded desktop, and updates to the README, the architecture, `compust.example.toml`, and both roadmaps. **How to verify it:** every acceptance item has evidence for the exact commit and environment.
+
+### Decisions and later work
+
+The owner still needs to confirm the field's name and range, whether windows are rounded by type as they cast shadows, and that fullscreen and shaped windows stay square. Rounded inner border edges, a different radius per corner, and rounding windows that already have a shape are later work.
 
 There are no delivery dates yet. Open an issue to discuss a bounded change or contribute an observed failure; avoid starting several overlapping backend designs before agreeing on the requirements.
