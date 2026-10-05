@@ -12,6 +12,7 @@ mod rules;
 mod scene;
 mod session;
 mod surface;
+mod watch;
 
 use anyhow::Result;
 use clap::Parser;
@@ -27,7 +28,7 @@ struct Cli {
     #[arg(long)]
     display: Option<String>,
     /// TOML configuration (defaults to compust/compust.toml in the XDG configuration
-    /// directories, then built-in defaults). SIGUSR1 reloads it.
+    /// directories, then built-in defaults). Saving it reloads it, and so does SIGUSR1.
     #[arg(short, long)]
     config: Option<PathBuf>,
     /// Inspect server extensions without becoming the compositor.

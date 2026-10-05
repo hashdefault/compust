@@ -17,7 +17,7 @@ members = ["crates/gl"]
 anyhow = "1"
 compust-gl = { path = "crates/gl" }
 clap = { version = "4", features = ["derive"] }
-rustix = { version = "1", features = ["event"] }
+rustix = { version = "1", features = ["event", "fs"] }
 serde = { version = "1", features = ["derive"] }
 signal-hook = "0.3"
 toml = "0.8"

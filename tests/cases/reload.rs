@@ -1,7 +1,7 @@
 use crate::{
     rect,
     support::{
-        Desktop,
+        Desktop, Save,
         presentation::{Fault, Presentation},
     },
 };
@@ -32,6 +32,35 @@ fn reload_applies_opacity_without_restarting() -> Result<()> {
     desktop.until_pixel((40, 40), half_red)?;
     desktop.reload("fade_ms = 0\nblur_radius = 0")?;
     desktop.until_pixel((40, 40), |p| p == [255, 0, 0])?;
+    assert!(desktop.compositor.0.try_wait()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn saving_the_configuration_reloads_it_without_a_signal() -> Result<()> {
+    let mut desktop = Desktop::new("fade_ms = 0\nblur_radius = 0")?;
+    let window = desktop.window(rect(20, 20), 0x00ff_0000)?;
+    desktop.map(window)?;
+    desktop.until_pixel((40, 40), |p| p == [255, 0, 0])?;
+
+    for (how, dimmed) in [
+        (Save::InPlace, true),
+        (Save::Renamed, false),
+        (Save::MovedAside, true),
+    ] {
+        let opacity = if dimmed { 50 } else { 100 };
+        desktop.save(
+            &format!("fade_ms = 0\nblur_radius = 0\nopacity = {opacity}"),
+            how,
+        )?;
+        desktop.until_pixel((40, 40), |p| {
+            if dimmed {
+                half_red(p)
+            } else {
+                p == [255, 0, 0]
+            }
+        })?;
+    }
     assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }

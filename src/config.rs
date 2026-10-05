@@ -73,11 +73,7 @@ impl Source {
     pub(crate) fn load(&self) -> Result<(Config, Option<PathBuf>)> {
         let path = match &self.0 {
             Some(path) => Some(path.clone()),
-            None => discover(&candidates(
-                env::var_os("XDG_CONFIG_HOME"),
-                env::var_os("HOME"),
-                env::var_os("XDG_CONFIG_DIRS"),
-            ))?,
+            None => discover(&searched())?,
         };
         let config = match &path {
             Some(path) => fs::read_to_string(path)
@@ -88,6 +84,31 @@ impl Source {
         };
         Ok((config, path))
     }
+
+    /// The files whose change can change what `load` reads: the `--config` file, or every
+    /// candidate of the search, and the file that each one that is a symbolic link points to.
+    pub(crate) fn files(&self) -> Vec<PathBuf> {
+        let mut files = match &self.0 {
+            Some(path) => vec![path.clone()],
+            None => searched(),
+        };
+        let targets: Vec<_> = files
+            .iter()
+            .filter(|file| fs::symlink_metadata(file).is_ok_and(|meta| meta.is_symlink()))
+            .filter_map(|file| fs::canonicalize(file).ok())
+            .collect();
+        files.extend(targets);
+        files
+    }
+}
+
+/// The configuration files the search looks for, from the environment as it is now.
+fn searched() -> Vec<PathBuf> {
+    candidates(
+        env::var_os("XDG_CONFIG_HOME"),
+        env::var_os("HOME"),
+        env::var_os("XDG_CONFIG_DIRS"),
+    )
 }
 
 /// Configuration files in XDG search order: `$XDG_CONFIG_HOME` (default `~/.config`), then each
@@ -248,6 +269,25 @@ mod tests {
             Source::new(found)
                 .load()
                 .is_err_and(|error| format!("{error:#}").contains("dangling.toml"))
+        );
+    }
+
+    #[test]
+    fn watched_files_include_where_links_point() {
+        // Given a `--config` file, it is the file watched, along with its target when it is a
+        // link.
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("plain.toml");
+        fs::write(&file, "").unwrap();
+        assert_eq!(
+            Source::new(Some(file.clone())).files(),
+            std::slice::from_ref(&file)
+        );
+        let link = dir.path().join("link.toml");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert_eq!(
+            Source::new(Some(link.clone())).files(),
+            [link, fs::canonicalize(&file).unwrap()]
         );
     }
 

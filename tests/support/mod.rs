@@ -40,6 +40,18 @@ impl Drop for Process {
     }
 }
 
+/// How an editor saves a file.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Save {
+    /// Writes over the file itself.
+    InPlace,
+    /// Writes a new file beside it and renames that over it.
+    Renamed,
+    /// Moves the file aside, writes a new one in its place, then removes the old one, as
+    /// Vim does by default.
+    MovedAside,
+}
+
 pub(crate) struct Desktop {
     pub(crate) conn: RustConnection,
     pub(crate) root: Window,
@@ -152,6 +164,31 @@ impl Desktop {
     pub(crate) fn reload(&self, settings: &str) -> Result<()> {
         std::fs::write(self.config.path(), settings)?;
         self.signal_reload()
+    }
+
+    /// Saves the configuration file as an editor would, without signaling the compositor.
+    pub(crate) fn save(&self, settings: &str, how: Save) -> Result<()> {
+        let path = self.config.path();
+        let beside = |suffix: &str| {
+            let mut name = path.as_os_str().to_owned();
+            name.push(suffix);
+            std::path::PathBuf::from(name)
+        };
+        match how {
+            Save::InPlace => std::fs::write(path, settings)?,
+            Save::Renamed => {
+                let new = beside(".new");
+                std::fs::write(&new, settings)?;
+                std::fs::rename(&new, path)?;
+            }
+            Save::MovedAside => {
+                let backup = beside("~");
+                std::fs::rename(path, &backup)?;
+                std::fs::write(path, settings)?;
+                std::fs::remove_file(&backup)?;
+            }
+        }
+        Ok(())
     }
 
     /// Removes the configuration file, then asks the compositor to reload it.

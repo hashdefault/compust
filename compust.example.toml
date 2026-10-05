@@ -1,5 +1,5 @@
 # Without --config, Compust reads $XDG_CONFIG_HOME/compust/compust.toml (~/.config by default).
-# `pkill -USR1 -x compust` applies an edited file without restarting.
+# Saving this file applies it without restarting, and so does `pkill -USR1 -x compust`.
 # Percent opacity, 0..100. Application _NET_WM_WINDOW_OPACITY is multiplied by this.
 opacity = 100
 # Fade in/out duration. Zero disables animations.

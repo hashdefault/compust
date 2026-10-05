@@ -5,6 +5,7 @@ use crate::{
     scene::{Scene, vanished},
     session::Session,
     surface::{Capture, Surface},
+    watch::Watch,
 };
 use anyhow::Result;
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
@@ -45,6 +46,9 @@ pub(crate) struct Compositor {
     pub(crate) running: bool,
     shutdown: Arc<AtomicBool>,
     reload: Arc<AtomicBool>,
+    /// Watches the configuration files, so that saving one reloads it; `None` where the
+    /// system cannot, which leaves SIGUSR1.
+    watch: Option<Watch>,
 }
 
 impl Compositor {
@@ -56,6 +60,16 @@ impl Compositor {
         signal_hook::flag::register(SIGTERM, Arc::clone(&shutdown))?;
         let reload = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(SIGUSR1, Arc::clone(&reload))?;
+        let watch = match Watch::new() {
+            Ok(mut watch) => {
+                watch.follow(&source.files());
+                Some(watch)
+            }
+            Err(error) => {
+                tracing::warn!("saved configuration changes need SIGUSR1 to apply: {error}");
+                None
+            }
+        };
         session.acquire()?;
         let renderer = Renderer::new(&session, &config)?;
         let active = active_window(
@@ -97,6 +111,7 @@ impl Compositor {
             running: true,
             shutdown,
             reload,
+            watch,
         })
     }
 
@@ -115,7 +130,11 @@ impl Compositor {
                 };
                 self.handle(event, sequence)?;
             }
-            if self.reload.swap(false, Ordering::Relaxed) {
+            let saved = self
+                .watch
+                .as_mut()
+                .is_some_and(|watch| watch.settled(Instant::now()));
+            if self.reload.swap(false, Ordering::Relaxed) || saved {
                 self.reload_config();
             }
             if self.output == Output::Direct && !self.unredirects()? {
@@ -176,21 +195,47 @@ impl Compositor {
                         .min(IDLE_POLL)
                 })
             };
-            let timespec = Timespec::try_from(timeout)?;
-            let mut fds = [PollFd::new(self.session.conn.stream(), PollFlags::IN)];
-            match poll(&mut fds, Some(&timespec)) {
-                Ok(_) | Err(rustix::io::Errno::INTR) => (),
-                Err(error) => return Err(error.into()),
-            }
+            self.wait(timeout)?;
         }
         tracing::info!("compositor stopped");
         Ok(())
     }
 
+    /// Sleep until the X server sends something, a configuration file changes, or `timeout`
+    /// passes; sooner when a saved configuration settles first.
+    fn wait(&mut self, timeout: Duration) -> Result<()> {
+        let timeout = self
+            .watch
+            .as_ref()
+            .and_then(Watch::due)
+            .map_or(timeout, |due| {
+                timeout.min(due.saturating_duration_since(Instant::now()))
+            });
+        let timespec = Timespec::try_from(timeout)?;
+        let stream = PollFd::new(self.session.conn.stream(), PollFlags::IN);
+        let Some(watch) = self.watch.as_mut() else {
+            return wait_for(&mut [stream], &timespec);
+        };
+        let mut fds = [stream, PollFd::new(&*watch, PollFlags::IN)];
+        wait_for(&mut fds, &timespec)?;
+        let [_, watched] = &fds;
+        if watched.revents().contains(PollFlags::IN)
+            && let Err(error) = watch.read(Instant::now())
+        {
+            tracing::warn!("saved configuration changes need SIGUSR1 to apply: {error}");
+            self.watch = None;
+        }
+        Ok(())
+    }
+
     /// Reads the configuration again, as a restart would, and applies its rules to every window.
     /// A file that cannot be read or is invalid leaves the running configuration in place. Fades
-    /// in progress keep their duration.
+    /// in progress keep their duration. The search may now find another file, or a link point
+    /// elsewhere, so the files watched are those it would read next.
     fn reload_config(&mut self) {
+        if let Some(watch) = self.watch.as_mut() {
+            watch.follow(&self.source.files());
+        }
         let (config, path) = match self.source.load() {
             Ok(loaded) => loaded,
             Err(error) => {
@@ -279,5 +324,13 @@ impl Compositor {
             return None;
         }
         Some(self.renderer.submitted? + PRESENT_TIMEOUT)
+    }
+}
+
+/// Wait until one of `fds` is ready or `timeout` passes; a signal ends the wait early.
+fn wait_for(fds: &mut [PollFd<'_>], timeout: &Timespec) -> Result<()> {
+    match poll(fds, Some(timeout)) {
+        Ok(_) | Err(rustix::io::Errno::INTR) => Ok(()),
+        Err(error) => Err(error.into()),
     }
 }
