@@ -1,8 +1,8 @@
 # Open Build Service package
 
 The RPM recipe and the Debian source package build Git snapshot
-`681eae243cbf31d723928ce39317acd92a26243a`, after `0.3.0-beta.1`, as
-`0.3.0~beta.1+git20261004.681eae2`. The binary's `--version` still reports
+`7c93c7bbfa7a78a64e93c464e1f854c7147ced45`, after `0.3.0-beta.1`, as
+`0.3.0~beta.1+git20261005.7c93c7b`. The binary's `--version` still reports
 the upstream Cargo version; the package version and the installed
 `BUILDINFO` identify this snapshot. This is not a new upstream release or
 Git tag.
@@ -87,9 +87,9 @@ on Debian and from the `dpkg` package on Arch.
 
 ```bash
 set -euo pipefail
-revision=681eae243cbf31d723928ce39317acd92a26243a
-short=681eae2
-version='0.3.0~beta.1+git20261004.681eae2'
+revision=7c93c7bbfa7a78a64e93c464e1f854c7147ced45
+short=7c93c7b
+version='0.3.0~beta.1+git20261005.7c93c7b'
 output="$PWD/artifacts/obs-upload-$short"
 epoch=$(git log -1 --format=%ct "$revision")
 mkdir "$output"
@@ -130,17 +130,20 @@ cp packaging/obs/compust.spec packaging/obs/compust.changes "$output/"
 
 Upload every file in the output directory into the `compust` package of
 `home:hashdefault`: the recipe, the `.changes` file, the two archives, the
-`.dsc`, the `debian.tar.xz` and `SHA256SUMS`. Remove the `.dsc` and
-`debian.tar.xz` of an older version from the package, because OBS builds
-from the `.dsc` it finds. The archives are generated artifacts and must not
-be committed to Git. An existing checkout's `target/`, local configuration
-and working-tree changes are excluded by `git archive`.
+`.dsc`, the `debian.tar.xz` and `SHA256SUMS`. Then remove the four
+`compust_*` files of the older version from the package, its `.dsc` first:
+OBS builds from the `.dsc` it finds, and the old archives would stay unused.
+The archives are generated artifacts and must not be committed to Git. An
+existing checkout's `target/`, local configuration and working-tree changes
+are excluded by `git archive`.
 
 For a later snapshot, update the full and short revisions, the date and
 version in the recipe, in `debian/changelog` and `debian/rules`, the
-`.changes` entry and these commands together. Regenerate both archives,
-keeping the upstream lock file unchanged, and verify each target build
-before describing it as published.
+`.changes` entry and these commands together. Give the version a later
+date than the packaged one: with the same date, the two hashes alone would
+decide which version is newer. Regenerate both archives, keeping the
+upstream lock file unchanged, and verify each target build before
+describing it as published.
 
 References: [openSUSE cargo-packaging](https://github.com/openSUSE-Rust/cargo-packaging)
 and [OBS Rust vendoring](https://github.com/openSUSE-Rust/obs-service-cargo).

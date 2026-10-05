@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Mon Oct  5 02:36:28 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Package snapshot 7c93c7bbfa7a78a64e93c464e1f854c7147ced45 from main.
+  It shows the current frame again when the server presents a replaced
+  buffer late. That left old pixels on screen after a root resize, and
+  made the X11 test of it fail in about one build in three.
+- Document installation from these repositories in the README.
+
+-------------------------------------------------------------------
 Mon Oct  5 00:59:40 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
 
 - Add a Debian source package beside the RPM recipe. Built on Debian 13

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
-# Source snapshot: https://github.com/hashdefault/compust/commit/681eae243cbf31d723928ce39317acd92a26243a
+# Source snapshot: https://github.com/hashdefault/compust/commit/7c93c7bbfa7a78a64e93c464e1f854c7147ced45
 
-%global source_revision 681eae243cbf31d723928ce39317acd92a26243a
-%global source_short 681eae2
+%global source_revision 7c93c7bbfa7a78a64e93c464e1f854c7147ced45
+%global source_short 7c93c7b
 
 Name:           compust
-Version:        0.3.0~beta.1+git20261004.681eae2
+Version:        0.3.0~beta.1+git20261005.7c93c7b
 Release:        0
 Summary:        Experimental X11 compositor in Rust
 License:        MIT

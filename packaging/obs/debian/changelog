@@ -1,3 +1,12 @@
+compust (0.3.0~beta.1+git20261005.7c93c7b-1) unstable; urgency=medium
+
+  * Package snapshot 7c93c7bbfa7a78a64e93c464e1f854c7147ced45 from main.
+    It shows the current frame again when the server presents a replaced
+    buffer late. That left old pixels on screen after a root resize, and
+    made the X11 test of it fail in about one build in three.
+
+ -- Lucas G. Bueno <lucasgbueno@proton.me>  Mon, 05 Oct 2026 02:36:28 +0000
+
 compust (0.3.0~beta.1+git20261004.681eae2-1) unstable; urgency=medium
 
   * Package snapshot 681eae243cbf31d723928ce39317acd92a26243a from main
