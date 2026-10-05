@@ -517,8 +517,16 @@ fn dmabuf(conn: &RustConnection, pixmap: Pixmap) -> Result<Dmabuf> {
     })
 }
 
+/// `rects` as the quads a draw covers. Clips are lists of rectangles that may overlap, which
+/// `XRender` unions; a draw covers each quad, so the overlaps are left out first, or a
+/// translucent draw would blend twice where two rectangles meet.
 fn areas(rects: &[Rect]) -> Result<Vec<Area>> {
-    rects
+    let mut disjoint: Vec<Rect> = Vec::with_capacity(rects.len());
+    for rect in rects {
+        let pieces = without(vec![*rect], &disjoint);
+        disjoint.extend(pieces);
+    }
+    disjoint
         .iter()
         .map(|rect| {
             Ok(Area {
@@ -550,6 +558,39 @@ impl Drop for Painter {
             .map(x11rb::cookie::VoidCookie::ignore_error)
         {
             tracing::debug!(%error, "fence cleanup failed");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overlapping_clips_become_disjoint_quads_over_the_same_pixels() {
+        // Given rectangles that overlap, as a repaint area's may, the quads cover every pixel
+        // of their union exactly once.
+        let rects = [
+            Rect::new(0, 0, 10, 10),
+            Rect::new(5, 5, 10, 10),
+            Rect::new(2, 2, 3, 3),
+            Rect::new(12, 0, 4, 4),
+        ];
+        let quads = areas(&rects).unwrap();
+        for y in -1..17 {
+            for x in -1..17 {
+                let wanted = rects.iter().any(|rect| {
+                    (rect.left..rect.right).contains(&x) && (rect.top..rect.bottom).contains(&y)
+                });
+                let covering = quads
+                    .iter()
+                    .filter(|quad| {
+                        (quad.x..quad.x + quad.width).contains(&x)
+                            && (quad.y..quad.y + quad.height).contains(&y)
+                    })
+                    .count();
+                assert_eq!(covering, usize::from(wanted), "({x}, {y})");
+            }
         }
     }
 }
