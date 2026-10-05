@@ -566,17 +566,17 @@ Animar movimento/redimensionamento de janelas existentes e transições de slide
 | Suspensão da composição em tela cheia | [compositor.rs](../src/compositor.rs) suspende a composição apenas para uma superfície no topo que seja opaca, inteiramente retangular e cubra a tela. Uma janela arredondada não é inteiramente retangular, então uma janela em tela cheia precisa continuar quadrada, ou a suspensão nunca se aplicaria a ela. O Compust não lê `_NET_WM_STATE` hoje. |
 | Regras | [rules.rs](../src/rules.rs) resolve `[[rules]]` ordenadas por classe, tipo, título e foco, e define opacidade, desfoque, duração do fade e sombra. O tipo do cliente e suas margens em `_GTK_FRAME_EXTENTS` decidem se ele projeta sombra quando nenhuma regra diz o contrário; a mesma identidade pode decidir quais janelas são arredondadas. |
 
-### Configuração proposta
+### Configuração
 
-**Estes campos são uma proposta e não são aceitos pelo binário atual.** O responsável pelo projeto confirma o esquema antes da implementação, seguindo o [modelo de proposta de recurso](../.github/ISSUE_TEMPLATE/feature.yml).
+**O responsável pelo projeto confirmou este esquema na [tarefa 1](#tarefa-1-concluída-esquema-e-método-dos-cantos); o binário atual ainda não aceita estes campos.**
 
 - `corner_radius`: um raio global em pixels, de 0 a 64. Zero, o padrão, não arredonda nada, então uma atualização não muda nenhum desktop, como acontece com as sombras.
 - O `corner_radius` de uma regra, no mesmo intervalo, define o raio das janelas que ela escolhe, seja qual for seu tipo ou suas margens; `corner_radius = 0` as mantém quadradas. Cada opção vem da primeira regra compatível que a define, como nos campos existentes, e uma recarga a resolve de novo.
 - Sem uma regra, uma janela é arredondada quando projetaria sombra: seu tipo é `normal`, `dialog`, `utility`, `splash` ou `toolbar`, e ela não declara margens em `_GTK_FRAME_EXTENTS`, dentro das quais uma janela com decoração do lado do cliente desenha os próprios cantos. Docks, desktops, menus, dicas de ferramenta e notificações continuam quadrados, a menos que uma regra os arredonde.
-- Uma janela cujo formato delimitador não é o retângulo inteiro mantém esse formato e não é arredondada. Uma janela cujo cliente o gerenciador de janelas marca com `_NET_WM_STATE_FULLSCREEN` continua quadrada, então a suspensão da composição em tela cheia ainda se aplica a ela.
+- Uma janela cujo formato delimitador não é o retângulo inteiro mantém esse formato e não é arredondada. Uma janela cujo cliente o gerenciador de janelas marca com `_NET_WM_STATE_FULLSCREEN` continua quadrada, então a suspensão da composição em tela cheia ainda se aplica a ela, inclusive em um monitor entre vários. O Compust lê `_NET_WM_STATE` com o resto da identidade do cliente, e de novo quando ela muda.
 - Na pintura, o raio fica limitado à metade do lado menor da janela, borda incluída, para que os arcos de uma janela pequena nunca se sobreponham.
 
-Exemplo proposto, não uma configuração atual:
+Exemplo, que o binário atual ainda não aceita:
 
 ```toml
 corner_radius = 8
@@ -594,8 +594,8 @@ corner_radius = 12
 
 ### Renderização proposta
 
-1. **Tabela de cobertura.** Para cada raio em uso, calcular a cobertura de um canto, a parte de cada pixel dentro do quarto de círculo, como uma tabela `r × r` de inteiros, do jeito que os perfis das sombras são calculados, para que os dois pintores leiam os mesmos valores. Os outros três cantos a espelham. Manter uma tabela por raio em uso e liberá-la quando nenhuma superfície usar esse raio.
-2. **XRender.** Pintar a janela sem seus quatro quadrados de canto como hoje, pela máscara de opacidade. Pintar cada quadrado de canto pela cobertura vezes a opacidade, por exemplo com uma imagem A8 temporária preenchida com a opacidade e multiplicada pela cobertura com `IN`; a primeira tarefa confirma o método contando as requisições por quadro. Multiplicar os pesos do fundo desfocado pela mesma cobertura, para que o desfoque nunca apareça nos cantos cortados.
+1. **Tabela de cobertura.** Para cada raio em uso, calcular a cobertura de um canto como uma tabela `r × r`: quantos de 16 × 16 pontos de amostra em cada pixel ficam dentro do quarto de círculo, contados com inteiros e escalados para 0–255, para que os dois pintores leiam os mesmos valores. Os quatro cantos são os quadrantes de um único disco `2r × 2r`. Manter um disco por raio em uso e liberá-lo quando nenhuma superfície usar esse raio.
+2. **XRender, decidido na tarefa 1.** Enviar cada disco uma vez como imagem A8. Com opacidade total, ele é a própria máscara dos cantos; caso contrário, uma composição do disco pela máscara de opacidade de 1×1, que o quadro já preenche, grava a cobertura vezes a opacidade em uma imagem A8 temporária do tamanho do disco. Pintar a janela sem seus quatro quadrados de canto pela máscara de opacidade, sob um recorte que os deixa de fora, e depois cada quadrado de canto pelo seu quadrante da máscara dos cantos. Multiplicar os pesos do fundo desfocado pelos quadrantes do disco com `IN`, para que o desfoque nunca apareça nos cantos cortados; um fundo desfocado sem pesos usa a máscara dos cantos como a janela.
 3. **GPU.** Enviar a tabela como textura e adicionar um desenho que a multiplique nos quadrados de canto da janela e do seu fundo desfocado; o resto da janela mantém os desenhos atuais. Uma distância calculada no shader seria mais simples, mas não coincidiria com os valores do XRender.
 4. **Oclusão.** Uma superfície opaca arredondada esconde seu formato sem os quatro quadrados de canto, o que nunca esconde mais do que ela cobre. A cena abaixo dos cantos é pintada como abaixo de uma janela translúcida.
 5. **Sombras.** As bordas mantêm suas tiras. Cada canto recebe um ladrilho quadrado com `corner_radius + 2 × shadow_radius` pixels de lado, do canto arredondado desfocado pelos mesmos três filtros de caixa em duas dimensões, calculado uma vez por par de raios. A sombra também preenche as falhas dos cantos dentro dos limites da janela, pelo complemento da cobertura, para que nenhum fundo apareça entre a janela e sua sombra e uma janela translúcida continue tão clara quanto sem a própria sombra.
@@ -626,15 +626,29 @@ corner_radius = 12
 
 Cada item corresponde a uma issue revisável, com os campos do modelo de recurso: **Problema ou caso de uso**, **Comportamento proposto** e **Como verificar**. O último campo é o critério de conclusão.
 
-1. **Confirmar o esquema e o método da máscara.** **Problema ou caso de uso:** depois da 1.0, um campo de configuração não pode mudar dentro da 1.x. **Comportamento proposto:** confirmar o nome, o intervalo e o padrão por tipo do campo, as políticas para janelas em tela cheia e com formato e o método dos cantos no XRender, depois de contar suas requisições por quadro. **Como verificar:** cada questão em aberto desta seção tem uma decisão registrada.
+1. **Confirmar o esquema e o método da máscara, [concluída](#tarefa-1-concluída-esquema-e-método-dos-cantos).** **Problema ou caso de uso:** depois da 1.0, um campo de configuração não pode mudar dentro da 1.x. **Comportamento proposto:** confirmar o nome, o intervalo e o padrão por tipo do campo, as políticas para janelas em tela cheia e com formato e o método dos cantos no XRender, depois de contar suas requisições por quadro. **Como verificar:** cada questão em aberto desta seção tem uma decisão registrada.
 2. **Adicionar a opção e a tabela de cobertura.** **Problema ou caso de uso:** nada escolhe nem calcula um raio. **Comportamento proposto:** adicionar `corner_radius` a `config.rs` e `rules.rs`, ler o estado de tela cheia do cliente com sua identidade e calcular a tabela em um novo `renderer/corner.rs`. **Como verificar:** os testes de parsing, precedência, identidade e tabela passam, e os quadros com a configuração padrão não mudam.
 3. **Arredondar os cantos no XRender.** **Problema ou caso de uso:** a máscara de opacidade e os pesos do fundo desfocado são uniformes nos cantos. **Comportamento proposto:** máscaras de canto para a janela e seu fundo desfocado em `paint.rs`, o raio em `damage.rs` e os cantos fora do que `cover.rs` esconde. **Como verificar:** os testes de pixels, desfoque, oclusão e repintura por região acima passam no Xvfb.
 4. **Arredondar as sombras.** **Problema ou caso de uso:** as tiras da sombra não desenham um canto arredondado, e nada preenche as falhas. **Comportamento proposto:** ladrilhos de canto e preenchimento das falhas em `shadow.rs`, nos dois pintores. **Como verificar:** os testes de sombra acima passam, e os testes de sombra existentes passam sem mudanças.
 5. **Arredondar os cantos no pintor de GPU.** **Problema ou caso de uso:** o `compust-gl` não tem um desenho que multiplique uma textura de cobertura. **Comportamento proposto:** a textura de cobertura e os desenhos de canto em `gpu.rs` e `crates/gl`. **Como verificar:** os testes de paridade passam no dispositivo de software do Mesa e no probe em hardware.
 6. **Validar e documentar.** **Problema ou caso de uso:** testes de pixels sozinhos não mostram custo nem estabilidade de recursos. **Comportamento proposto:** ciclos de recursos em `tests/cases/`, execuções de benchmark em um desktop registrado e atualizações no README, na arquitetura, no `compust.example.toml` e nos dois roteiros. **Como verificar:** cada item de aceitação tem evidências do commit e do ambiente exatos.
 
+### Tarefa 1 concluída: esquema e método dos cantos
+
+O responsável pelo projeto confirmou em 2026-10-05: o campo é `corner_radius`, de 0 a 64, global e nas regras; sem uma regra, as janelas são arredondadas quando projetariam sombra; janelas em tela cheia, reconhecidas por `_NET_WM_STATE_FULLSCREEN`, e janelas com formato continuam quadradas.
+
+Um programa descartável, mantido fora do repositório, desenhou uma janela de 200×150 com cantos arredondados em um buffer preto de 320×240×24 no Xvfb 21.1.24, na ordem que a etapa 2 descreve, e comparou cada pixel do buffer com valores calculados na CPU com o arredondamento do pixman. Todos os pixels coincidiram nos raios 1, 2, 8, 13 e 64, com uma janela opaca e uma ARGB semitransparente, e com as opacidades `0xff`, `0x99` e `0x01`. Montar a máscara temporária preenchendo-a com a opacidade e multiplicando o disco com `IN`, como proposto antes, desenhou os mesmos pixels com uma requisição a mais. Quatro composições `IN` dos quadrantes do disco multiplicaram uma imagem A8 de pesos pela cobertura com exatidão em todos os pixels. As tabelas foram simétricas e nunca diminuíram em direção ao interior nos raios 1, 2, 3, 8, 13 e 64; a partir do raio 4 o pixel mais externo é vazio, e o mais interno é cheio.
+
+| Requisições de uma janela arredondada em um quadro | Hoje | Com cantos arredondados |
+| --- | --- | --- |
+| Com opacidade total | 3 | 8: mais um recorte e quatro composições de canto |
+| Translúcida ou em fade | 3 | 9: também a máscara temporária |
+| Mostrar um fundo desfocado abaixo dela | Mais 1, ou 3 com pesos | Mais 4 que hoje, ou 5 com pesos |
+
+O programa contou as duas primeiras linhas; a linha do fundo desfocado foi contada a partir do código e da ordem da etapa 2, sem o próprio desfoque. Nenhuma dessas requisições espera resposta. O maior disco e sua imagem temporária, no raio 64, são imagens A8 de 128×128, com 16 KiB cada. As tarefas 2 e 3 transformam essas verificações em testes unitários e X11 do repositório.
+
 ### Decisões e trabalho posterior
 
-O responsável pelo projeto ainda precisa confirmar o nome e o intervalo do campo, se as janelas são arredondadas por tipo como projetam sombra, e que janelas em tela cheia e com formato continuam quadradas. Bordas internas arredondadas, um raio diferente por canto e o arredondamento de janelas que já têm formato ficam para depois.
+Bordas internas arredondadas, um raio diferente por canto e o arredondamento de janelas que já têm formato ficam para depois.
 
 Ainda não há datas de entrega. Abra uma issue para discutir uma mudança delimitada ou relatar uma falha observada; evite iniciar vários projetos de backend sobrepostos antes de alinhar os requisitos.

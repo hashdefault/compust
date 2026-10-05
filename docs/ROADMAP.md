@@ -566,17 +566,17 @@ Animating move/resize geometry of existing windows and whole-workspace slide tra
 | Fullscreen unredirection | [compositor.rs](../src/compositor.rs) suspends compositing only for a topmost surface that is opaque, wholly rectangular, and covers the screen. A rounded window is not wholly rectangular, so a fullscreen window must stay square or unredirection would never apply to it. Compust does not read `_NET_WM_STATE` today. |
 | Rules | [rules.rs](../src/rules.rs) resolves ordered `[[rules]]` by class, type, title, and focus, and sets opacity, blur, fade duration, and shadow. A client's type and its `_GTK_FRAME_EXTENTS` margins decide whether it casts a shadow unless a rule says otherwise; the same identity can decide which windows are rounded. |
 
-### Proposed configuration
+### Configuration
 
-**These fields are a proposal and are not accepted by the current binary.** The owner confirms the schema before coding, following the [feature proposal template](../.github/ISSUE_TEMPLATE/feature.yml).
+**The owner confirmed this schema in [task 1](#task-1-done-schema-and-corner-method); the current binary does not accept these fields yet.**
 
 - `corner_radius`: a global radius in pixels, 0–64. Zero, the default, rounds nothing, so an upgrade changes no desktop, as with shadows.
 - A rule's `corner_radius`, in the same range, sets the radius of the windows it chooses whatever their type or margins; `corner_radius = 0` keeps them square. Each setting comes from the first matching rule that sets it, as for the existing fields, and a reload resolves it again.
 - Without a rule, a window is rounded when it would cast a shadow: its type is `normal`, `dialog`, `utility`, `splash`, or `toolbar`, and it declares no `_GTK_FRAME_EXTENTS` margins, inside which a client-side-decorated window draws its own corners. Docks, desktops, menus, tooltips, and notifications stay square unless a rule rounds them.
-- A window whose bounding shape is not its whole rectangle keeps that shape and is not rounded. A window whose client the window manager marks `_NET_WM_STATE_FULLSCREEN` stays square, so fullscreen unredirection still applies to it.
+- A window whose bounding shape is not its whole rectangle keeps that shape and is not rounded. A window whose client the window manager marks `_NET_WM_STATE_FULLSCREEN` stays square, so fullscreen unredirection still applies to it, on one monitor of several too. Compust reads `_NET_WM_STATE` with the rest of the client's identity, and again when it changes.
 - When painting, the radius is limited to half the window's shorter side, border included, so a small window's arcs never overlap.
 
-Proposed example, not a current configuration:
+Example, which the current binary does not accept yet:
 
 ```toml
 corner_radius = 8
@@ -594,8 +594,8 @@ corner_radius = 12
 
 ### Proposed rendering
 
-1. **Coverage table.** For each radius in use, compute one corner's coverage, the share of each pixel inside the quarter circle, as an `r × r` table of integers, the way shadow profiles are computed, so both painters read the same values. The other three corners mirror it. Keep one table per radius in use, and release it once no surface uses that radius.
-2. **XRender.** Paint the window without its four corner squares as today, through the opacity mask. Paint each corner square through coverage times opacity, for example a scratch A8 picture filled with the opacity and multiplied by the coverage with `IN`; the first task confirms the method by counting requests per frame. Multiply the backdrop's weights by the same coverage, so blur never shows in the cut corners.
+1. **Coverage table.** For each radius in use, compute one corner's coverage as an `r × r` table: how many of 16 × 16 sample points in each pixel lie inside the quarter circle, counted with integers and scaled to 0–255, so both painters read the same values. The four corners are the quadrants of one `2r × 2r` disk. Keep one disk per radius in use, and release it once no surface uses that radius.
+2. **XRender, decided in task 1.** Upload each disk once as an A8 picture. At full opacity it is the corner mask itself; otherwise one composite of the disk through the 1×1 opacity mask, which the frame fills already, writes coverage times opacity into a scratch A8 picture of the disk's size. Paint the window without its four corner squares through the opacity mask, under a clip that leaves them out, then each corner square through its quadrant of the corner mask. Multiply the backdrop's weights by the disk's quadrants with `IN`, so blur never shows in the cut corners; a backdrop without weights takes the corner mask as the window does.
 3. **GPU.** Upload the table as a texture, and add a draw that multiplies it into the corner squares of both the window and its backdrop; the rest of the window keeps its current draws. A distance computed in the shader would be simpler, but would not match XRender's values.
 4. **Occlusion.** A rounded opaque surface hides its shape without its four corner squares, which never hides more than it covers. The scene beneath the corners is painted as beneath a translucent window.
 5. **Shadows.** Edges keep their strips. Each corner gets a square tile, `corner_radius + 2 × shadow_radius` pixels on a side, of the rounded corner blurred by the same three box filters in two dimensions, computed once per pair of radii. The shadow also fills the corner gaps inside the window's bounds, through the complement of the coverage, so no background shows between a window and its shadow and a translucent window is still no darker for its own shadow.
@@ -626,15 +626,29 @@ corner_radius = 12
 
 Each item is one reviewable issue, with the feature template's fields: **Problem or use case**, **Proposed behavior**, and **How to verify it**. The last field is the done criterion.
 
-1. **Confirm the schema and the mask method.** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field's name, range, and default by type, the fullscreen and shaped-window policies, and the XRender corner method, after counting its requests per frame. **How to verify it:** each open question in this section has a recorded decision.
+1. **Confirm the schema and the mask method, [done](#task-1-done-schema-and-corner-method).** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field's name, range, and default by type, the fullscreen and shaped-window policies, and the XRender corner method, after counting its requests per frame. **How to verify it:** each open question in this section has a recorded decision.
 2. **Add the setting and the coverage table.** **Problem or use case:** nothing chooses or computes a radius. **Proposed behavior:** add `corner_radius` to `config.rs` and `rules.rs`, read the client's fullscreen state with its identity, and compute the table in a new `renderer/corner.rs`. **How to verify it:** parsing, precedence, identity, and table tests pass, and frames with the default configuration do not change.
 3. **Round corners in XRender.** **Problem or use case:** the opacity mask and the backdrop weights are uniform across the corners. **Proposed behavior:** corner masks for the window and its backdrop in `paint.rs`, the radius in `damage.rs`, and corners left out of what `cover.rs` hides. **How to verify it:** the pixel, blur, occlusion, and region repaint tests above pass on Xvfb.
 4. **Round shadows.** **Problem or use case:** shadow strips cannot draw a rounded corner, and nothing fills the gaps. **Proposed behavior:** corner tiles and gap fill in `shadow.rs`, in both painters. **How to verify it:** the shadow tests above pass, and existing shadow tests pass unchanged.
 5. **Round corners in the GPU painter.** **Problem or use case:** `compust-gl` has no draw that multiplies a coverage texture. **Proposed behavior:** the coverage texture and corner draws in `gpu.rs` and `crates/gl`. **How to verify it:** parity tests pass on Mesa's software device and in the hardware probe.
 6. **Qualify and document.** **Problem or use case:** pixel tests alone do not show cost or resource stability. **Proposed behavior:** resource cycles in `tests/cases/`, benchmark runs on a recorded desktop, and updates to the README, the architecture, `compust.example.toml`, and both roadmaps. **How to verify it:** every acceptance item has evidence for the exact commit and environment.
 
+### Task 1 done: schema and corner method
+
+The owner confirmed on 2026-10-05: the field is `corner_radius`, 0–64, both global and in rules; without a rule, windows are rounded when they would cast a shadow; fullscreen windows, found by `_NET_WM_STATE_FULLSCREEN`, and shaped windows stay square.
+
+A throwaway program, kept out of the repository, drew a 200×150 window with rounded corners onto a black 320×240×24 buffer on Xvfb 21.1.24 in the order step 2 describes, and compared every pixel of the buffer with values computed on the CPU with pixman's rounding. Every pixel matched for radii 1, 2, 8, 13, and 64, for an opaque window and a half-transparent ARGB one, and for opacities `0xff`, `0x99`, and `0x01`. Building the scratch mask by filling it with the opacity and multiplying the disk in with `IN`, as first proposed, drew the same pixels with one request more. Four `IN` composites of the disk's quadrants multiplied an A8 weights picture by the coverage exactly at every pixel. The tables were symmetric and never decreased toward the inside for radii 1, 2, 3, 8, 13, and 64; from radius 4 the outermost pixel is empty, and the innermost is full.
+
+| Requests for one rounded window in a frame | Today | With rounded corners |
+| --- | --- | --- |
+| At full opacity | 3 | 8: one more clip and four corner composites |
+| Translucent or fading | 3 | 9: the scratch mask as well |
+| Showing a blurred backdrop beneath it | 1 more, or 3 with weights | 4 more than today, or 5 with weights |
+
+The first two rows were counted by the program; the backdrop row is counted from the code and step 2's order, without the blur itself. None of these requests waits for a reply. The largest disk and its scratch picture, for radius 64, are 128×128 A8 pictures of 16 KiB each. Tasks 2 and 3 turn these checks into the repository's unit and X11 tests.
+
 ### Decisions and later work
 
-The owner still needs to confirm the field's name and range, whether windows are rounded by type as they cast shadows, and that fullscreen and shaped windows stay square. Rounded inner border edges, a different radius per corner, and rounding windows that already have a shape are later work.
+Rounded inner border edges, a different radius per corner, and rounding windows that already have a shape are later work.
 
 There are no delivery dates yet. Open an issue to discuss a bounded change or contribute an observed failure; avoid starting several overlapping backend designs before agreeing on the requirements.
