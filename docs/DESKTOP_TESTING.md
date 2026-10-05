@@ -628,6 +628,31 @@ All pixels passed, all three compositor processes stopped cleanly, and the GL lo
 
 Each sample measured three idle and three active seconds after warmup. Ordinary applications kept drawing, so idle phases still had frames. The marker requests only 60 updates/s and Compust's cap was 120 fps; this checks operation with different monitor rates, without certifying independent 180-fps output scheduling or panel latency. GL RSS rose by 2,640 KiB across renderer recreations despite stable XRes counts; three transitions cannot establish a long-term memory trend. This session did not repeat physical hotplug or qualify effects across the mixed-refresh layout.
 
+## Recorded Xorg sessions on the Radeon Vega desktop (2026-10-05)
+
+The [Radeon Vega desktop](#recorded-hardware-session-2026-10-03), an AMD Ryzen 5 5600GT whose integrated graphics (Cezanne) use radeonsi, moved from XLibre 25.1.9 to Xorg 21.1.24 from CachyOS. Both servers drive it with modesetting and glamor, which this machine's `/etc/X11/xorg.conf.d` selects. Xorg 21.1.24's modesetting has no TearFree, which the XLibre sessions had by default. Each run below was a dedicated server on vt3, started by `startx` from a text console while the usual i3 session stayed on vt2, with HDMI-1 alone at 1920×1080 and 60 Hz and DP-1 connected but disabled. Both ran the clean commit `ed2cdb04f828887231660d4c10729245b4a80b73` on Linux 7.2.9-1-cachyos; the compositor's SHA-256 was `cc8ad9e1e74afaf9…` and the probe's `5cbe6be39cbd9bd0…`. Beforehand, on the usual session's server, `compust --diagnose` reported the same extensions as XLibre, including DRI3 1.2 and Present 1.2, and the GPU crate's DRI3 tests passed against it with `COMPUST_GPU_DISPLAY=:0`; those two checks are not archived.
+
+The [hardware procedure](#run-the-desktop-checks-on-hardware) under i3 4.25.1 passed every scenario in each mode, including framed title bars, the popup, the fullscreen restore, the return to the anchor's workspace, the wallpaper change, and the rapid lifecycle.
+
+| Mode | Active Compust CPU | Active X server CPU | Frames in 10 s | Interval median / p95 / max |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-05/desktop-vega-xorg/i3/present/processes.csv) | 0.4% | 2.9% | 600 | 16.667 / 16.667 / 16.667 ms |
+| [Direct](benchmarks/2026-10-05/desktop-vega-xorg/i3/direct/processes.csv) | 0.3% | 2.5% | 600 Damage | — |
+| [Effects](benchmarks/2026-10-05/desktop-vega-xorg/i3/effects/processes.csv) | 0.4% | 2.6% | 600 | 16.667 / 16.667 / 16.667 ms |
+
+Every active-phase MSC advanced by one in both runs that present. In idle phases, no process recorded a CPU tick. The effects run's idle phase saw one Present completion and one overlay Damage event, as did ten of the eleven earlier effects runs archived on hardware; the other two modes saw none. Compust RSS stayed at 4,336–4,364 KiB and the X server's at 100,176–104,772 KiB, unchanged within each phase except for 132 KiB the server gained during the direct run's active phase. These numbers do not compare directly with this machine's [XLibre session](#recorded-hardware-desktop-session-2026-10-03), which ran an older build under Xmonad with TearFree.
+
+The [feature probe](benchmarks/2026-10-05/features-vega-xorg/README.md) passed in XRender and GL without a window manager. Each shadow scene's 2,073,600 pixels passed the independent reference within one level: 40 differed in XRender and 25 in GL, and the painters differed in 45, the same counts as on the [RX 9060 XT](#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04). Both focus images were identical between painters, and focus in both directions, `NONE`, and the absent-property fallback passed. The GL log names `AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.2.9-1-cachyos)` and records no fallback. Both composed phases recorded 600 Present completions and 600 overlay Damage events, and both suspended phases none; the popup resumed composition with a fresh capture, and removing the cover restored the background.
+
+| Painter | State | Compust CPU | X server CPU | Compust RSS before/after |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-05/features-vega-xorg/features/xrender/processes.csv) | Composed | 0.5% | 3.4% | 4,372 / 4,372 KiB |
+| XRender | Suspended | 0.0% | 1.2% | 4,372 / 4,372 KiB |
+| [GL](benchmarks/2026-10-05/features-vega-xorg/features/gl/processes.csv) | Composed | 1.1% | 1.7% | 66,180 / 66,180 KiB |
+| GL | Suspended | 0.0% | 1.3% | 66,180 / 66,180 KiB |
+
+The archives keep the CSV files, logs, configurations, and hashes. Their server logs omit the kernel command line and raw EDID and redact monitor serial numbers, and the feature captures are lossless PNG copies of the original PPM files. These sessions use synthetic windows, one monitor, and ten-second phases. Physical hotplug, other window managers, actual applications, and suspend and resume have no record on this server.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

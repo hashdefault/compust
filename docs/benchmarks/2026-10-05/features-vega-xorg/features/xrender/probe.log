@@ -1,0 +1,7 @@
+vendor=The X.Org Foundation release=12101024 geometry=1920x1080 depth=24
+PASS: 2073600 shadow scene pixels, max channel delta=1
+PASS: focus switches, no active window, absent active-window property
+phase=composed updates=600 completions=600 damage=600
+phase=suspended updates=600 completions=0 damage=0
+PASS: fullscreen suspension, popup resume, fresh recapture, cover removal
+PASS: shadow pixels, focus rules, fullscreen suspension and resume

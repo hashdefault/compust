@@ -1,0 +1,4 @@
+cc8ad9e1e74afaf96b5dd76ccd93240c030e3abda24420507e9e76c630861a23  target/release/compust
+5cbe6be39cbd9bd0289152df26a573262b50aadf5a7ca0a19e2052e4342fe203  target/release/examples/desktop_probe
+5c06e30e99ce25ae0b7119ffbe0b79096fbc69d0567501bf82fc305de81bc5ce  tools/desktop/i3.config
+956efe089ec58da5379b1abe9bc042ca9b3c049f707dad7a8610eb3c9a4c6315  /usr/bin/i3

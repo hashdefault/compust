@@ -628,6 +628,31 @@ Todos os pixels passaram, os três processos do compositor encerraram corretamen
 
 Cada amostra mediu três segundos ociosos e três ativos após aquecimento. Os aplicativos continuaram desenhando, então as fases ociosas ainda tiveram quadros. O marcador pede apenas 60 atualizações/s e o teto do Compust era 120 qps; isso confere o funcionamento com taxas diferentes, sem certificar agendamento independente de saída a 180 qps nem latência do painel. O RSS GL subiu 2.640 KiB entre recriações do renderizador apesar das contagens XRes estáveis; três transições não estabelecem uma tendência prolongada de memória. Essa sessão não repetiu hotplug físico nem validou efeitos na disposição com taxas diferentes.
 
+## Sessões Xorg registradas no desktop com Radeon Vega (2026-10-05)
+
+O [desktop com Radeon Vega](#sessão-registrada-em-hardware-2026-10-03), um AMD Ryzen 5 5600GT cujos gráficos integrados (Cezanne) usam o radeonsi, passou do XLibre 25.1.9 para o Xorg 21.1.24 do CachyOS. Os dois servidores o controlam com modesetting e glamor, que o `/etc/X11/xorg.conf.d` desta máquina seleciona. O modesetting do Xorg 21.1.24 não tem TearFree, que as sessões XLibre tinham por padrão. Cada execução abaixo foi um servidor dedicado no vt3, iniciado por `startx` a partir de um console de texto enquanto a sessão i3 de costume continuava no vt2, com apenas a HDMI-1 ativa em 1920×1080 a 60 Hz e a DP-1 conectada, mas desativada. As duas rodaram o commit limpo `ed2cdb04f828887231660d4c10729245b4a80b73` no Linux 7.2.9-1-cachyos; o SHA-256 do compositor era `cc8ad9e1e74afaf9…` e o do probe, `5cbe6be39cbd9bd0…`. Antes disso, no servidor da sessão de costume, `compust --diagnose` informou as mesmas extensões que o XLibre, inclusive DRI3 1.2 e Present 1.2, e os testes de DRI3 do crate de GPU passaram nele com `COMPUST_GPU_DISPLAY=:0`; essas duas verificações não foram arquivadas.
+
+O [procedimento em hardware](#executar-as-verificações-de-desktop-em-hardware) com o i3 4.25.1 passou em todos os cenários em cada modo, inclusive barras de título das molduras, o popup, a restauração da tela cheia, a volta à área de trabalho da âncora, a troca de papel de parede e o ciclo de vida rápido.
+
+| Modo | CPU ativa do Compust | CPU ativa do servidor X | Quadros em 10 s | Intervalo mediana / p95 / máx. |
+| --- | ---: | ---: | ---: | ---: |
+| [Present](benchmarks/2026-10-05/desktop-vega-xorg/i3/present/processes.csv) | 0,4% | 2,9% | 600 | 16,667 / 16,667 / 16,667 ms |
+| [Direto](benchmarks/2026-10-05/desktop-vega-xorg/i3/direct/processes.csv) | 0,3% | 2,5% | 600 Damage | — |
+| [Efeitos](benchmarks/2026-10-05/desktop-vega-xorg/i3/effects/processes.csv) | 0,4% | 2,6% | 600 | 16,667 / 16,667 / 16,667 ms |
+
+Todo MSC da fase ativa avançou em um nas duas execuções que apresentam. Nas fases ociosas, nenhum processo registrou tique de CPU. A fase ociosa da execução com efeitos teve uma conclusão do Present e um evento Damage no overlay, como dez das onze execuções com efeitos arquivadas antes em hardware; os outros dois modos não tiveram nenhum. A RSS do Compust ficou entre 4.336 e 4.364 KiB e a do servidor X entre 100.176 e 104.772 KiB, sem mudar dentro de cada fase, exceto por 132 KiB que o servidor ganhou na fase ativa da execução direta. Esses números não se comparam diretamente com a [sessão XLibre](#sessão-de-desktop-registrada-em-hardware-2026-10-03) desta máquina, que rodou um build anterior no Xmonad e com TearFree.
+
+O [probe de recursos](benchmarks/2026-10-05/features-vega-xorg/README.md) passou em XRender e GL sem gerenciador de janelas. Os 2.073.600 pixels de cada cena de sombra passaram na referência independente com diferença de até um nível: 40 diferiram no XRender e 25 no GL, e os pintores diferiram em 45, as mesmas contagens da [RX 9060 XT](#sombras-foco-e-suspensão-em-tela-cheia-registrados-2026-10-04). As duas imagens de foco foram idênticas entre os pintores, e o foco nas duas direções, `NONE` e a alternativa sem a propriedade passaram. O log do GL indica `AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.2.9-1-cachyos)` e não registra volta ao XRender. As duas fases compostas registraram 600 conclusões do Present e 600 eventos Damage no overlay, e as duas fases suspensas nenhum; o popup retomou a composição com uma captura nova, e remover a cobertura restaurou o fundo.
+
+| Pintor | Estado | CPU do Compust | CPU do servidor X | RSS do Compust antes/depois |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-05/features-vega-xorg/features/xrender/processes.csv) | Composto | 0,5% | 3,4% | 4.372 / 4.372 KiB |
+| XRender | Suspenso | 0,0% | 1,2% | 4.372 / 4.372 KiB |
+| [GL](benchmarks/2026-10-05/features-vega-xorg/features/gl/processes.csv) | Composto | 1,1% | 1,7% | 66.180 / 66.180 KiB |
+| GL | Suspenso | 0,0% | 1,3% | 66.180 / 66.180 KiB |
+
+Os arquivos guardam os CSV, logs, configurações e hashes. Seus logs do servidor omitem a linha de comando do kernel e o EDID bruto e ocultam os números de série dos monitores, e as capturas do probe de recursos são cópias PNG sem perdas dos PPM originais. Essas sessões usam janelas sintéticas, um monitor e fases de dez segundos. Hotplug físico, outros gerenciadores de janelas, aplicativos reais e suspensão e retomada não têm registro neste servidor.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

@@ -1,0 +1,16 @@
+8ec6a9583c774a3e67601aa133b760e04842f22089380a926b3b517921cfad83  artifacts/vega-xorg-features/features/gl/focus-left.ppm
+414d854783621dbd2f7c5d150bd7d5032fa0ec3997f154c4a8814b7a3c563dc1  artifacts/vega-xorg-features/features/gl/focus-right.ppm
+6bc4a5fe72ed84c4f07120259ce8d75690127b2bd4b46d72f3c6b1cea810e09b  artifacts/vega-xorg-features/features/gl/fullscreen-resumed.ppm
+e4ad91bfd7005e496e98c6a115313415e1edb53565a968c7c4f8f36d6ee7cbd7  artifacts/vega-xorg-features/features/gl/shadows.ppm
+8ec6a9583c774a3e67601aa133b760e04842f22089380a926b3b517921cfad83  artifacts/vega-xorg-features/features/xrender/focus-left.ppm
+414d854783621dbd2f7c5d150bd7d5032fa0ec3997f154c4a8814b7a3c563dc1  artifacts/vega-xorg-features/features/xrender/focus-right.ppm
+23915876b3c2529e10e1897d712faf9b9ee1db7ffae89f38e721a3d3f66d47d1  artifacts/vega-xorg-features/features/xrender/fullscreen-resumed.ppm
+73dc25e97cdd80d3aab9b9bbe95ba7d9f43c6437a112ab10409b90c09c3418d7  artifacts/vega-xorg-features/features/xrender/shadows.ppm
+58ada57a5b3f78c373c86f291c0204a8973bb4d3402941f9bd8b660e839961b9  docs/benchmarks/2026-10-05/features-vega-xorg/features/gl/focus-left.png
+5d0fdb5a998a9c3c3685b4f42ccc9db08269bce1930a6b3452e6128e149038e8  docs/benchmarks/2026-10-05/features-vega-xorg/features/gl/focus-right.png
+f0dfb22bf965093a2019618c950c3bdc2aa5a8a7ae2394d3a2fd16805e90d24b  docs/benchmarks/2026-10-05/features-vega-xorg/features/gl/fullscreen-resumed.png
+7c8ea1d2b4b07a1c85b152966aea85471c1ba7908aeadde1f73bb05b9f8ae549  docs/benchmarks/2026-10-05/features-vega-xorg/features/gl/shadows.png
+58ada57a5b3f78c373c86f291c0204a8973bb4d3402941f9bd8b660e839961b9  docs/benchmarks/2026-10-05/features-vega-xorg/features/xrender/focus-left.png
+5d0fdb5a998a9c3c3685b4f42ccc9db08269bce1930a6b3452e6128e149038e8  docs/benchmarks/2026-10-05/features-vega-xorg/features/xrender/focus-right.png
+b35defb5a67ca2ee2120dff7e8e1aba6408fc1629bc913b23a52fc5347d6c986  docs/benchmarks/2026-10-05/features-vega-xorg/features/xrender/fullscreen-resumed.png
+8900c164dc94a4a42a6cb08f88735126bbb13de1b077259da4a6b90e638cd34f  docs/benchmarks/2026-10-05/features-vega-xorg/features/xrender/shadows.png

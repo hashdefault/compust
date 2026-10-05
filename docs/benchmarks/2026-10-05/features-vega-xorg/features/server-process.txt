@@ -1,0 +1,1 @@
+  65006 /usr/lib/Xorg :20 vt3 -keeptty -auth /tmp/serverauth.XSBrAkMawW

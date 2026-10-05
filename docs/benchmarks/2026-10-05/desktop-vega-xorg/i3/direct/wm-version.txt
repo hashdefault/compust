@@ -1,0 +1,1 @@
+i3 version 4.25.1 © 2009 Michael Stapelberg and contributors
