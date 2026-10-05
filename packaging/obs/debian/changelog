@@ -1,0 +1,8 @@
+compust (0.3.0~beta.1+git20261004.681eae2-1) unstable; urgency=medium
+
+  * Package snapshot 681eae243cbf31d723928ce39317acd92a26243a from main
+    after 0.3.0-beta.1, from the same source and dependency archives as
+    the RPM. The build is offline and locked, and runs the workspace
+    tests, the Xvfb pixel tests and the Mesa software GPU tests.
+
+ -- Lucas G. Bueno <lucasgbueno@proton.me>  Mon, 05 Oct 2026 00:47:23 +0000

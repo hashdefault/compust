@@ -1,0 +1,27 @@
+Source: compust
+Section: x11
+Priority: optional
+Maintainer: Lucas G. Bueno <lucasgbueno@proton.me>
+Build-Depends: debhelper-compat (= 13),
+               cargo (>= 1.95),
+               rustc (>= 1.95),
+               libegl1,
+               libgl1-mesa-dri,
+               xvfb
+Standards-Version: 4.7.2
+Homepage: https://github.com/hashdefault/compust
+Rules-Requires-Root: no
+
+Package: compust
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: libegl1
+Description: Experimental X11 compositor in Rust
+ Compust is an experimental X11 compositor written in Rust for Xorg and
+ XLibre. It provides fades, transparency, background blur, rectangular
+ shadows, per-window rules and configuration reloads. XRender is the
+ default renderer, with an optional OpenGL ES renderer and XRender fallback.
+ .
+ This package is a snapshot of main after 0.3.0-beta.1, identified by its
+ Git revision in the package version and BUILDINFO. Run it from an X11
+ session after stopping the compositor already serving that screen.

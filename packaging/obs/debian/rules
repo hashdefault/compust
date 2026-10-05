@@ -1,0 +1,52 @@
+#!/usr/bin/make -f
+
+SOURCE_REVISION = 681eae243cbf31d723928ce39317acd92a26243a
+DOCDIR = debian/compust/usr/share/doc/compust
+
+export CARGO_HOME = $(CURDIR)/debian/cargo-home
+# Keep debug information for the dbgsym package; dh_strip takes it out of the binary.
+export RUSTFLAGS = -C debuginfo=2 -C strip=none -C link-arg=-Wl,-z,relro,-z,now
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# Point Cargo at the crates unpacked from the orig-deps archive.
+	mkdir -p $(CARGO_HOME)
+	sed 's|^directory = "vendor"$$|directory = "$(CURDIR)/deps/vendor"|' \
+	    deps/.cargo/config.toml > $(CARGO_HOME)/config.toml
+	grep -q '$(CURDIR)/deps/vendor' $(CARGO_HOME)/config.toml
+
+override_dh_auto_build:
+	cargo build --release --locked --offline --bin compust
+	printf '%s\n' \
+	    'upstream_revision $(SOURCE_REVISION)' \
+	    'snapshot_version $(shell dpkg-parsechangelog -S Version)' \
+	    'upstream_package_version 0.3.0-beta.1' > BUILDINFO
+	rustc --version >> BUILDINFO
+	cargo --version >> BUILDINFO
+
+override_dh_auto_test:
+	# Prepare the directory once so concurrent Xvfb servers do not race to create it.
+	test -d /tmp/.X11-unix || install -d -m1777 /tmp/.X11-unix
+	COMPUST_GPU_TESTS=1 LIBGL_ALWAYS_SOFTWARE=1 \
+	    cargo test --locked --offline --workspace --all-targets
+	target/release/compust --check-config --config compust.example.toml
+
+override_dh_auto_install:
+	install -Dm0755 target/release/compust debian/compust/usr/bin/compust
+	cd deps/vendor && find . -type f \( -iname '*license*' -o -iname 'copying*' \
+	    -o -iname 'notice*' -o -iname 'copyright*' \) -print | \
+	    while IFS= read -r license; do \
+	        install -Dm0644 "$$license" "$(CURDIR)/$(DOCDIR)/dependency-licenses/$${license#./}"; \
+	    done
+
+override_dh_compress:
+	dh_compress -Xdependency-licenses
+
+override_dh_auto_clean:
+	rm -rf target debian/cargo-home BUILDINFO
+
+override_dh_clean:
+	# Cargo verifies every vendored file, including the *.orig ones dh_clean removes.
+	dh_clean -Xdeps/vendor/

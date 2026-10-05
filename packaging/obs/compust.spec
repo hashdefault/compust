@@ -11,14 +11,14 @@ Summary:        Experimental X11 compositor in Rust
 License:        MIT
 Group:          System/X11/Utilities
 URL:            https://github.com/hashdefault/compust
-Source0:        %{name}-%{source_short}.tar.gz
-Source1:        %{name}-vendor-%{source_short}.tar.zst
+# Named as Debian orig archives so the .dsc in this package uses the same files.
+Source0:        %{name}_%{version}.orig.tar.gz
+Source1:        %{name}_%{version}.orig-deps.tar.xz
 BuildRequires:  cargo >= 1.95
 BuildRequires:  fdupes
 BuildRequires:  gcc
 BuildRequires:  rust >= 1.95
 BuildRequires:  xorg-x11-server-Xvfb
-BuildRequires:  zstd
 %if 0%{?fedora}
 BuildRequires:  cargo-rpm-macros >= 26
 BuildRequires:  mesa-dri-drivers

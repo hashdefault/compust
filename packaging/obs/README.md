@@ -1,10 +1,16 @@
 # Open Build Service package
 
-The RPM recipe packages Git snapshot
+The RPM recipe and the Debian source package build Git snapshot
 `681eae243cbf31d723928ce39317acd92a26243a`, after `0.3.0-beta.1`, as
 `0.3.0~beta.1+git20261004.681eae2`. The binary's `--version` still reports
-the upstream Cargo version; the RPM version and its installed `BUILDINFO`
-identify this snapshot. This is not a new upstream release or Git tag.
+the upstream Cargo version; the package version and the installed
+`BUILDINFO` identify this snapshot. This is not a new upstream release or
+Git tag.
+
+Both use the same two archives, named as Debian orig archives: the source
+exported by `git archive`, and `orig-deps`, which holds the vendored crates
+and the Cargo configuration that selects them. `dpkg-source` reads gzip, xz,
+bzip2 and lzma but not zstd, so the dependency archive is xz.
 
 The recipe targets openSUSE Tumbleweed and Fedora, x86_64, and was verified
 on Tumbleweed and Fedora 44. It requires Rust and Cargo 1.95 or newer. It
@@ -24,13 +30,32 @@ The license directory holds the project license and every notice found in
 the vendored dependencies. `%fdupes` hard-links identical copies, so each
 text is stored once.
 
+## Debian package
+
+`debian/` is a `3.0 (quilt)` source package. It was built on Debian 13 with
+Rust and Cargo 1.95 from `trixie-backports`; Debian 13 itself has 1.85, and
+the Ubuntu releases on OBS stop at 1.91 (24.04) and 1.93 (26.04). The
+resulting `.deb` depends only on `libc6 (>= 2.34)` and `libgcc-s1`, and was
+installed and run on Debian 13, Ubuntu 22.04, Ubuntu 24.04 and the Linux
+Mint 22 container image. One Debian 13 repository therefore serves all of
+them.
+
+`dpkg-source` unpacks the dependency archive into `deps/`. `debian/rules`
+writes a Cargo configuration that points at `deps/vendor`, builds offline
+and locked, and runs the same tests and checks as the RPM recipe. It keeps
+`dh_clean` out of `deps/vendor`: Cargo verifies every vendored file, and
+`dh_clean` would delete the `Cargo.toml.orig` files. The dependency notices
+go to `/usr/share/doc/compust/dependency-licenses`.
+
 ## Project settings on OBS
 
-The recipe depends on two settings in the project's meta configuration:
+The packages depend on these settings in the project's meta configuration:
 
 - Each Fedora repository lists the `update` repository before `standard`.
   The release repositories alone carry Rust 1.90 (Fedora 43) and 1.94
   (Fedora 44), and the package would stay unresolvable.
+- The Debian 13 repository lists `backports` before `standard`, for the
+  same reason.
 - The `debuginfo` flag is enabled. OBS then moves the debug symbols into
   `compust-debuginfo` and `compust-debugsource` and strips the installed
   binary. With the flag off, the binary keeps its symbol table and rpmlint
@@ -45,26 +70,33 @@ The recipe depends on two settings in the project's meta configuration:
   <path project="Fedora:44" repository="standard"/>
   <arch>x86_64</arch>
 </repository>
+<repository name="Debian_13">
+  <path project="Debian:13" repository="backports"/>
+  <path project="Debian:13" repository="standard"/>
+  <arch>x86_64</arch>
+</repository>
 ```
 
 ## Prepare sources
 
 Run from the repository root, with Cargo and the pinned upstream toolchain
 available. Choose a new output directory. `cargo vendor --locked` may fetch
-the dependencies identified by `Cargo.lock`; the resulting RPM build needs
-no network access.
+the dependencies identified by `Cargo.lock`; the package builds need no
+network access. `dpkg-source` and `dpkg-parsechangelog` come from `dpkg-dev`
+on Debian and from the `dpkg` package on Arch.
 
 ```bash
 set -euo pipefail
 revision=681eae243cbf31d723928ce39317acd92a26243a
 short=681eae2
+version='0.3.0~beta.1+git20261004.681eae2'
 output="$PWD/artifacts/obs-upload-$short"
 epoch=$(git log -1 --format=%ct "$revision")
 mkdir "$output"
 mkdir "$output/work"
 git archive --format=tar --prefix="compust-$short/" "$revision" |
-    gzip -n -9 >"$output/compust-$short.tar.gz"
-tar -xzf "$output/compust-$short.tar.gz" -C "$output/work"
+    gzip -n -9 >"$output/compust_$version.orig.tar.gz"
+tar -xzf "$output/compust_$version.orig.tar.gz" -C "$output/work"
 (
     cd "$output/work/compust-$short"
     cargo vendor --locked --versioned-dirs vendor
@@ -73,24 +105,42 @@ mkdir "$output/work/compust-$short/.cargo"
 cp packaging/obs/vendor-config.toml "$output/work/compust-$short/.cargo/config.toml"
 tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$epoch" \
     --format=gnu -C "$output/work/compust-$short" -cf - .cargo vendor |
-    zstd -T1 -19 -o "$output/compust-vendor-$short.tar.zst"
+    xz -9 -T1 >"$output/compust_$version.orig-deps.tar.xz"
+
+# Debian source package: the two archives plus packaging/obs/debian.
+mkdir "$output/compust-$version" "$output/compust-$version/deps"
+tar -xzf "$output/compust_$version.orig.tar.gz" --strip-components=1 \
+    -C "$output/compust-$version"
+tar -xJf "$output/compust_$version.orig-deps.tar.xz" -C "$output/compust-$version/deps"
+cp -R packaging/obs/debian "$output/compust-$version/debian"
+(
+    cd "$output"
+    SOURCE_DATE_EPOCH=$(dpkg-parsechangelog -l "compust-$version/debian/changelog" -S Timestamp)
+    export SOURCE_DATE_EPOCH
+    dpkg-source -b "compust-$version"
+)
+rm -rf "$output/compust-$version" "$output/work"
+
 cp packaging/obs/compust.spec packaging/obs/compust.changes "$output/"
 (
     cd "$output"
-    sha256sum compust.spec compust.changes compust-*.tar.* >SHA256SUMS
+    sha256sum compust.spec compust.changes compust_* >SHA256SUMS
 )
 ```
 
-Upload `compust.spec`, `compust.changes`, the source archive, the vendor
-archive and `SHA256SUMS` into the `compust` package of `home:hashdefault`.
-The archives are generated artifacts and must not be committed to Git.
-An existing checkout's `target/`, local configuration and working-tree
-changes are excluded by `git archive`.
+Upload every file in the output directory into the `compust` package of
+`home:hashdefault`: the recipe, the `.changes` file, the two archives, the
+`.dsc`, the `debian.tar.xz` and `SHA256SUMS`. Remove the `.dsc` and
+`debian.tar.xz` of an older version from the package, because OBS builds
+from the `.dsc` it finds. The archives are generated artifacts and must not
+be committed to Git. An existing checkout's `target/`, local configuration
+and working-tree changes are excluded by `git archive`.
 
 For a later snapshot, update the full and short revisions, the date and
-RPM version in the recipe, the `.changes` entry and these commands together.
-Regenerate both archives, keeping the upstream lock file unchanged, and
-verify the target build before describing it as published.
+version in the recipe, in `debian/changelog` and `debian/rules`, the
+`.changes` entry and these commands together. Regenerate both archives,
+keeping the upstream lock file unchanged, and verify each target build
+before describing it as published.
 
 References: [openSUSE cargo-packaging](https://github.com/openSUSE-Rust/cargo-packaging)
 and [OBS Rust vendoring](https://github.com/openSUSE-Rust/obs-service-cargo).

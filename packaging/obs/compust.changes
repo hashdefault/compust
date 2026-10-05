@@ -1,4 +1,14 @@
 -------------------------------------------------------------------
+Mon Oct  5 00:59:40 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Add a Debian source package beside the RPM recipe. Built on Debian 13
+  with Rust from backports, its .deb also installs on Ubuntu and Linux
+  Mint, because the binary needs only glibc 2.34.
+- Name the two source archives as Debian orig archives and compress the
+  dependency archive with xz, so the recipe and the .dsc share them;
+  dpkg-source does not read zstd. The archive contents are unchanged.
+
+-------------------------------------------------------------------
 Sun Oct  4 23:56:15 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
 
 - Build on Fedora as well, with its cargo-rpm-macros and package names
