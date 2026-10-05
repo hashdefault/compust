@@ -267,6 +267,8 @@ A versão 0.3.0-beta.2 traz tudo o que veio depois da 0.3.0-beta.1: os três rec
 
 Seu escopo declarado cobre uma máquina: o desktop com Radeon Vega, agora no Xorg 21.1.24. Suas [sessões de desktop](DESKTOP_TESTING.pt-BR.md#sessões-xorg-registradas-no-desktop-com-radeon-vega-2026-10-05) com o i3 passaram em todos os cenários em `ed2cdb0`, antes dos cantos arredondados e da correção da GPU, e suas [verificações de recursos](DESKTOP_TESTING.pt-BR.md#cantos-arredondados-registrados-no-desktop-com-radeon-vega-2026-10-05) passaram nos dois pintores em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Os registros do desktop com RX 9060 XT cobrem a 0.3.0-beta.1 e commits anteriores. Todos usaram compilações locais, não o binário empacotado.
 
+Duas execuções do [`package.sh`](../tools/package.sh) no desktop com Radeon Vega produziram arquivos idênticos. O binário empacotado informou sua versão e não exige nenhum símbolo da glibc mais recente que a 2.34; ele não se liga a nenhuma biblioteca EGL, que o renderizador de GPU carrega ao iniciar. No Xvfb 21.1.24 do Xorg, ele se recusou a iniciar ao lado de outro compositor, terminou com sucesso após SIGTERM e saiu com um erro de conexão quando seu servidor X parou. O arquivo da versão baixado coincidiu com o `SHA256SUMS`. Os [pacotes do Open Build Service](../packaging/obs/README.md) compilam a tag como `0.3.0~beta.2` para Debian 13, Fedora 43 e 44 e openSUSE Tumbleweed; cada build rodou a suíte completa de testes, inclusive os 132 testes X11, e passou.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |

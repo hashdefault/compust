@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-SOURCE_REVISION = 7c93c7bbfa7a78a64e93c464e1f854c7147ced45
+SOURCE_REVISION = 5e7f14769c5b781c42b860d9903bc8aaa08667cd
 DOCDIR = debian/compust/usr/share/doc/compust
 
 export CARGO_HOME = $(CURDIR)/debian/cargo-home
@@ -22,7 +22,7 @@ override_dh_auto_build:
 	printf '%s\n' \
 	    'upstream_revision $(SOURCE_REVISION)' \
 	    'snapshot_version $(shell dpkg-parsechangelog -S Version)' \
-	    'upstream_package_version 0.3.0-beta.1' > BUILDINFO
+	    'upstream_package_version 0.3.0-beta.2' > BUILDINFO
 	rustc --version >> BUILDINFO
 	cargo --version >> BUILDINFO
 

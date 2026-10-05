@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
-# Source snapshot: https://github.com/hashdefault/compust/commit/7c93c7bbfa7a78a64e93c464e1f854c7147ced45
+# Source: https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.2 (commit 5e7f14769c5b781c42b860d9903bc8aaa08667cd)
 
-%global source_revision 7c93c7bbfa7a78a64e93c464e1f854c7147ced45
-%global source_short 7c93c7b
+%global source_revision 5e7f14769c5b781c42b860d9903bc8aaa08667cd
+%global source_short 5e7f147
 
 Name:           compust
-Version:        0.3.0~beta.1+git20261005.7c93c7b
+Version:        0.3.0~beta.2
 Release:        0
 Summary:        Experimental X11 compositor in Rust
 License:        MIT
@@ -36,13 +36,13 @@ ExclusiveArch:  %{rust_tier1_arches}
 
 %description
 Compust is an experimental X11 compositor written in Rust for Xorg and
-XLibre. It provides fades, transparency, background blur, rectangular
-shadows, per-window rules and configuration reloads. XRender is the
+XLibre. It provides fades, transparency, background blur, shadows,
+rounded corners, per-window rules and configuration reloads. XRender is the
 default renderer, with an optional OpenGL ES renderer and XRender fallback.
 
-This package is a snapshot of main after 0.3.0-beta.1, identified by its
-Git revision in the package version and BUILDINFO. Run it from an X11
-session after stopping the compositor already serving that screen.
+This package is the 0.3.0-beta.2 prerelease; BUILDINFO names its Git
+revision. Run it from an X11 session after stopping the compositor
+already serving that screen.
 
 %prep
 %autosetup -n %{name}-%{source_short} -a1
@@ -69,7 +69,7 @@ install -Dm0755 target/release/compust %{buildroot}%{_bindir}/compust
 printf '%s\n' \
     'upstream_revision %{source_revision}' \
     'snapshot_version %{version}' \
-    'upstream_package_version 0.3.0-beta.1' > BUILDINFO
+    'upstream_package_version 0.3.0-beta.2' > BUILDINFO
 rustc --version >> BUILDINFO
 cargo --version >> BUILDINFO
 

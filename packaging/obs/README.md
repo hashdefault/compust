@@ -1,11 +1,10 @@
 # Open Build Service package
 
-The RPM recipe and the Debian source package build Git snapshot
-`7c93c7bbfa7a78a64e93c464e1f854c7147ced45`, after `0.3.0-beta.1`, as
-`0.3.0~beta.1+git20261005.7c93c7b`. The binary's `--version` still reports
-the upstream Cargo version; the package version and the installed
-`BUILDINFO` identify this snapshot. This is not a new upstream release or
-Git tag.
+The RPM recipe and the Debian source package build the 0.3.0-beta.2
+prerelease, tag `v0.3.0-beta.2` at
+`5e7f14769c5b781c42b860d9903bc8aaa08667cd`, as `0.3.0~beta.2`. The tilde
+sorts it before a final 0.3.0 and after the earlier snapshots of
+`0.3.0~beta.1+git…`. The installed `BUILDINFO` names the revision.
 
 Both use the same two archives, named as Debian orig archives: the source
 exported by `git archive`, and `orig-deps`, which holds the vendored crates
@@ -87,9 +86,9 @@ on Debian and from the `dpkg` package on Arch.
 
 ```bash
 set -euo pipefail
-revision=7c93c7bbfa7a78a64e93c464e1f854c7147ced45
-short=7c93c7b
-version='0.3.0~beta.1+git20261005.7c93c7b'
+revision=5e7f14769c5b781c42b860d9903bc8aaa08667cd
+short=5e7f147
+version='0.3.0~beta.2'
 output="$PWD/artifacts/obs-upload-$short"
 epoch=$(git log -1 --format=%ct "$revision")
 mkdir "$output"

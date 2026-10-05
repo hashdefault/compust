@@ -1,4 +1,14 @@
 -------------------------------------------------------------------
+Mon Oct  5 18:04:47 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Package the 0.3.0-beta.2 prerelease, tag v0.3.0-beta.2 at
+  5e7f14769c5b781c42b860d9903bc8aaa08667cd.
+  It adds shadows, rounded corners, fullscreen unredirection, rules by
+  focus, and reloads when the configuration is saved, and fixes the GPU
+  renderer, which blended translucent windows twice where the
+  rectangles it repainted overlapped.
+
+-------------------------------------------------------------------
 Mon Oct  5 02:36:28 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
 
 - Package snapshot 7c93c7bbfa7a78a64e93c464e1f854c7147ced45 from main.

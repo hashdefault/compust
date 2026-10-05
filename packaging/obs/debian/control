@@ -18,10 +18,10 @@ Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: libegl1
 Description: Experimental X11 compositor in Rust
  Compust is an experimental X11 compositor written in Rust for Xorg and
- XLibre. It provides fades, transparency, background blur, rectangular
- shadows, per-window rules and configuration reloads. XRender is the
+ XLibre. It provides fades, transparency, background blur, shadows,
+ rounded corners, per-window rules and configuration reloads. XRender is the
  default renderer, with an optional OpenGL ES renderer and XRender fallback.
  .
- This package is a snapshot of main after 0.3.0-beta.1, identified by its
- Git revision in the package version and BUILDINFO. Run it from an X11
- session after stopping the compositor already serving that screen.
+ This package is the 0.3.0-beta.2 prerelease; BUILDINFO names its Git
+ revision. Run it from an X11 session after stopping the compositor
+ already serving that screen.

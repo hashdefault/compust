@@ -58,7 +58,7 @@ If a Present submission is rejected with `BadMatch` and the original rendering b
 
 ## Install
 
-The [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) builds x86_64 packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed from a tested snapshot of `main` after 0.3.0-beta.1, and runs the test suite in every build. The [packaging notes](packaging/obs/README.md) name the snapshot. A package installs the `compust` program and its documentation only: no autostart entry, and no change to your desktop configuration.
+The [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) builds x86_64 packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed from the 0.3.0-beta.2 prerelease, and runs the test suite in every build. The [packaging notes](packaging/obs/README.md) name the snapshot. A package installs the `compust` program and its documentation only: no autostart entry, and no change to your desktop configuration.
 
 ### Arch Linux and derivatives
 

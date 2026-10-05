@@ -58,7 +58,7 @@ Se um envio Present for rejeitado com `BadMatch` e os buffers originais de rende
 
 ## Instalação
 
-O [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) gera pacotes x86_64 para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed a partir de um snapshot testado da `main` posterior à 0.3.0-beta.1, e roda a suíte de testes em cada build. As [notas de empacotamento](packaging/obs/README.md) dizem qual é o snapshot. O pacote instala apenas o programa `compust` e a documentação dele: nenhuma entrada de inicialização automática e nenhuma alteração na configuração do seu desktop.
+O [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) gera pacotes x86_64 para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed a partir da pré-versão 0.3.0-beta.2, e roda a suíte de testes em cada build. As [notas de empacotamento](packaging/obs/README.md) dizem qual é o snapshot. O pacote instala apenas o programa `compust` e a documentação dele: nenhuma entrada de inicialização automática e nenhuma alteração na configuração do seu desktop.
 
 ### Arch Linux e derivados
 
