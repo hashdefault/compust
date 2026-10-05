@@ -1,9 +1,15 @@
 use super::{
     blur,
-    paint::{Beneath, Plan},
-    shadow::{self, Shadow},
+    corner::{self, interior, squares, within},
+    paint::{Beneath, Part, Plan},
+    shadow::{self, Shadow, correction, patches},
 };
-use crate::{capabilities, picture::Size, region::Rect, session::Session};
+use crate::{
+    capabilities,
+    picture::Size,
+    region::{Rect, without},
+    session::Session,
+};
 use anyhow::{Context as _, Result, bail, ensure};
 use compust_gl::{
     Device, Dmabuf, Gpu, Mode, Placement, Plane, Rect as Area, Target, Texture, fourcc,
@@ -41,6 +47,11 @@ pub(super) struct Painter {
     textures: Vec<(Window, PictureId, Texture)>,
     backdrops: Vec<Backdrop>,
     shadows: Vec<Shade>,
+    /// One coverage disk per radius of rounded corners in use, as `corner::Masks` keeps them
+    /// for the `XRender` painter.
+    disks: Vec<(u8, Texture)>,
+    /// One fully opaque alpha pixel, the second profile of a shadow's patches.
+    one: Texture,
 }
 
 /// The textures one surface's shadow is drawn from, as `shadow::Strips` keeps them for the
@@ -53,6 +64,12 @@ struct Shade {
     across: Texture,
     /// The profile along the y axis, one column.
     down: Texture,
+    /// The patches a rounded shadow draws instead of its profiles, relative to its top left.
+    patches: Vec<(Rect, Texture)>,
+    /// The size, radius, corners, and offset the patches were made for.
+    patched: Option<(Size, u8, u8, (i8, i8))>,
+    /// The correction of the corners and radius last used, kept across resizes.
+    correction: Option<((u8, u8), Vec<u8>)>,
 }
 
 /// A surface's blurred backdrop, as `blur::Backdrop` keeps it for the `XRender` painter.
@@ -99,6 +116,7 @@ impl Painter {
             levels.push(gpu.target(width, height)?);
         }
         tracing::info!(renderer = gpu.renderer()?, "drawing with the GPU");
+        let one = gpu.alpha(1, 1, &[u8::MAX])?;
         Ok(Self {
             conn: Rc::clone(conn),
             fence,
@@ -109,6 +127,8 @@ impl Painter {
             textures: Vec::new(),
             backdrops: Vec::new(),
             shadows: Vec::new(),
+            disks: Vec::new(),
+            one,
         })
     }
 
@@ -154,6 +174,15 @@ impl Painter {
                 .iter()
                 .any(|part| part.shadow.is_some() && part.surface.window == kept.window)
         });
+        self.disks
+            .retain(|(radius, _)| plan.parts.iter().any(|part| part.corners == *radius));
+        for part in plan.parts.iter().filter(|part| part.corners > 0) {
+            if !self.disks.iter().any(|(radius, _)| *radius == part.corners) {
+                let side = 2 * u32::from(part.corners);
+                let disk = self.gpu.alpha(side, side, &corner::disk(part.corners))?;
+                self.disks.push((part.corners, disk));
+            }
+        }
         for part in &plan.parts {
             let window = part.surface.window;
             // A backdrop due to blur again is refreshed even where none of it shows, so that a
@@ -168,36 +197,9 @@ impl Painter {
             {
                 self.shade(window, *shadow, around)?;
             }
-            if part.clip.is_empty() {
-                continue;
+            if !part.clip.is_empty() {
+                self.draw_surface(part)?;
             }
-            let clip = areas(&part.clip)?;
-            let mut frame = self.gpu.frame(&self.back)?;
-            let texture = self
-                .textures
-                .iter()
-                .find(|(kept, _, _)| *kept == window)
-                .map(|(_, _, texture)| texture)
-                .context("a surface was not imported")?;
-            let origin = (
-                i32::from(part.surface.geometry.x),
-                i32::from(part.surface.geometry.y),
-            );
-            let opacity = f32::from(part.opacity) / f32::from(u16::MAX);
-            if let Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } = part.beneath
-                && let Some(backdrop) = self
-                    .backdrops
-                    .iter()
-                    .find(|kept| kept.window == window && kept.area == bounds)
-            {
-                // The blur shows as strongly as the surface covers each pixel, as the XRender
-                // painter weighs it.
-                let at = Placement::At(bounds.left, bounds.top);
-                let weight = (texture, origin);
-                frame.draw_masked(backdrop.target.texture(), at, weight, opacity, &clip)?;
-            }
-            let at = Placement::At(origin.0, origin.1);
-            frame.draw(texture, at, Mode::Over(opacity), &clip)?;
         }
         self.gpu.flush()
     }
@@ -248,22 +250,158 @@ impl Painter {
                 radius: shadow.radius,
                 across: self.gpu.alpha(u32::try_from(across.len())?, 1, &across)?,
                 down: self.gpu.alpha(1, u32::try_from(down.len())?, &down)?,
+                patches: Vec::new(),
+                patched: None,
+                correction: None,
             };
             self.shadows.retain(|kept| kept.window != window);
             self.shadows.push(shade);
         }
         let shade = self
             .shadows
-            .iter()
-            .find(kept)
+            .iter_mut()
+            .find(|shade| kept(&&**shade))
             .context("a shadow has no textures")?;
+        let geometry = (shadow.size, shadow.radius, shadow.corners, shadow.offset);
+        if shade.patched != Some(geometry) {
+            shade.patches.clear();
+            if shadow.corners > 0 {
+                let corners = (shadow.corners, shadow.radius);
+                if shade.correction.as_ref().map(|(kept, _)| *kept) != Some(corners) {
+                    shade.correction = Some((corners, correction(shadow.corners, shadow.radius)));
+                }
+                let values = shade
+                    .correction
+                    .as_ref()
+                    .map_or(&[][..], |(_, values)| values);
+                for (rect, values) in patches(&shadow, values) {
+                    let (width, height) = (
+                        u32::try_from(rect.right - rect.left)?,
+                        u32::try_from(rect.bottom - rect.top)?,
+                    );
+                    shade
+                        .patches
+                        .push((rect, self.gpu.alpha(width, height, &values)?));
+                }
+            }
+            shade.patched = Some(geometry);
+        }
         let strength = f32::from(shadow.strength) / f32::from(u16::MAX);
-        self.gpu.frame(&self.back)?.shade(
-            (&shade.across, &shade.down),
-            (shadow.rect.left, shadow.rect.top),
-            strength,
-            &areas(around)?,
-        )
+        let placed: Vec<_> = shade
+            .patches
+            .iter()
+            .map(|(rect, texture)| {
+                let rect = Rect {
+                    left: rect.left + shadow.rect.left,
+                    top: rect.top + shadow.rect.top,
+                    right: rect.right + shadow.rect.left,
+                    bottom: rect.bottom + shadow.rect.top,
+                };
+                (rect, texture)
+            })
+            .collect();
+        let mut frame = self.gpu.frame(&self.back)?;
+        let strips = without(
+            around.to_vec(),
+            &placed.iter().map(|(rect, _)| *rect).collect::<Vec<_>>(),
+        );
+        if !strips.is_empty() {
+            frame.shade(
+                (&shade.across, &shade.down),
+                (shadow.rect.left, shadow.rect.top),
+                strength,
+                &areas(&strips)?,
+            )?;
+        }
+        // A patch holds both axes; the opaque pixel stands for the second profile.
+        for (rect, texture) in placed {
+            let shown = within(around, &[rect]);
+            if !shown.is_empty() {
+                frame.shade(
+                    (texture, &self.one),
+                    (rect.left, rect.top),
+                    strength,
+                    &areas(&shown)?,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Draw `part`'s surface within its clip, over its blurred backdrop where it has one.
+    /// With rounded corners, its interior is drawn as a square surface is, and each corner
+    /// square through its quadrant of the disk, as the `XRender` painter draws them.
+    fn draw_surface(&self, part: &Part<'_>) -> Result<()> {
+        let window = part.surface.window;
+        let texture = self
+            .textures
+            .iter()
+            .find(|(kept, _, _)| *kept == window)
+            .map(|(_, _, texture)| texture)
+            .context("a surface was not imported")?;
+        let origin = (
+            i32::from(part.surface.geometry.x),
+            i32::from(part.surface.geometry.y),
+        );
+        let opacity = f32::from(part.opacity) / f32::from(u16::MAX);
+        let backdrop = match part.beneath {
+            Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } => self
+                .backdrops
+                .iter()
+                .find(|kept| kept.window == window && kept.area == bounds),
+            Beneath::Scene => None,
+        };
+        let bounds = part.surface.bounds();
+        let inner = within(&part.clip, &interior(bounds, part.corners));
+        let mut frame = self.gpu.frame(&self.back)?;
+        if !inner.is_empty() {
+            let inner = areas(&inner)?;
+            if let Some(backdrop) = backdrop {
+                // The blur shows as strongly as the surface covers each pixel, as the XRender
+                // painter weighs it.
+                let at = Placement::At(backdrop.area.left, backdrop.area.top);
+                frame.draw_masked(
+                    backdrop.target.texture(),
+                    at,
+                    (texture, origin),
+                    opacity,
+                    &inner,
+                )?;
+            }
+            let at = Placement::At(origin.0, origin.1);
+            frame.draw(texture, at, Mode::Over(opacity), &inner)?;
+        }
+        if part.corners == 0 {
+            return Ok(());
+        }
+        let disk = self
+            .disks
+            .iter()
+            .find(|(radius, _)| *radius == part.corners)
+            .map(|(_, disk)| disk)
+            .context("rounded corners have no disk")?;
+        for (square, (across, down)) in squares(bounds, part.corners) {
+            let shown = within(&part.clip, &[square]);
+            if shown.is_empty() {
+                continue;
+            }
+            let shown = areas(&shown)?;
+            let disk_at = (square.left - across, square.top - down);
+            if let Some(backdrop) = backdrop {
+                let at = Placement::At(backdrop.area.left, backdrop.area.top);
+                frame.draw_masked_covered(
+                    backdrop.target.texture(),
+                    at,
+                    (texture, origin),
+                    (disk, disk_at),
+                    opacity,
+                    &shown,
+                )?;
+            }
+            let at = Placement::At(origin.0, origin.1);
+            frame.draw_covered(texture, at, (disk, disk_at), opacity, &shown)?;
+        }
+        Ok(())
     }
 
     /// Make the backdrop of `window` hold `area`, as `Renderer::keep` does for `XRender`.

@@ -25,7 +25,7 @@ Each row links to its record.
 
 | Environment | Recorded there |
 | --- | --- |
-| Xvfb in CI, on every push | 123 X11 tests that run a real Compust process against a real server and check pixels and protocol behavior, with 45 unit tests, 6 command-line tests, and the GPU crate's 9 tests on Mesa's software device |
+| Xvfb in CI, on every push | 132 X11 tests that run a real Compust process against a real server and check pixels and protocol behavior, with 47 unit tests, 6 command-line tests, and the GPU crate's 11 tests on Mesa's software device |
 | AMD Ryzen 5 5600GT (Radeon Vega) desktop: XLibre 25.1.9 with Xmonad 0.18.1, one and two 1920×1080 monitors; Xorg 21.1.24 with i3 4.25.1, one monitor | On XLibre: [desktop scenarios](docs/DESKTOP_TESTING.md#recorded-hardware-desktop-session-2026-10-03) with fades, translucency, and [blur](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03); [mode and layout changes, and both cables unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03). On Xorg: [desktop scenarios with `main`, and shadows, focus rules, and fullscreen suspension in both painters](docs/DESKTOP_TESTING.md#recorded-xorg-sessions-on-the-radeon-vega-desktop-2026-10-05) |
 | Intel Core i3-1005G1 (Iris Plus) laptop: Xorg 21.1.11, with Xmonad 0.17.2, Openbox 3.6.1, and i3 4.23 | Desktop scenarios under [Xmonad](docs/DESKTOP_TESTING.md#recorded-intelxorg-sessions-2026-10-03), [Openbox](docs/DESKTOP_TESTING.md#recorded-openbox-sessions-2026-10-03), and [i3](docs/DESKTOP_TESTING.md#recorded-i3-sessions-2026-10-03); an [external display unplugged and reconnected](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03); [suspend and resume](docs/DESKTOP_TESTING.md#recorded-suspend-and-resume-2026-10-03) |
 | AMD Ryzen 5 5600X with a Radeon RX 9060 XT: XLibre 25.1.9, with Xmonad 0.18.1, Openbox 3.6.1, i3 4.25.1, bspwm 0.9.12, and dwm 6.8, one and two 1920×1080 monitors | [Desktop scenarios](docs/DESKTOP_TESTING.md#recorded-desktop-sessions-on-the-rx-9060-xt-2026-10-04) with 0.3.0-beta.1's source under Xmonad, Openbox, i3, and bspwm, with fades, translucency, and blur. Under dwm: [configuration reloads](docs/DESKTOP_TESTING.md#recorded-reload-session-2026-10-03); [Compust benchmark scenes](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03); [region repaint](docs/DESKTOP_TESTING.md#recorded-region-repaint-2026-10-04), [blur reuse](docs/DESKTOP_TESTING.md#recorded-blur-reuse-2026-10-04), [occlusion](docs/DESKTOP_TESTING.md#recorded-occlusion-2026-10-04), and the [GPU renderer](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04) |
@@ -35,7 +35,7 @@ Most hardware sessions use the probe's synthetic windows instead of applications
 
 ## What works today
 
-Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them. The blur repeatedly halves the area behind a window with bilinear sampling and scales it back up, which GPU-accelerated servers keep on the GPU. Windows can cast soft [shadows](#shadows), which stay off until `shadow_radius` is set. [Per-window rules](#per-window-rules) set the opacity, blur, fade duration, and shadow of windows chosen by class, type, title, or focus.
+Opening and closing windows use a smoothstep fade, including closing a window halfway through its opening animation. Transparency combines an application's ARGB content, `_NET_WM_WINDOW_OPACITY`, and the configured global opacity. Translucent windows can blur the content behind them. The blur repeatedly halves the area behind a window with bilinear sampling and scales it back up, which GPU-accelerated servers keep on the GPU. Windows can cast soft [shadows](#shadows), which stay off until `shadow_radius` is set. Their corners can be [rounded](#rounded-corners), along with their shadows and the blur behind them, once `corner_radius` is set. [Per-window rules](#per-window-rules) set the opacity, blur, fade duration, and shadow of windows chosen by class, type, title, or focus.
 
 Compust tracks window stacking, movement, resizing, bounding shapes, redraws, and root wallpaper pixmaps. It retains named pixmaps during closing animations. The overlay has an empty input region so clicks reach the applications below it. An existing compositor is never replaced automatically.
 
@@ -156,6 +156,7 @@ shadow_radius = 0
 shadow_offset_x = 0
 shadow_offset_y = 0
 shadow_opacity = 50
+corner_radius = 0
 max_fps = 120
 vsync = true
 backend = "xrender"
@@ -170,6 +171,7 @@ unredirect_fullscreen = false
 | `shadow_radius` | How far a shadow spreads beyond its window in pixels, 0–64; zero, the default, draws no shadows |
 | `shadow_offset_x`, `shadow_offset_y` | Where a shadow lies from its window in pixels, −64 to 64: right and down, or left and up when negative |
 | `shadow_opacity` | How dark a shadow is where it is darkest, as a percentage, 0–100, multiplied by its window's opacity |
+| `corner_radius` | Radius of rounded window corners in pixels, 0–64; zero, the default, keeps corners square |
 | `max_fps` | Repaint ceiling, 1–1000; not a promise of actual frame rate |
 | `vsync` | Use Present if available; `false` selects direct XRender copying |
 | `unredirect_fullscreen` | `true` stops compositing while one opaque window covers the whole screen; `false`, the default, always composites |
@@ -185,9 +187,24 @@ A window casts a shadow when its type is `normal`, `dialog`, `utility`, `splash`
 
 Under a tiling window manager each window's shadow falls on its neighbors. A rule with `window_type = "normal"` and `shadow = false` leaves shadows to dialogs and other floating windows that name their type.
 
+### Rounded corners
+
+Rounded corners are on `main` and will be in the next beta; 0.3.0-beta.1 rejects their setting. With `corner_radius` above zero, the windows that cast shadows have their corners rounded with that radius, smoothed across each pixel an arc crosses, and their shadows and the blur behind them follow the arcs. Menus, tooltips, docks, desktops, and notifications stay square, and so do a window that keeps margins for its own decorations in `_GTK_FRAME_EXTENTS`, a window with a shape of its own, and a window the window manager shows fullscreen in `_NET_WM_STATE`, to which fullscreen unredirection still applies. A rule's `corner_radius` rounds or squares the windows it chooses whatever their type, and a radius never exceeds half of a window's shorter side.
+
+```toml
+corner_radius = 10
+
+# Square terminals.
+[[rules]]
+wm_class = "Alacritty"
+corner_radius = 0
+```
+
+A window's border, which window managers such as Xmonad draw, is rounded with the window at its outer edge only, so a thick border looks uneven at the corners. Under a tiling window manager, each window's corners show what lies beneath them; a rule with `window_type = "normal"` and `corner_radius = 0` keeps tiled windows square.
+
 ### Fullscreen unredirection
 
-With `unredirect_fullscreen = true`, Compust stops compositing while one window hides everything else: the topmost window, when it is opaque, has no shape, and covers the whole screen. Windows then draw to the screen directly, as without a compositor, which spares a fullscreen game or video the copy through Compust. Compositing resumes as soon as that stops being true: another window appears above it, such as a menu or a notification, or it moves, shrinks, turns translucent, or closes. Shadows, blur, and fades return with it.
+With `unredirect_fullscreen = true`, Compust stops compositing while one window hides everything else: the topmost window, when it is opaque, has no shape or rounded corners, and covers the whole screen. Windows then draw to the screen directly, as without a compositor, which spares a fullscreen game or video the copy through Compust. Compositing resumes as soon as that stops being true: another window appears above it, such as a menu or a notification, or it moves, shrinks, turns translucent, or closes. Shadows, blur, and fades return with it.
 
 One overlay covers every monitor, so with several monitors a window that fills one of them does not cover the screen and stays composited. Like shadows, this setting is on `main` and will be in the next beta.
 
@@ -229,8 +246,9 @@ opacity = 85
 | `blur` | `false` keeps the content behind the window sharp; `true` blurs it as by default, while `blur_radius` is above zero |
 | `fade_ms` | Opening/closing duration in milliseconds, 0–65535, used instead of the global `fade_ms` |
 | `shadow` | `false` gives the window no shadow; `true` gives it one whatever its type or margins, while `shadow_radius` is above zero |
+| `corner_radius` | Radius of rounded corners in pixels, 0–64, used instead of the global `corner_radius` whatever the window's type or margins; `0` keeps it square |
 
-A rule needs at least one of the first four fields, which choose windows, and at least one of the last four, which it sets. Text must match exactly, including case, and a window must match every field a rule chooses by. Each setting comes from the first matching rule that sets it, so specific rules go before broad ones; `true` in a rule thus keeps blur for windows a later rule turns it off for. Run `xprop` and click a window to see its `WM_CLASS`, `_NET_WM_WINDOW_TYPE`, and `_NET_WM_NAME`.
+A rule needs at least one of the first four fields, which choose windows, and at least one of the last five, which it sets. Text must match exactly, including case, and a window must match every field a rule chooses by. Each setting comes from the first matching rule that sets it, so specific rules go before broad ones; `true` in a rule thus keeps blur for windows a later rule turns it off for. Run `xprop` and click a window to see its `WM_CLASS`, `_NET_WM_WINDOW_TYPE`, and `_NET_WM_NAME`.
 
 Compust reads these properties from the application's window inside the window manager's frame, and reads them again when they change, such as when a title changes. A window that names no type Compust knows is `dialog` when it is transient for another window and the window manager handles it, and `normal` otherwise, as EWMH specifies. A property that is missing or malformed matches no text. A closing window keeps the rules it had while it fades out.
 
@@ -258,9 +276,9 @@ Contributions in **English or Brazilian Portuguese** are welcome. Start with [CO
 
 ## Current limits
 
-This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [rendering milestone](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) measured these costs; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) record Compust workloads on one machine before the repaint changes; later records measure its own rendering changes. Shadows are black and rectangular, and shaped windows cast none; [their pixels, focus rules, and fullscreen suspension are recorded on one AMD/XLibre display in both painters](docs/DESKTOP_TESTING.md#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04). Fullscreen unredirection needs one window over the whole root, so it never applies to one monitor of several. That record uses synthetic windows; actual fullscreen applications remain unqualified. Compust has no rounded corners, movement/scale animations, or picom configuration compatibility.
+This prototype repaints only the area of the screen that changed, and each blurred window keeps its blurred background until something beneath it changes, which blurs it again across its whole footprint. On the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-pyramid-blur-session-2026-10-03), a full-screen translucent window with blur kept 60 frames per second while Xorg used about 4% of a core. Windows hidden behind opaque ones are not painted. The opt-in GPU renderer ([recorded on one desktop](docs/DESKTOP_TESTING.md#recorded-gpu-renderer-2026-10-04)) draws the same frames as XRender within two levels of color, at about the same total CPU there, more when windows are resized, and with about 62 MiB more memory for the GL driver. The [rendering milestone](docs/ROADMAP.md#rendering-work-four-steps-done-on-one-desktop) measured these costs; its [first records](docs/DESKTOP_TESTING.md#recorded-benchmark-scenes-2026-10-03) record Compust workloads on one machine before the repaint changes; later records measure its own rendering changes. Shadows are black, and shaped windows cast none; [their pixels, focus rules, and fullscreen suspension are recorded on one AMD/XLibre display in both painters](docs/DESKTOP_TESTING.md#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04). Fullscreen unredirection needs one window over the whole root, so it never applies to one monitor of several. That record uses synthetic windows; actual fullscreen applications remain unqualified. Compust has no rounded corners, movement/scale animations, or picom configuration compatibility.
 
-The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, and easing, chosen per window, and the planned [Rounded Corners milestone](docs/ROADMAP.md#rounded-corners-planned) rounds windows, the blur behind them, and their shadows, with a radius set globally or by rules. The current binary does not accept Window Animations' configuration examples; `main` accepts `corner_radius`, but does not draw rounded corners yet. The planned [Active and Inactive Opacity milestone](docs/ROADMAP.md#active-and-inactive-opacity-planned) adds global settings for the opacity and dimming of active and inactive windows, which rules by focus already approximate, and eases opacity when focus moves; the current binary does not accept its settings.
+The planned [Window Animations milestone](docs/ROADMAP.md#window-animations-planned) extends the existing fade with pop, slide, and easing, chosen per window; the current binary does not accept its configuration examples. [Rounded corners](#rounded-corners), the first tasks of the [Rounded Corners milestone](docs/ROADMAP.md#rounded-corners-planned), are on `main`; the GPU renderer's are not yet recorded on hardware. The planned [Active and Inactive Opacity milestone](docs/ROADMAP.md#active-and-inactive-opacity-planned) adds global settings for the opacity and dimming of active and inactive windows, which rules by focus already approximate, and eases opacity when focus moves; the current binary does not accept its settings.
 
 One process handles one X screen; a multi-monitor root is composed as one surface. Independent per-output scheduling, HDR/color management, VRR, DMA-BUF import, explicit synchronization, and XLibre-specific extensions are not implemented or certified. Physical hotplug is verified only on the [recorded AMD/XLibre desktop](docs/DESKTOP_TESTING.md#recorded-hardware-session-2026-10-03) and the [recorded Intel/Xorg laptop](docs/DESKTOP_TESTING.md#recorded-intelxorg-hotplug-session-2026-10-03). Native Wayland support is outside the current scope.
 

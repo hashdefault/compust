@@ -14,6 +14,8 @@ shadow_offset_x = 0
 shadow_offset_y = 0
 # How dark a shadow is where it is darkest, in percent.
 shadow_opacity = 50
+# Radius of rounded window corners in pixels, 0..64. Zero keeps corners square.
+corner_radius = 0
 # Maximum repaint rate; idle desktops do not repaint.
 max_fps = 120
 # Use Present when supported; the XRender fallback is not synchronized to vblank.
@@ -28,8 +30,8 @@ unredirect_fullscreen = false
 # Per-window rules go after the settings above. Each chooses windows by `wm_class` (the second
 # WM_CLASS string), `window_type` (an EWMH type such as "normal", "dialog", "menu", "popup_menu",
 # "tooltip", or "dock"), `name` (the title), matching the exact text, or `focused` (whether it
-# is the active window), and sets `opacity`, `blur`, `fade_ms`, or `shadow` for them. Each
-# setting comes from the first matching rule that sets it.
+# is the active window), and sets `opacity`, `blur`, `fade_ms`, `shadow`, or `corner_radius`
+# for them. Each setting comes from the first matching rule that sets it.
 # `xprop` shows a window's class, type, and title.
 #
 # [[rules]]

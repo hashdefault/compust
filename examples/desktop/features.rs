@@ -1,3 +1,5 @@
+#[path = "features/corners.rs"]
+mod corners;
 #[path = "features/fullscreen.rs"]
 mod fullscreen;
 #[path = "features/scene.rs"]
@@ -18,7 +20,8 @@ use x11rb::{
 
 #[derive(clap::Args)]
 pub(super) struct Options {
-    /// Check shadows, focus rules, and fullscreen suspension without a window manager.
+    /// Check shadows, focus rules, rounded corners, and fullscreen suspension without a
+    /// window manager.
     /// Use tools/desktop/compust-features.toml and label the compositor 'compust'.
     #[arg(long = "features", conflicts_with_all = ["bench", "snapshot", "hotplug"])]
     pub(super) enabled: bool,
@@ -64,9 +67,10 @@ pub(super) fn run(surface: &Surface, args: &Args, processes: &[Process]) -> Resu
     surface.conn.map_window(paper)?.check()?;
     shadows::check(surface, args)?;
     focus(surface, args)?;
+    corners::check(surface, args)?;
     fullscreen::check(surface, args, processes)?;
     topology::resources(surface, &args.output, true)?;
-    println!("PASS: shadow pixels, focus rules, fullscreen suspension and resume");
+    println!("PASS: shadow pixels, focus rules, rounded corners, fullscreen suspension and resume");
     Ok(())
 }
 

@@ -454,3 +454,98 @@ fn masked_draws_weigh_the_source_by_the_mask_alpha_and_opacity() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn covered_draws_keep_the_source_alpha_and_weigh_it_by_the_mask() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    // Half-transparent red, premultiplied, through a transparent, a half, and an opaque mask
+    // pixel, over blue.
+    let red = painted(&gpu, (3, 1), &[([0.5, 0.0, 0.0, 0.5], rect(0, 0, 3, 1))])?;
+    let mask = painted(
+        &gpu,
+        (3, 1),
+        &[
+            ([0.0; 4], rect(0, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 0.5], rect(1, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 1.0], rect(2, 0, 1, 1)),
+        ],
+    )?;
+    let target = painted(&gpu, (3, 1), &[([0.0, 0.0, 1.0, 1.0], rect(0, 0, 3, 1))])?;
+    gpu.frame(&target)?.draw_covered(
+        red.texture(),
+        Placement::At(0, 0),
+        (mask.texture(), (0, 0)),
+        1.0,
+        &[rect(0, 0, 3, 1)],
+    )?;
+    let pixels = gpu.read(&target, rect(0, 0, 3, 1))?;
+    for (x, [er, eb]) in [(0, [0_u8, 255_u8]), (1, [64, 191]), (2, [128, 128])] {
+        let [r, g, b, _] = pixel(&pixels, 3, (x, 0))?;
+        assert!(
+            r.abs_diff(er) <= 1 && g == 0 && b.abs_diff(eb) <= 1,
+            "{x}: {r} {g} {b}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn masked_covered_draws_weigh_the_source_by_both_alphas() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    let red = painted(&gpu, (2, 2), &[([1.0, 0.0, 0.0, 1.0], rect(0, 0, 2, 2))])?;
+    let mask = painted(
+        &gpu,
+        (2, 1),
+        &[
+            ([0.0, 0.0, 0.0, 1.0], rect(0, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 0.5], rect(1, 0, 1, 1)),
+        ],
+    )?;
+    let cover = painted(
+        &gpu,
+        (2, 1),
+        &[
+            ([0.0, 0.0, 0.0, 0.5], rect(0, 0, 1, 1)),
+            ([0.0, 0.0, 0.0, 1.0], rect(1, 0, 1, 1)),
+        ],
+    )?;
+    let target = painted(&gpu, (2, 2), &[([0.0, 0.0, 1.0, 1.0], rect(0, 0, 2, 2))])?;
+    let mut frame = gpu.frame(&target)?;
+    // Both pixels weigh one half: 1 × 0.5 and 0.5 × 1.
+    frame.draw_masked_covered(
+        red.texture(),
+        Placement::At(0, 0),
+        (mask.texture(), (0, 0)),
+        (cover.texture(), (0, 0)),
+        1.0,
+        &[rect(0, 0, 2, 1)],
+    )?;
+    // A row lower, the cover moves one pixel left: 1 × 1 and 0.5 × (clamped) 1, at half
+    // opacity.
+    frame.draw_masked_covered(
+        red.texture(),
+        Placement::At(0, 1),
+        (mask.texture(), (0, 1)),
+        (cover.texture(), (-1, 1)),
+        0.5,
+        &[rect(0, 1, 2, 1)],
+    )?;
+    let pixels = gpu.read(&target, rect(0, 0, 2, 2))?;
+    for (point, [er, eb]) in [
+        ((0, 0), [128_u8, 127_u8]),
+        ((1, 0), [128, 127]),
+        ((0, 1), [128, 127]),
+        ((1, 1), [64, 191]),
+    ] {
+        let [r, g, b, _] = pixel(&pixels, 2, point)?;
+        assert!(
+            r.abs_diff(er) <= 1 && g == 0 && b.abs_diff(eb) <= 1,
+            "{point:?}: {r} {g} {b}"
+        );
+    }
+    Ok(())
+}

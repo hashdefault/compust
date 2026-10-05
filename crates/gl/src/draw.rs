@@ -41,11 +41,14 @@ attribute vec2 position;
 uniform vec2 viewport;
 uniform vec4 mapping;
 uniform vec4 mask_mapping;
+uniform vec4 cover_mapping;
 varying vec2 texcoord;
 varying vec2 maskcoord;
+varying vec2 covercoord;
 void main() {
     texcoord = position * mapping.xy + mapping.zw;
     maskcoord = position * mask_mapping.xy + mask_mapping.zw;
+    covercoord = position * cover_mapping.xy + cover_mapping.zw;
     gl_Position = vec4(position / viewport * 2.0 - 1.0, 0.0, 1.0);
 }
 ";
@@ -87,6 +90,31 @@ void main() {
 }
 ";
 
+const COVERED: &str = "
+uniform sampler2D source;
+uniform sampler2D mask;
+uniform float opacity;
+varying vec2 texcoord;
+varying vec2 maskcoord;
+void main() {
+    gl_FragColor = texture2D(source, texcoord) * (texture2D(mask, maskcoord).a * opacity);
+}
+";
+
+const MASKED_COVERED: &str = "
+uniform sampler2D source;
+uniform sampler2D mask;
+uniform sampler2D cover;
+uniform float opacity;
+varying vec2 texcoord;
+varying vec2 maskcoord;
+varying vec2 covercoord;
+void main() {
+    float weight = texture2D(mask, maskcoord).a * texture2D(cover, covercoord).a * opacity;
+    gl_FragColor = vec4(texture2D(source, texcoord).rgb, 1.0) * weight;
+}
+";
+
 const SHADED: &str = "
 uniform sampler2D source;
 uniform sampler2D mask;
@@ -104,6 +132,7 @@ struct Program {
     viewport: Option<Location>,
     mapping: Option<Location>,
     mask_mapping: Option<Location>,
+    cover_mapping: Option<Location>,
     opacity: Option<Location>,
     color: Option<Location>,
 }
@@ -114,6 +143,8 @@ pub(crate) struct Programs {
     textured: Program,
     solid: Program,
     masked: Program,
+    covered: Program,
+    masked_covered: Program,
     shaded: Program,
     vertices: glow::Buffer,
 }
@@ -123,6 +154,8 @@ impl Programs {
         let textured = program(inner, TEXTURED)?;
         let solid = program(inner, SOLID)?;
         let masked = program(inner, MASKED)?;
+        let covered = program(inner, COVERED)?;
+        let masked_covered = program(inner, MASKED_COVERED)?;
         let shaded = program(inner, SHADED)?;
         let gl = inner.gl()?;
         // SAFETY: `gl` made the context current.
@@ -132,6 +165,8 @@ impl Programs {
             textured,
             solid,
             masked,
+            covered,
+            masked_covered,
             shaded,
             vertices,
         })
@@ -147,6 +182,8 @@ impl Drop for Programs {
                 gl.delete_program(self.textured.id);
                 gl.delete_program(self.solid.id);
                 gl.delete_program(self.masked.id);
+                gl.delete_program(self.covered.id);
+                gl.delete_program(self.masked_covered.id);
                 gl.delete_program(self.shaded.id);
                 gl.delete_buffer(self.vertices);
             }
@@ -179,15 +216,17 @@ fn program(inner: &Inner, fragment: &str) -> Result<Program> {
             "linking a shader program: {}",
             gl.get_program_info_log(id)
         );
-        // Sources sample texture unit 0 and masks unit 1.
+        // Sources sample texture unit 0, masks unit 1, and coverage unit 2.
         gl.use_program(Some(id));
         gl.uniform_1_i32(gl.get_uniform_location(id, "source").as_ref(), 0);
         gl.uniform_1_i32(gl.get_uniform_location(id, "mask").as_ref(), 1);
+        gl.uniform_1_i32(gl.get_uniform_location(id, "cover").as_ref(), 2);
         Ok(Program {
             id,
             viewport: gl.get_uniform_location(id, "viewport"),
             mapping: gl.get_uniform_location(id, "mapping"),
             mask_mapping: gl.get_uniform_location(id, "mask_mapping"),
+            cover_mapping: gl.get_uniform_location(id, "cover_mapping"),
             opacity: gl.get_uniform_location(id, "opacity"),
             color: gl.get_uniform_location(id, "color"),
         })
@@ -341,6 +380,89 @@ impl Frame<'_> {
             }
             gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
             gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_1_f32(program.opacity.as_ref(), opacity);
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
+        }
+        self.quads(program, clip)
+    }
+
+    /// Composite premultiplied `source`, mapped by `placement`, over `clip`, weighted at each
+    /// pixel by the alpha of `mask` times `opacity`, as the `XRender` painter draws the corners
+    /// of a rounded window through its disk. The mask's pixel (0, 0) lies on target pixel
+    /// `mask_at`, one to one.
+    pub fn draw_covered(
+        &mut self,
+        source: &Texture,
+        placement: Placement,
+        (mask, mask_at): (&Texture, (i32, i32)),
+        opacity: f32,
+        clip: &[Rect],
+    ) -> Result<()> {
+        let programs = &self.gpu.programs;
+        let program = &programs.covered;
+        let gl = self.gpu.inner.gl()?;
+        let (mask_mapping, _) = mapping(mask, Placement::At(mask_at.0, mask_at.1))?;
+        let (mapping, filter) = mapping(source, placement)?;
+        // SAFETY: `gl` made the context current; the program, its uniforms, and both textures
+        // belong to it.
+        unsafe {
+            gl.use_program(Some(program.id));
+            for (unit, texture, filter) in [
+                (glow::TEXTURE1, mask, glow::NEAREST),
+                (glow::TEXTURE0, source, filter),
+            ] {
+                gl.active_texture(unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture.id));
+                for parameter in [glow::TEXTURE_MIN_FILTER, glow::TEXTURE_MAG_FILTER] {
+                    gl.tex_parameter_i32(glow::TEXTURE_2D, parameter, filter.cast_signed());
+                }
+            }
+            gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
+            gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_1_f32(program.opacity.as_ref(), opacity);
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
+        }
+        self.quads(program, clip)
+    }
+
+    /// `draw_masked`, with the weight at each pixel also multiplied by the alpha of `cover`,
+    /// whose pixel (0, 0) lies on target pixel `cover_at`: the blurred backdrop beneath the
+    /// corners of a rounded window.
+    pub fn draw_masked_covered(
+        &mut self,
+        source: &Texture,
+        placement: Placement,
+        (mask, mask_at): (&Texture, (i32, i32)),
+        (cover, cover_at): (&Texture, (i32, i32)),
+        opacity: f32,
+        clip: &[Rect],
+    ) -> Result<()> {
+        let programs = &self.gpu.programs;
+        let program = &programs.masked_covered;
+        let gl = self.gpu.inner.gl()?;
+        let (cover_mapping, _) = mapping(cover, Placement::At(cover_at.0, cover_at.1))?;
+        let (mask_mapping, _) = mapping(mask, Placement::At(mask_at.0, mask_at.1))?;
+        let (mapping, filter) = mapping(source, placement)?;
+        // SAFETY: `gl` made the context current; the program, its uniforms, and the three
+        // textures belong to it.
+        unsafe {
+            gl.use_program(Some(program.id));
+            for (unit, texture, filter) in [
+                (glow::TEXTURE2, cover, glow::NEAREST),
+                (glow::TEXTURE1, mask, glow::NEAREST),
+                (glow::TEXTURE0, source, filter),
+            ] {
+                gl.active_texture(unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture.id));
+                for parameter in [glow::TEXTURE_MIN_FILTER, glow::TEXTURE_MAG_FILTER] {
+                    gl.tex_parameter_i32(glow::TEXTURE_2D, parameter, filter.cast_signed());
+                }
+            }
+            gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
+            gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_4_f32_slice(program.cover_mapping.as_ref(), &cover_mapping);
             gl.uniform_1_f32(program.opacity.as_ref(), opacity);
             gl.enable(glow::BLEND);
             gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
