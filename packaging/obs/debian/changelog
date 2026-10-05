@@ -1,3 +1,11 @@
+compust (0.3.0~beta.2+git20261005.3dfd920-1) unstable; urgency=medium
+
+  * Fix rounded X borders so the inner and outer corner arcs follow the
+    configured border width in both XRender and OpenGL. Add coverage checks
+    for opaque and translucent windows at larger corner radii.
+
+ -- Lucas G. Bueno <lucasgbueno@proton.me>  Mon, 05 Oct 2026 19:35:59 +0000
+
 compust (0.3.0~beta.2-1) unstable; urgency=medium
 
   * Package the 0.3.0-beta.2 prerelease, tag v0.3.0-beta.2 at

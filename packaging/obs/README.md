@@ -1,10 +1,10 @@
 # Open Build Service package
 
-The RPM recipe and the Debian source package build the 0.3.0-beta.2
-prerelease, tag `v0.3.0-beta.2` at
-`5e7f14769c5b781c42b860d9903bc8aaa08667cd`, as `0.3.0~beta.2`. The tilde
-sorts it before a final 0.3.0 and after the earlier snapshots of
-`0.3.0~beta.1+git…`. The installed `BUILDINFO` names the revision.
+The RPM recipe and Debian source package build snapshot
+`0.3.0~beta.2+git20261005.3dfd920`, based on the 0.3.0-beta.2 prerelease,
+from commit `3dfd920d3cffc0236d85331f9728ce6823231f8d`. Its version sorts
+after beta.2 and before a final 0.3.0. The installed `BUILDINFO` names the
+revision.
 
 Both use the same two archives, named as Debian orig archives: the source
 exported by `git archive`, and `orig-deps`, which holds the vendored crates
@@ -39,12 +39,12 @@ installed and run on Debian 13, Ubuntu 22.04, Ubuntu 24.04 and the Linux
 Mint 22 container image. One Debian 13 repository therefore serves all of
 them.
 
-`dpkg-source` unpacks the dependency archive into `deps/`. `debian/rules`
-writes a Cargo configuration that points at `deps/vendor`, builds offline
-and locked, and runs the same tests and checks as the RPM recipe. It keeps
-`dh_clean` out of `deps/vendor`: Cargo verifies every vendored file, and
-`dh_clean` would delete the `Cargo.toml.orig` files. The dependency notices
-go to `/usr/share/doc/compust/dependency-licenses`.
+`dpkg-source` unpacks the additional `orig-deps` component into `deps/`.
+`debian/rules` writes a Cargo configuration that points at `deps/vendor`,
+builds offline and locked, and runs the same tests and checks as the RPM
+recipe. It keeps `dh_clean` out of `deps/vendor`: Cargo verifies every
+vendored file, and `dh_clean` would delete the `Cargo.toml.orig` files. The
+dependency notices go to `/usr/share/doc/compust/dependency-licenses`.
 
 ## Project settings on OBS
 
@@ -86,9 +86,9 @@ on Debian and from the `dpkg` package on Arch.
 
 ```bash
 set -euo pipefail
-revision=5e7f14769c5b781c42b860d9903bc8aaa08667cd
-short=5e7f147
-version='0.3.0~beta.2'
+revision=3dfd920d3cffc0236d85331f9728ce6823231f8d
+short=3dfd920
+version='0.3.0~beta.2+git20261005.3dfd920'
 output="$PWD/artifacts/obs-upload-$short"
 epoch=$(git log -1 --format=%ct "$revision")
 mkdir "$output"

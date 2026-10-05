@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-SOURCE_REVISION = 5e7f14769c5b781c42b860d9903bc8aaa08667cd
+SOURCE_REVISION = 3dfd920d3cffc0236d85331f9728ce6823231f8d
 DOCDIR = debian/compust/usr/share/doc/compust
 
 export CARGO_HOME = $(CURDIR)/debian/cargo-home

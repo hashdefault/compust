@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
-# Source: https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.2 (commit 5e7f14769c5b781c42b860d9903bc8aaa08667cd)
+# Source: https://github.com/hashdefault/compust/commit/3dfd920d3cffc0236d85331f9728ce6823231f8d
 
-%global source_revision 5e7f14769c5b781c42b860d9903bc8aaa08667cd
-%global source_short 5e7f147
+%global source_revision 3dfd920d3cffc0236d85331f9728ce6823231f8d
+%global source_short 3dfd920
 
 Name:           compust
-Version:        0.3.0~beta.2
+Version:        0.3.0~beta.2+git20261005.3dfd920
 Release:        0
 Summary:        Experimental X11 compositor in Rust
 License:        MIT
@@ -40,9 +40,9 @@ XLibre. It provides fades, transparency, background blur, shadows,
 rounded corners, per-window rules and configuration reloads. XRender is the
 default renderer, with an optional OpenGL ES renderer and XRender fallback.
 
-This package is the 0.3.0-beta.2 prerelease; BUILDINFO names its Git
-revision. Run it from an X11 session after stopping the compositor
-already serving that screen.
+This is a source snapshot based on the 0.3.0-beta.2 prerelease;
+BUILDINFO names its exact Git revision. Run it from an X11 session after
+stopping the compositor already serving that screen.
 
 %prep
 %autosetup -n %{name}-%{source_short} -a1

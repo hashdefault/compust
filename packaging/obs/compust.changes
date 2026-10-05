@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Oct  5 19:35:59 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Fix rounded X borders so the inner and outer corner arcs follow the
+  configured border width in both XRender and OpenGL. Add coverage checks
+  for opaque and translucent windows at larger corner radii.
+
+-------------------------------------------------------------------
 Mon Oct  5 18:04:47 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
 
 - Package the 0.3.0-beta.2 prerelease, tag v0.3.0-beta.2 at
