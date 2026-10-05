@@ -93,7 +93,7 @@ impl Renderer {
         self.submission = None;
         self.submitted = None;
         // The rejected frame was never shown, though the buffer holds it.
-        self.damage(super::Source::Output, self.screen());
+        self.reshow();
         tracing::warn!(
             ?error,
             "Present rejected submission; continuing with XRender"

@@ -148,7 +148,11 @@ impl Compositor {
                 if self.output == Output::Composited {
                     // A reload that changes blur or vsync waits for the buffer like any paint.
                     if self.resizing || !self.renderer.fits(&self.config) {
+                        // The server may still show the replaced renderer's last submission.
+                        // Continuing its serials tells that submission from the new ones.
+                        let serial = self.renderer.serial;
                         self.renderer = Renderer::new(&self.session, &self.config)?;
+                        self.renderer.serial = serial;
                         self.resizing = false;
                     }
                     if self

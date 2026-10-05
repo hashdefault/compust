@@ -194,6 +194,12 @@ impl Renderer {
         self.damage(Source::Background, self.screen());
     }
 
+    /// Show the whole back buffer again in the next frame. The buffer is intact; the screen
+    /// may not match it.
+    pub(crate) fn reshow(&mut self) {
+        self.damage(Source::Output, self.screen());
+    }
+
     fn screen(&self) -> Rect {
         Rect::new(0, 0, self.size.width, self.size.height)
     }

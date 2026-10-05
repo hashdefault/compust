@@ -24,7 +24,8 @@ pub(crate) enum Fault {
     Depth,
     Pixmap,
     Window,
-    /// A wait fence that is never triggered: neither completion nor idle events follow.
+    /// A wait fence that stays untriggered until `release`: neither completion nor idle
+    /// events follow before it.
     Fence,
 }
 
@@ -35,7 +36,8 @@ pub(crate) struct Presentation {
     submissions: Arc<AtomicU32>,
     /// Each submission's update region; `None` updates the whole window.
     updates: Arc<Mutex<Vec<Option<Area>>>>,
-    _conn: RustConnection,
+    fence: u32,
+    conn: RustConnection,
 }
 
 impl Presentation {
@@ -107,7 +109,8 @@ impl Presentation {
                 intercepted,
                 submissions,
                 updates,
-                _conn: conn,
+                fence,
+                conn,
             },
         ))
     }
@@ -131,6 +134,12 @@ impl Presentation {
             .recv_timeout(Duration::from_secs(5))
             .context("Present request was not intercepted")?;
         Ok(self.submissions.load(Ordering::Relaxed))
+    }
+
+    /// Trigger the fence of `Fault::Fence`, so the server shows the submission it held back.
+    pub(crate) fn release(&self) -> Result<()> {
+        self.conn.sync_trigger_fence(self.fence)?.check()?;
+        Ok(())
     }
 
     pub(crate) fn submissions(&self) -> u32 {

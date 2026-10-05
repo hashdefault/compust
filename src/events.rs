@@ -12,6 +12,7 @@ use x11rb::{
     protocol::{
         Event,
         damage::ConnectionExt as _,
+        present::{CompleteKind, CompleteMode, CompleteNotifyEvent},
         xproto::{ConfigureNotifyEvent, ConnectionExt as _, MapState, Place, Window, WindowClass},
     },
 };
@@ -87,11 +88,8 @@ impl Compositor {
             {
                 self.renderer.idle = true;
             }
-            Event::PresentCompleteNotify(event)
-                if event.serial == self.renderer.serial
-                    && Some(event.event) == self.renderer.event_id =>
-            {
-                self.renderer.complete = true;
+            Event::PresentCompleteNotify(event) if Some(event.event) == self.renderer.event_id => {
+                self.presented(&event);
             }
             Event::RandrScreenChangeNotify(_) => {
                 self.resizing = true;
@@ -121,6 +119,18 @@ impl Compositor {
             _ => (),
         }
         Ok(())
+    }
+
+    /// The server finished a submission to the overlay: the renderer's own, or one that a
+    /// replaced renderer left behind. It can show the latter after this renderer's frame, and
+    /// the update area then holds the old buffer's pixels, so the buffer is shown again.
+    fn presented(&mut self, event: &CompleteNotifyEvent) {
+        if event.serial == self.renderer.serial {
+            self.renderer.complete = true;
+        } else if event.kind == CompleteKind::PIXMAP && event.mode != CompleteMode::SKIP {
+            self.renderer.reshow();
+            self.dirty = true;
+        }
     }
 
     /// Whether handling `event` needs compositing, because it captures a window or replaces

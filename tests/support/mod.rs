@@ -267,6 +267,28 @@ impl Desktop {
         Ok(())
     }
 
+    /// Subscribe to the overlay's presentations, for `presented`.
+    pub(crate) fn watch_presentations(&self) -> Result<u32> {
+        let id = self.conn.generate_id()?;
+        self.conn
+            .present_select_input(id, self.overlay, PresentMask::COMPLETE_NOTIFY)?
+            .check()?;
+        Ok(id)
+    }
+
+    /// Wait until the server shows a pixmap on the overlay.
+    pub(crate) fn presented(&self, id: u32) -> Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Event::PresentCompleteNotify(event) = next_event(&self.conn, deadline)?
+                && event.event == id
+                && event.kind == CompleteKind::PIXMAP
+            {
+                return Ok(());
+            }
+        }
+    }
+
     fn notified(&self, id: u32, serial: u32) -> Result<u64> {
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {

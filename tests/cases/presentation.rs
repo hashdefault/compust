@@ -91,6 +91,30 @@ fn replaces_unfinished_presentation_after_timeout() -> Result<()> {
     finish_replacement(&mut desktop, &mut presentation, stalled)
 }
 
+/// The server can show a replaced renderer's submission after the frame of the renderer that
+/// replaced it, as Xvfb did after a root resize. The old buffer's pixels must not stay.
+#[test]
+fn shows_its_frame_again_after_a_replaced_submission() -> Result<()> {
+    let (mut desktop, mut presentation) =
+        Desktop::with_display("fade_ms = 0\nblur_radius = 0", Presentation::start)?;
+    let window = desktop.window(rect(20, 20), 0x0000_00ff)?;
+    desktop.map(window)?;
+    desktop.until_pixel((40, 40), |pixel| pixel == [0, 0, 255])?;
+    // The withheld submission shows the window red.
+    presentation.inject(Fault::Fence)?;
+    desktop.fill(window, rect(0, 0), 0x00ff_0000)?;
+    presentation.injected()?;
+    // The renderer that replaces the stalled one shows it green.
+    desktop.fill(window, rect(0, 0), 0x0000_ff00)?;
+    desktop.until_pixel((40, 40), |pixel| pixel == [0, 255, 0])?;
+    let presentations = desktop.watch_presentations()?;
+    presentation.release()?;
+    desktop.presented(presentations)?;
+    desktop.until_pixel((40, 40), |pixel| pixel == [0, 255, 0])?;
+    assert!(desktop.compositor.0.try_wait()?.is_none());
+    presentation.finish()
+}
+
 /// Hold back a submission's completion and idle events, as a CRTC change did on hardware.
 fn stalled_presentation() -> Result<(Desktop, Presentation, Window, u32)> {
     let (desktop, presentation) =
