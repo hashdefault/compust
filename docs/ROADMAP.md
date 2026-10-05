@@ -4,6 +4,36 @@
 
 The goal is a minimal Rust compositor that becomes a practical choice for Xorg and XLibre users; the [1.0 milestone](#10-stable-release) defines what that takes. Progress is measured through Compust's own correctness, reliability, latency, and resource records. Rewriting an existing feature in Rust is not, by itself, evidence of better performance.
 
+## Status and priorities (2026-10-05)
+
+The latest release is [0.3.0-beta.2](#fifth-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
+
+### Done
+
+| Area | State | Records |
+| --- | --- | --- |
+| Foundation and first beta | XRender composition, fades, transparency, blur, shapes, and stacking; the four beta gates met for their scope | [0.1 foundation](#01-foundation-implemented), [first beta](#first-beta-four-steps) |
+| Everyday use | Configuration discovery, reload on SIGUSR1 and when the file is saved, per-window rules, and weighted blur | [Everyday usability](#everyday-usability) |
+| Rendering | Region repaint, blur reuse, occlusion, and the opt-in GPU renderer | [Rendering work](#rendering-work-four-steps-done-on-one-desktop), [GPU backend](#rendering-backend-and-protocol-expansion) |
+| 1.0 step 1 | Shadows, fullscreen unredirection, and rules by focus, released in 0.3.0-beta.2 | [Step 1](#1-features-picom-users-rely-on) |
+| Rounded corners | Tasks 1 to 5: corners, rounded shadows, and blur at the arcs in both renderers, released in 0.3.0-beta.2 | [Rounded Corners](#rounded-corners-implemented) |
+| Hardware | AMD on XLibre with two desktops and five window managers, AMD on Xorg with i3 and both renderers, and Intel on Xorg with three window managers, hotplug, and suspend | [Compatibility matrix](#compatibility-matrix) |
+| Distribution | Reproducible release archives with checksums, and Open Build Service packages built and tested from the release tag | [Fifth beta](#fifth-beta-prerelease), [packaging](../packaging/obs/README.md) |
+| Planned | Active and Inactive Opacity, its schema decided; Window Animations | [Active and Inactive Opacity](#active-and-inactive-opacity-planned), [Window Animations](#window-animations-planned) |
+
+### Priorities
+
+In order, each with the reason it comes before the next. Items 1 to 6 lie on the [path to 1.0](#release-path).
+
+1. **Find the stale frame after a monitor change.** The X11 test `regions::monitor_changes_repaint_the_whole_screen` failed in 4 of 12 full parallel runs on the Radeon Vega desktop on 2026-10-05, as often before the rounded-corner work as after it: after a monitor change, 4,800 pixels differed from a full repaint, from (0, 180) on. It passed 20 runs in a row alone, in CI, and in every Open Build Service build. 1.0 promises that ordinary activity never leaves stale pixels, and a test that fails at random also hides new failures. Reproduce it under load, find the ordering it depends on, and fix it with a regression that fails without the fix.
+2. **Bring 0.3.0-beta.2 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
+3. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. Testers' reports from item 2 can supply part of it.
+4. **Start the endurance runs.** [Step 4](#4-endurance) has not started. Write the automated run of 10,000 window cycles with XRes checks, and count the week of daily use on the Radeon Vega desktop, which already runs Compust as its compositor.
+5. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
+6. **Measure the release candidates.** [Step 3](#3-independent-performance-measurements) runs the benchmark scenes on the candidates of item 5 in each environment item 3 qualifies, including the cost of shadows and rounded corners.
+7. **Active and Inactive Opacity, tasks 2 to 6.** Rules by focus already dim inactive windows, so this milestone is recommended after 1.0.0-rc.1, keeping 1.0's settings as they are. If its settings are to be part of 1.0, they must land before the configuration review of item 5.
+8. **Window Animations**, after 1.0.
+
 ## 0.1 foundation: implemented
 
 The repository contains an executable compositor with XRender composition, fades, alpha transparency, blur, shape clipping, application redraw tracking, stacking, window resize handling, wallpaper properties, and optional Present copy scheduling. The test suite checks real server behavior on Xvfb. Documentation and contribution paths are available in English and pt-BR.
@@ -386,12 +416,12 @@ Step 3 kept the single Present buffer: outside the update region its contents al
 
 | Step | Status | Required result |
 | --- | --- | --- |
-| 1. Features picom users rely on | Implemented and tested on Xvfb: per-window rules, [shadows](#10-step-1-shadows), [fullscreen unredirection](#10-step-1-fullscreen-unredirection), and [rules by focus](#10-step-1-rules-by-focus); [fixed fixtures recorded in XRender and GL on AMD/XLibre](DESKTOP_TESTING.md#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04) | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
+| 1. Features picom users rely on | Released in 0.3.0-beta.2 and tested on Xvfb: per-window rules, [shadows](#10-step-1-shadows), [fullscreen unredirection](#10-step-1-fullscreen-unredirection), and [rules by focus](#10-step-1-rules-by-focus); fixed fixtures recorded in XRender and GL [on AMD/XLibre](DESKTOP_TESTING.md#recorded-shadows-focus-and-fullscreen-suspension-2026-10-04) and [on AMD/Xorg](DESKTOP_TESTING.md#recorded-rounded-corners-on-the-radeon-vega-desktop-2026-10-05) | Shadows, fullscreen unredirection, and rules that choose by focus, with pixel tests in both painters |
 | 2. Hardware and desktops | One AMD/XLibre desktop recorded with 0.3.0-beta.1 under five window managers; Radeon Vega/AMD and integrated Intel/Xorg already recorded with physical hotplug on both, and the Radeon Vega desktop [on Xorg under i3](DESKTOP_TESTING.md#recorded-xorg-sessions-on-the-radeon-vega-desktop-2026-10-05) since; updated candidate runs and NVIDIA pending | A release candidate recorded on AMD, Intel, and NVIDIA, on Xorg and XLibre, under six window managers with real applications |
 | 3. Independent performance measurements | Compust scenes recorded on the RX 9060 XT before and after rendering changes; further hardware pending | Reproducible Compust CPU, GPU load, memory, resource, and frame-pacing records for each supported environment, without sustained backlogs or unexplained resource growth |
 | 4. Endurance | Not started | 10,000 automated window cycles, and a week of daily use on two machines, without a crash or growing resources |
 | 5. Outside testing | No outside reports yet | Three testers other than the maintainer run a release candidate, which then goes two weeks without a new crash, stale-window, or leak report |
-| 6. Distribution and documentation | Release archives with checksums | An Arch User Repository package, manual pages, a picom migration guide, troubleshooting, and a reviewed configuration |
+| 6. Distribution and documentation | Release archives with checksums; [Open Build Service packages](../packaging/obs/README.md) for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE | An Arch User Repository package, manual pages, a picom migration guide, troubleshooting, and a reviewed configuration |
 
 ### 1. Features picom users rely on
 

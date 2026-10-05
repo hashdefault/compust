@@ -4,6 +4,36 @@
 
 O objetivo é tornar este compositor mínimo em Rust uma opção prática para usuários de Xorg e XLibre; o [marco 1.0](#10-versão-estável) define o que isso exige. O progresso é medido pelos próprios registros de correção, confiabilidade, latência e uso de recursos do Compust. Reescrever um recurso em Rust, por si só, não comprova melhor desempenho.
 
+## Estado e prioridades (2026-10-05)
+
+A versão mais recente é a [0.3.0-beta.2](#quinta-pré-versão-beta), uma pré-versão no GitHub com pacotes do Open Build Service para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed. Esta seção resume o que está feito e ordena o que vem a seguir; as seções abaixo guardam os registros.
+
+### Feito
+
+| Área | Estado | Registros |
+| --- | --- | --- |
+| Base e primeira beta | Composição por XRender, fades, transparência, desfoque, formatos e empilhamento; os quatro critérios da beta cumpridos para o seu escopo | [Base 0.1](#base-01-implementada), [primeira beta](#primeira-beta-quatro-etapas) |
+| Uso cotidiano | Descoberta da configuração, recarga com SIGUSR1 e ao salvar o arquivo, regras por janela e desfoque ponderado | [Uso cotidiano](#uso-cotidiano) |
+| Renderização | Repintura por regiões, reaproveitamento do desfoque, oclusão e o renderizador de GPU opcional | [Trabalho de renderização](#trabalho-de-renderização-quatro-etapas-concluídas-em-um-desktop), [backend de GPU](#backend-e-expansão-do-protocolo) |
+| Etapa 1 da 1.0 | Sombras, suspensão da composição em tela cheia e regras pelo foco, publicadas na 0.3.0-beta.2 | [Etapa 1](#1-recursos-de-que-usuários-do-picom-dependem) |
+| Cantos arredondados | Tarefas 1 a 5: cantos, sombras arredondadas e desfoque nos arcos nos dois renderizadores, publicados na 0.3.0-beta.2 | [Cantos arredondados](#cantos-arredondados-implementados) |
+| Hardware | AMD no XLibre com dois desktops e cinco gerenciadores de janelas, AMD no Xorg com i3 e os dois renderizadores, e Intel no Xorg com três gerenciadores de janelas, hotplug e suspensão | [Matriz de compatibilidade](#matriz-de-compatibilidade) |
+| Distribuição | Arquivos de versão reproduzíveis com checksums, e pacotes do Open Build Service compilados e testados a partir da tag da versão | [Quinta beta](#quinta-pré-versão-beta), [empacotamento](../packaging/obs/README.md) |
+| Planejado | Opacidade de janelas ativas e inativas, com o esquema decidido; Animações de janelas | [Opacidade de janelas ativas e inativas](#opacidade-de-janelas-ativas-e-inativas-planejada), [Animações de janelas](#animações-de-janelas-planejadas) |
+
+### Prioridades
+
+Em ordem, cada uma com o motivo de vir antes da seguinte. Os itens 1 a 6 estão no [caminho até a 1.0](#caminho-até-a-versão).
+
+1. **Encontrar o quadro antigo depois de uma mudança de monitor.** O teste X11 `regions::monitor_changes_repaint_the_whole_screen` falhou em 4 de 12 execuções paralelas completas no desktop com Radeon Vega em 2026-10-05, tanto antes do trabalho dos cantos arredondados quanto depois: após uma mudança de monitor, 4.800 pixels diferiram de uma repintura completa, a partir de (0, 180). Ele passou em 20 execuções seguidas sozinho, na CI e em todas as compilações do Open Build Service. A 1.0 promete que o uso comum nunca deixa pixels antigos, e um teste que falha ao acaso também esconde falhas novas. Reproduzir sob carga, encontrar a ordem de que ele depende e corrigir com uma regressão que falhe sem a correção.
+2. **Levar a 0.3.0-beta.2 a testadores externos.** A [etapa 5](#5-testes-externos) exige três testadores além do responsável pelo projeto e depois duas semanas sem relatos novos, a espera mais longa do caminho até a 1.0. Anunciar a beta onde usuários de X11 se reúnem, apontando o guia da beta e os modelos de issue.
+3. **Registrar mais hardware.** A [etapa 2](#2-hardware-e-desktops) ainda não tem o driver da NVIDIA no Xorg, Intel com o código atual, mais gerenciadores de janelas no Xorg, hotplug físico e suspensão e retomada no Xorg, nem aplicativos reais: um navegador e seus menus, um terminal, o mpv, um jogo, uma janela GTK com decoração do lado do cliente e um aplicativo Electron. Essas sessões também cobrem o que a última tarefa dos cantos arredondados pede: cantos com um gerenciador de janelas e com aplicativos. Os relatos dos testadores do item 2 podem fornecer parte disso.
+4. **Começar os testes de uso prolongado.** A [etapa 4](#4-uso-prolongado) ainda não começou. Escrever a execução automática de 10.000 ciclos de janelas com conferência de XRes e contar a semana de uso diário no desktop com Radeon Vega, que já usa o Compust como compositor.
+5. **Preparar a distribuição e revisar a configuração.** A [etapa 6](#6-distribuição-e-documentação) ainda precisa de um pacote no Arch User Repository, páginas de manual, um guia de migração do picom e um guia de solução de problemas. Antes da 1.0.0-rc.1, revisar cada opção uma vez, inclusive `corner_radius`, já que a 1.0 as congela.
+6. **Medir as versões candidatas.** A [etapa 3](#3-medições-independentes-de-desempenho) roda as cenas de benchmark nas candidatas do item 5 em cada ambiente que o item 3 validar, inclusive o custo das sombras e dos cantos arredondados.
+7. **Opacidade de janelas ativas e inativas, tarefas 2 a 6.** As regras pelo foco já escurecem as janelas inativas, então este marco é recomendado depois da 1.0.0-rc.1, mantendo as opções da 1.0 como estão. Se as suas opções tiverem de fazer parte da 1.0, elas precisam chegar antes da revisão de configuração do item 5.
+8. **Animações de janelas**, depois da 1.0.
+
 ## Base 0.1: implementada
 
 O repositório contém um compositor executável com composição XRender, transições de opacidade, transparência alfa, desfoque, recorte por formato, acompanhamento de atualizações, empilhamento, tratamento de redimensionamento de janelas, propriedades de papel de parede e apresentação opcional por cópia com Present. A suíte verifica o comportamento de um servidor real no Xvfb. A documentação e as orientações de contribuição estão em inglês e pt-BR.
@@ -386,12 +416,12 @@ A etapa 3 manteve o único buffer do Present: fora da região de atualização, 
 
 | Etapa | Situação | Resultado exigido |
 | --- | --- | --- |
-| 1. Recursos de que usuários do picom dependem | Implementados e testados no Xvfb: regras por janela, [sombras](#etapa-1-da-10-sombras), [suspensão da composição em tela cheia](#etapa-1-da-10-suspensão-da-composição-em-tela-cheia) e [regras pelo foco](#etapa-1-da-10-regras-pelo-foco); [cenas fixas registradas em XRender e GL em AMD/XLibre](DESKTOP_TESTING.pt-BR.md#sombras-foco-e-suspensão-em-tela-cheia-registrados-2026-10-04) | Sombras, suspensão da composição em tela cheia e regras que escolhem pelo foco, com testes de pixels nos dois pintores |
+| 1. Recursos de que usuários do picom dependem | Publicados na 0.3.0-beta.2 e testados no Xvfb: regras por janela, [sombras](#etapa-1-da-10-sombras), [suspensão da composição em tela cheia](#etapa-1-da-10-suspensão-da-composição-em-tela-cheia) e [regras pelo foco](#etapa-1-da-10-regras-pelo-foco); cenas fixas registradas em XRender e GL [em AMD/XLibre](DESKTOP_TESTING.pt-BR.md#sombras-foco-e-suspensão-em-tela-cheia-registrados-2026-10-04) e [em AMD/Xorg](DESKTOP_TESTING.pt-BR.md#cantos-arredondados-registrados-no-desktop-com-radeon-vega-2026-10-05) | Sombras, suspensão da composição em tela cheia e regras que escolhem pelo foco, com testes de pixels nos dois pintores |
 | 2. Hardware e desktops | Um desktop AMD/XLibre registrado com a 0.3.0-beta.1 em cinco gerenciadores de janelas; Radeon Vega/AMD e Intel integrado/Xorg já registrados com hotplug físico nos dois, e depois o desktop com Radeon Vega [no Xorg com i3](DESKTOP_TESTING.pt-BR.md#sessões-xorg-registradas-no-desktop-com-radeon-vega-2026-10-05); atualização dos registros na candidata e NVIDIA pendentes | Uma versão candidata registrada em AMD, Intel e NVIDIA, no Xorg e no XLibre, sob seis gerenciadores de janelas e com aplicativos reais |
 | 3. Medições independentes de desempenho | Cenas do Compust registradas na RX 9060 XT antes e depois das mudanças de renderização; outros equipamentos pendentes | Registros reproduzíveis de CPU, carga da GPU, memória, recursos e cadência dos quadros do Compust em cada ambiente suportado, sem filas persistentes nem crescimento inexplicado de recursos |
 | 4. Uso prolongado | Não iniciada | 10.000 ciclos automáticos de janelas e uma semana de uso diário em duas máquinas, sem falhas nem recursos crescendo |
 | 5. Testes externos | Nenhum relato externo ainda | Três testadores além do mantenedor usam uma versão candidata, que depois passa duas semanas sem novo relato de falha, janela parada ou vazamento |
-| 6. Distribuição e documentação | Arquivos de versão com somas de verificação | Um pacote no Arch User Repository, páginas de manual, um guia de migração do picom, solução de problemas e uma configuração revisada |
+| 6. Distribuição e documentação | Arquivos de versão com somas de verificação; [pacotes do Open Build Service](../packaging/obs/README.md) para Debian, Ubuntu, Linux Mint, Fedora e openSUSE | Um pacote no Arch User Repository, páginas de manual, um guia de migração do picom, solução de problemas e uma configuração revisada |
 
 ### 1. Recursos de que usuários do picom dependem
 
