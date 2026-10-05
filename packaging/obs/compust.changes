@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Sun Oct  4 23:56:15 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
+
+- Build on Fedora as well, with its cargo-rpm-macros and package names
+  beside the openSUSE ones. The same sources, tests and checks apply.
+- Link identical dependency notices with fdupes instead of shipping
+  every copy, which rpmlint reported as files-duplicated-waste.
+
+-------------------------------------------------------------------
 Sun Oct  4 23:03:52 UTC 2026 - Lucas G. Bueno <lucasgbueno@proton.me>
 
 - Package snapshot 681eae243cbf31d723928ce39317acd92a26243a from main

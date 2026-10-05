@@ -14,15 +14,25 @@ URL:            https://github.com/hashdefault/compust
 Source0:        %{name}-%{source_short}.tar.gz
 Source1:        %{name}-vendor-%{source_short}.tar.zst
 BuildRequires:  cargo >= 1.95
-BuildRequires:  cargo-packaging
+BuildRequires:  fdupes
 BuildRequires:  gcc
-BuildRequires:  Mesa-dri
-BuildRequires:  Mesa-libEGL1
 BuildRequires:  rust >= 1.95
 BuildRequires:  xorg-x11-server-Xvfb
 BuildRequires:  zstd
+%if 0%{?fedora}
+BuildRequires:  cargo-rpm-macros >= 26
+BuildRequires:  mesa-dri-drivers
+BuildRequires:  mesa-libEGL
+Recommends:     mesa-libEGL
+# The Fedora project configuration on OBS does not define rust_arches.
+ExclusiveArch:  x86_64 aarch64
+%else
+BuildRequires:  cargo-packaging
+BuildRequires:  Mesa-dri
+BuildRequires:  Mesa-libEGL1
 Recommends:     Mesa-libEGL1
 ExclusiveArch:  %{rust_tier1_arches}
+%endif
 
 %description
 Compust is an experimental X11 compositor written in Rust for Xorg and
@@ -36,6 +46,10 @@ session after stopping the compositor already serving that screen.
 
 %prep
 %autosetup -n %{name}-%{source_short} -a1
+%if 0%{?fedora}
+# Fedora's macros write their own Cargo configuration for the vendored sources.
+%cargo_prep -v vendor
+%endif
 
 %build
 %{cargo_build} --locked --bin compust
@@ -59,14 +73,16 @@ printf '%s\n' \
 rustc --version >> BUILDINFO
 cargo --version >> BUILDINFO
 
-mkdir dependency-licenses
+# Install the notices here, not through %%license, so identical files can be linked.
+install -Dm0644 LICENSE %{buildroot}%{_defaultlicensedir}/%{name}/LICENSE
 find vendor -type f \( -iname '*license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*' \) -print | \
     while IFS= read -r license; do
-        install -Dm0644 "$license" "dependency-licenses/${license#vendor/}"
+        install -Dm0644 "$license" "%{buildroot}%{_defaultlicensedir}/%{name}/dependency-licenses/${license#vendor/}"
     done
+%fdupes %{buildroot}%{_defaultlicensedir}/%{name}
 
 %files
-%license LICENSE dependency-licenses
+%license %{_defaultlicensedir}/%{name}
 %doc README.md README.pt-BR.md compust.example.toml BUILDINFO
 %{_bindir}/compust
 
