@@ -262,7 +262,12 @@ impl Renderer {
 }
 
 /// Write `values`, row by row, into the top left `size` of `picture`'s pixmap.
-fn upload(session: &Session, picture: &Picture, size: (u16, u16), values: &[u8]) -> Result<()> {
+pub(super) fn upload(
+    session: &Session,
+    picture: &Picture,
+    size: (u16, u16),
+    values: &[u8],
+) -> Result<()> {
     let conn = &session.conn;
     let (width, height) = size;
     let pixmap = picture.pixmap.context("a strip has no pixmap")?;

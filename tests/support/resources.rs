@@ -15,6 +15,13 @@ pub(crate) struct Resources {
     pixmap_bytes: u64,
 }
 
+impl Resources {
+    /// How many resources of each type the compositor owns, without their sizes.
+    pub(crate) fn counts(&self) -> &BTreeMap<String, u32> {
+        &self.counts
+    }
+}
+
 impl Desktop {
     pub(crate) fn resources(&self) -> Result<Resources> {
         let version = self.conn.res_query_version(1, 2)?.reply()?;

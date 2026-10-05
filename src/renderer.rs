@@ -63,6 +63,8 @@ pub(crate) struct Renderer {
     backdrops: Vec<blur::Backdrop>,
     /// The strips each shadow is drawn from, one set per surface that casts one.
     shadows: Vec<shadow::Strips>,
+    /// The disks rounded corners are drawn through.
+    corners: corner::Masks,
     /// The root's depth and picture format, for buffers.
     layout: Format,
     /// The format of alpha-only buffers.
@@ -165,6 +167,7 @@ impl Renderer {
             shown: Vec::new(),
             backdrops: Vec::new(),
             shadows: Vec::new(),
+            corners: corner::Masks::default(),
             layout,
             a8,
             update,

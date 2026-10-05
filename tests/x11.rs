@@ -56,6 +56,9 @@ mod unredirect;
 
 #[path = "cases/focus.rs"]
 mod focus;
+
+#[path = "cases/corners.rs"]
+mod corners;
 use anyhow::Result;
 use support::Desktop;
 use x11rb::{

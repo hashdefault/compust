@@ -18,7 +18,7 @@ use std::time::Instant;
 use x11rb::{
     NONE,
     protocol::{
-        render::{Color, ConnectionExt as _, PictOp},
+        render::{Color, ConnectionExt as _, PictOp, Picture as PictureId},
         xproto::{Rectangle, Window},
     },
 };
@@ -44,6 +44,8 @@ pub(super) struct Part<'a> {
     /// Its shadow, with where that shows in the repaint area: around the surface, never
     /// beneath it.
     pub(super) shadow: Option<(Shadow, Vec<Rect>)>,
+    /// The radius of its rounded corners; zero when they are square.
+    pub(super) corners: u8,
 }
 
 /// A surface a frame shows, with its opacity, the shadow it casts, and the radius of its
@@ -105,6 +107,7 @@ impl Renderer {
                 && top.opacity == u16::MAX
                 && !surface.has_alpha
                 && surface.rectangular()
+                && top.corners == 0
                 && surface.bounds().contains(self.screen())
         }))
     }
@@ -147,7 +150,7 @@ impl Renderer {
             .iter()
             .zip(&beneath)
             .map(|(seen, beneath)| Layer {
-                opaque: self.opaque(seen.surface, seen.opacity),
+                opaque: self.opaque(seen),
                 blur: match *beneath {
                     Beneath::Fresh { bounds, footprint } => Some((bounds, footprint)),
                     _ => None,
@@ -158,7 +161,10 @@ impl Renderer {
         let mut parts = Vec::with_capacity(visible.len());
         for (index, (seen, beneath)) in visible.iter().zip(beneath).enumerate() {
             let Seen {
-                surface, opacity, ..
+                surface,
+                opacity,
+                corners,
+                ..
             } = *seen;
             let in_sight = |clip: Vec<Rect>| match covers.above.get(index) {
                 Some(cover) => cover.visible(clip),
@@ -166,12 +172,8 @@ impl Renderer {
             };
             // A shadow lies around its surface, so what hides the surface can leave it in sight.
             let shadow = seen.shadow.map(|shadow| {
-                let body = surface.bounds();
-                let around = area
-                    .clip(std::iter::once(shadow.rect))
-                    .into_iter()
-                    .flat_map(|rect| rect.minus(body))
-                    .collect();
+                let body = corner::interior(surface.bounds(), corners);
+                let around = without(area.clip(std::iter::once(shadow.rect)), &body);
                 (shadow, in_sight(around))
             });
             if covers.hidden.get(index) == Some(&true) {
@@ -187,6 +189,7 @@ impl Renderer {
                         clip: Vec::new(),
                         beneath: Beneath::Scene,
                         shadow,
+                        corners,
                     });
                 }
                 continue;
@@ -197,6 +200,7 @@ impl Renderer {
                 clip: in_sight(area.clip(shape(surface))),
                 beneath,
                 shadow,
+                corners,
             });
         }
         let background = covers.background.visible(area.rects().to_vec());
@@ -210,6 +214,7 @@ impl Renderer {
                 .iter()
                 .any(|part| part.shadow.is_some() && part.surface.window == kept.window)
         });
+        self.keep_disks(|radius| plan.parts.iter().any(|part| part.corners == radius));
         for part in &plan.parts {
             self.paint_surface(session, part)?;
         }
@@ -289,14 +294,22 @@ impl Renderer {
             && (opacity < u16::MAX || surface.has_alpha)
     }
 
-    /// The screen area `surface` paints over completely: its shape, when it has no alpha
-    /// channel and shows at full opacity.
-    fn opaque(&self, surface: &Surface, opacity: u16) -> Vec<Rect> {
-        if opacity < u16::MAX || surface.has_alpha {
+    /// The screen area a surface paints over completely when it has no alpha channel and
+    /// shows at full opacity: its shape, without the corners it rounds.
+    fn opaque(&self, seen: &Seen<'_>) -> Vec<Rect> {
+        let surface = seen.surface;
+        if seen.opacity < u16::MAX || surface.has_alpha {
             return Vec::new();
         }
+        let screen = self.screen();
+        if seen.corners > 0 {
+            return corner::interior(surface.bounds(), seen.corners)
+                .into_iter()
+                .filter_map(|rect| rect.intersect(screen))
+                .collect();
+        }
         shape(surface)
-            .filter_map(|rect| rect.intersect(self.screen()))
+            .filter_map(|rect| rect.intersect(screen))
             .collect()
     }
 
@@ -342,7 +355,6 @@ impl Renderer {
     /// it, and around it the shadow it casts.
     fn paint_surface(&mut self, session: &Session, part: &Part<'_>) -> Result<()> {
         let (surface, opacity, beneath) = (part.surface, part.opacity, part.beneath);
-        let clip = &part.clip;
         let conn = &session.conn;
         // A backdrop due to blur again is refreshed even where none of it shows, so that a
         // later frame never reuses a stale one.
@@ -360,18 +372,9 @@ impl Renderer {
         if let Some((shadow, around)) = &part.shadow {
             self.paint_shadow(session, surface.window, *shadow, around)?;
         }
-        let backdrop = match beneath {
-            Beneath::Scene => None,
-            Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } => self
-                .backdrops
-                .iter()
-                .find(|kept| kept.window == surface.window && kept.area == bounds),
-        };
-        if clip.is_empty() {
+        if part.clip.is_empty() {
             return Ok(());
         }
-        let clip: Vec<_> = clip.iter().map(|rect| rect.x11()).collect::<Result<_>>()?;
-        conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &clip)?;
         conn.render_fill_rectangles(
             PictOp::SRC,
             self.alpha.id,
@@ -388,10 +391,42 @@ impl Renderer {
                 height: 1,
             }],
         )?;
+        // Rounded corners draw through the disk times the opacity the alpha mask now holds,
+        // and the backdrop's weights through the disk alone.
+        let corners = part.corners;
+        let rounded = if corners > 0 {
+            let mask = self.corner_mask(session, corners, opacity)?;
+            Some((mask, self.disk_picture(session, corners)?))
+        } else {
+            None
+        };
+        let backdrop = match beneath {
+            Beneath::Scene => None,
+            Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } => self
+                .backdrops
+                .iter()
+                .find(|kept| kept.window == surface.window && kept.area == bounds),
+        };
+        let clip: Vec<_> = part
+            .clip
+            .iter()
+            .map(|rect| rect.x11())
+            .collect::<Result<_>>()?;
+        conn.render_set_picture_clip_rectangles(self.back.id, 0, 0, &clip)?;
         if let Some(backdrop) = backdrop {
-            self.show_backdrop(session, surface, backdrop, &clip)?;
+            let disk = rounded.map(|(_, disk)| (corners, disk));
+            self.show_backdrop(session, surface, backdrop, &clip, disk)?;
         }
-        conn.render_composite(
+        match rounded {
+            Some((mask, _)) => self.paint_rounded(session, part, mask),
+            None => self.composite(session, surface),
+        }
+    }
+
+    /// Composite all of `surface` over the back buffer through the alpha mask, within the
+    /// clip the back buffer has.
+    pub(super) fn composite(&self, session: &Session, surface: &Surface) -> Result<()> {
+        session.conn.render_composite(
             PictOp::OVER,
             surface.picture.id,
             self.alpha.id,
@@ -410,18 +445,21 @@ impl Renderer {
 
     /// Composite `backdrop` beneath `surface` within `clip`, as strongly as the surface covers
     /// each pixel: its alpha times the opacity the alpha mask holds. A transparent margin or
-    /// shadow then shows little blur, and the blur fades in and out with the surface.
+    /// shadow then shows little blur, and the blur fades in and out with the surface. With
+    /// `rounded`, the radius of its corners and their disk, the weights take the disk's
+    /// coverage at each corner, so blur never shows beyond the arcs.
     fn show_backdrop(
         &self,
         session: &Session,
         surface: &Surface,
         backdrop: &blur::Backdrop,
         clip: &[Rectangle],
+        rounded: Option<(u8, PictureId)>,
     ) -> Result<()> {
         let conn = &session.conn;
         let area = backdrop.area.x11()?;
         let (mask, origin) = match &self.weights {
-            Some(weights) if surface.has_alpha => {
+            Some(weights) if surface.has_alpha || rounded.is_some() => {
                 conn.render_set_picture_clip_rectangles(weights.id, 0, 0, clip)?;
                 conn.render_composite(
                     PictOp::SRC,
@@ -437,6 +475,24 @@ impl Renderer {
                     surface.size.width,
                     surface.size.height,
                 )?;
+                if let Some((radius, disk)) = rounded {
+                    for (square, (across, down)) in corner::squares(surface.bounds(), radius) {
+                        conn.render_composite(
+                            PictOp::IN,
+                            disk,
+                            NONE,
+                            weights.id,
+                            i16::try_from(across)?,
+                            i16::try_from(down)?,
+                            0,
+                            0,
+                            i16::try_from(square.left)?,
+                            i16::try_from(square.top)?,
+                            u16::from(radius),
+                            u16::from(radius),
+                        )?;
+                    }
+                }
                 (weights.id, (area.x, area.y))
             }
             _ => (self.alpha.id, (0, 0)),
@@ -457,6 +513,16 @@ impl Renderer {
         )?;
         Ok(())
     }
+}
+
+/// `rects` without any part of `cut`.
+fn without(rects: Vec<Rect>, cut: &[Rect]) -> Vec<Rect> {
+    cut.iter().fold(rects, |rects, cut| {
+        rects
+            .into_iter()
+            .flat_map(|rect| rect.minus(*cut))
+            .collect()
+    })
 }
 
 /// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
