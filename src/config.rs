@@ -16,6 +16,8 @@ pub(crate) struct Config {
     pub(crate) shadow_offset_y: i8,
     /// How dark a shadow is where it is darkest, as a percentage.
     pub(crate) shadow_opacity: u8,
+    /// The radius of rounded window corners, in pixels; zero leaves them square.
+    pub(crate) corner_radius: u8,
     pub(crate) max_fps: u16,
     pub(crate) vsync: bool,
     pub(crate) backend: Backend,
@@ -47,6 +49,7 @@ impl Default for Config {
             shadow_offset_x: 0,
             shadow_offset_y: 0,
             shadow_opacity: 50,
+            corner_radius: 0,
             max_fps: 120,
             vsync: true,
             backend: Backend::Xrender,
@@ -149,6 +152,10 @@ impl Config {
             "shadow_opacity must be between 0 and 100"
         );
         ensure!(
+            config.corner_radius <= 64,
+            "corner_radius must be between 0 and 64"
+        );
+        ensure!(
             (1..=1000).contains(&config.max_fps),
             "max_fps must be between 1 and 1000"
         );
@@ -183,6 +190,8 @@ mod tests {
             "shadow_offset_x = 65",
             "shadow_offset_y = -65",
             "shadow_opacity = 101",
+            "corner_radius = 65",
+            "corner_radius = -1",
             "max_fps = 0",
             "max_fps = 1001",
             "fade_ms = -1",
@@ -250,6 +259,11 @@ mod tests {
         assert_eq!(config.fade_ms, 180);
         assert_eq!(config.shadow_radius, 0);
         assert_eq!(config.shadow_opacity, 50);
+        assert_eq!(config.corner_radius, 0);
+        assert_eq!(
+            Config::parse("corner_radius = 64").unwrap().corner_radius,
+            64
+        );
         assert!(config.vsync);
         assert!(!config.unredirect_fullscreen);
         assert!(

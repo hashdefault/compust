@@ -568,7 +568,7 @@ Animating move/resize geometry of existing windows and whole-workspace slide tra
 
 ### Configuration
 
-**The owner confirmed this schema in [task 1](#task-1-done-schema-and-corner-method); the current binary does not accept these fields yet.**
+**The owner confirmed this schema in [task 1](#task-1-done-schema-and-corner-method). Since [task 2](#task-2-done-setting-and-coverage-table), `main` accepts these fields, but nothing draws rounded corners until task 3; 0.3.0-beta.1 rejects them.**
 
 - `corner_radius`: a global radius in pixels, 0–64. Zero, the default, rounds nothing, so an upgrade changes no desktop, as with shadows.
 - A rule's `corner_radius`, in the same range, sets the radius of the windows it chooses whatever their type or margins; `corner_radius = 0` keeps them square. Each setting comes from the first matching rule that sets it, as for the existing fields, and a reload resolves it again.
@@ -576,7 +576,7 @@ Animating move/resize geometry of existing windows and whole-workspace slide tra
 - A window whose bounding shape is not its whole rectangle keeps that shape and is not rounded. A window whose client the window manager marks `_NET_WM_STATE_FULLSCREEN` stays square, so fullscreen unredirection still applies to it, on one monitor of several too. Compust reads `_NET_WM_STATE` with the rest of the client's identity, and again when it changes.
 - When painting, the radius is limited to half the window's shorter side, border included, so a small window's arcs never overlap.
 
-Example, which the current binary does not accept yet:
+Example, which `main` accepts without drawing it yet:
 
 ```toml
 corner_radius = 8
@@ -599,7 +599,7 @@ corner_radius = 12
 3. **GPU.** Upload the table as a texture, and add a draw that multiplies it into the corner squares of both the window and its backdrop; the rest of the window keeps its current draws. A distance computed in the shader would be simpler, but would not match XRender's values.
 4. **Occlusion.** A rounded opaque surface hides its shape without its four corner squares, which never hides more than it covers. The scene beneath the corners is painted as beneath a translucent window.
 5. **Shadows.** Edges keep their strips. Each corner gets a square tile, `corner_radius + 2 × shadow_radius` pixels on a side, of the rounded corner blurred by the same three box filters in two dimensions, computed once per pair of radii. The shadow also fills the corner gaps inside the window's bounds, through the complement of the coverage, so no background shows between a window and its shadow and a translucent window is still no darker for its own shadow.
-6. **Damage.** Add the radius to what a frame showed of each surface. A change repaints the surface's bounds and, with a shadow, its extent.
+6. **Damage, done in task 2.** Add the radius to what a frame showed of each surface. A change repaints the surface's bounds and, with a shadow, its extent.
 
 ### Interaction and risks
 
@@ -627,8 +627,8 @@ corner_radius = 12
 Each item is one reviewable issue, with the feature template's fields: **Problem or use case**, **Proposed behavior**, and **How to verify it**. The last field is the done criterion.
 
 1. **Confirm the schema and the mask method, [done](#task-1-done-schema-and-corner-method).** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field's name, range, and default by type, the fullscreen and shaped-window policies, and the XRender corner method, after counting its requests per frame. **How to verify it:** each open question in this section has a recorded decision.
-2. **Add the setting and the coverage table.** **Problem or use case:** nothing chooses or computes a radius. **Proposed behavior:** add `corner_radius` to `config.rs` and `rules.rs`, read the client's fullscreen state with its identity, and compute the table in a new `renderer/corner.rs`. **How to verify it:** parsing, precedence, identity, and table tests pass, and frames with the default configuration do not change.
-3. **Round corners in XRender.** **Problem or use case:** the opacity mask and the backdrop weights are uniform across the corners. **Proposed behavior:** corner masks for the window and its backdrop in `paint.rs`, the radius in `damage.rs`, and corners left out of what `cover.rs` hides. **How to verify it:** the pixel, blur, occlusion, and region repaint tests above pass on Xvfb.
+2. **Add the setting and the coverage table, [done](#task-2-done-setting-and-coverage-table).** **Problem or use case:** nothing chooses or computes a radius. **Proposed behavior:** add `corner_radius` to `config.rs` and `rules.rs`, read the client's fullscreen state with its identity, and compute the table in a new `renderer/corner.rs`. **How to verify it:** parsing, precedence, identity, and table tests pass, and frames with the default configuration do not change.
+3. **Round corners in XRender.** **Problem or use case:** the opacity mask and the backdrop weights are uniform across the corners. **Proposed behavior:** corner masks for the window and its backdrop in `paint.rs`, and corners left out of what `cover.rs` hides. **How to verify it:** the pixel, blur, occlusion, and region repaint tests above pass on Xvfb.
 4. **Round shadows.** **Problem or use case:** shadow strips cannot draw a rounded corner, and nothing fills the gaps. **Proposed behavior:** corner tiles and gap fill in `shadow.rs`, in both painters. **How to verify it:** the shadow tests above pass, and existing shadow tests pass unchanged.
 5. **Round corners in the GPU painter.** **Problem or use case:** `compust-gl` has no draw that multiplies a coverage texture. **Proposed behavior:** the coverage texture and corner draws in `gpu.rs` and `crates/gl`. **How to verify it:** parity tests pass on Mesa's software device and in the hardware probe.
 6. **Qualify and document.** **Problem or use case:** pixel tests alone do not show cost or resource stability. **Proposed behavior:** resource cycles in `tests/cases/`, benchmark runs on a recorded desktop, and updates to the README, the architecture, `compust.example.toml`, and both roadmaps. **How to verify it:** every acceptance item has evidence for the exact commit and environment.
@@ -646,6 +646,12 @@ A throwaway program, kept out of the repository, drew a 200×150 window with rou
 | Showing a blurred backdrop beneath it | 1 more, or 3 with weights | 4 more than today, or 5 with weights |
 
 The first two rows were counted by the program; the backdrop row is counted from the code and step 2's order, without the blur itself. None of these requests waits for a reply. The largest disk and its scratch picture, for radius 64, are 128×128 A8 pictures of 16 KiB each. Tasks 2 and 3 turn these checks into the repository's unit and X11 tests.
+
+### Task 2 done: setting and coverage table
+
+`corner_radius` is a global setting and a rule field, each 0–64 and rejected outside it; a rule's radius, zero included, counts as a setting. Each surface's radius comes from [`rules::corner_radius`](../src/rules.rs): its rule's, or else the global one when the window is decorated, the same condition that gives it a shadow, which the identity now calls `decorated`. A fullscreen window, whose client's `_NET_WM_STATE` lists `_NET_WM_STATE_FULLSCREEN`, gets none whatever its rules say, and neither does a shaped one. The identity reads `_NET_WM_STATE` as a seventh property in the same round trip, as a list of at most 32 atoms, and again when it changes. [corner.rs](../src/renderer/corner.rs) limits the radius to half the surface's shorter side, border included, and computes the coverage disk as task 1 measured it. What a frame showed of a surface includes its radius, so step 6 is done here rather than in task 3. Nothing paints with the radius or the disk yet; the disk carries an `expect(dead_code)` that task 3 has to remove, since the attribute fails the build once something uses the disk.
+
+Five unit tests cover the disk's symmetry, growth toward the middle, exact values for radii 1 and 8, and area within a sixteenth of a pixel per pixel of radius; the limit; rule precedence with decoration and fullscreen; and `_NET_WM_STATE` replies of the wrong type, format, or length. An X11 test in [rules.rs](../tests/cases/rules.rs) sets valid, wrongly typed, 8-bit, overlong, and empty states, each followed by a class change the compositor must follow, then destroys the window right after a new state and maps another; temporary copies that panic on an 8-bit state or on any list of atoms make it fail. The README documents the setting once task 3 draws it. All 122 X11 tests pass with Xorg's Xvfb 21.1.24, along with 40 unit and 6 CLI tests, strict Clippy, and the release build.
 
 ### Decisions and later work
 

@@ -18,6 +18,7 @@ pub(crate) struct Rule {
     blur: Option<bool>,
     fade_ms: Option<u16>,
     shadow: Option<bool>,
+    corner_radius: Option<u8>,
 }
 
 /// The EWMH window types, named after their `_NET_WM_WINDOW_TYPE_` suffixes.
@@ -59,10 +60,11 @@ impl WindowType {
         (Self::Normal, "_NET_WM_WINDOW_TYPE_NORMAL"),
     ];
 
-    /// Whether windows of this type cast a shadow unless a rule says otherwise: those that
-    /// stand on the desktop as windows do. Desktops and docks are part of it, and menus,
-    /// tooltips, and the like are drawn by toolkits that often shade them themselves.
-    pub(crate) fn casts_shadow(self) -> bool {
+    /// Whether Compust decorates windows of this type unless a rule says otherwise, with a
+    /// shadow and rounded corners: those that stand on the desktop as windows do. Desktops
+    /// and docks are part of it, and menus, tooltips, and the like are drawn by toolkits that
+    /// often shade them themselves.
+    pub(crate) fn decorated(self) -> bool {
         matches!(
             self,
             Self::Normal | Self::Dialog | Self::Utility | Self::Splash | Self::Toolbar
@@ -80,9 +82,12 @@ pub(crate) struct Identity {
     /// window, and `normal` otherwise.
     pub(crate) window_type: WindowType,
     pub(crate) name: Option<String>,
-    /// Whether the window casts a shadow unless a rule says otherwise: its type does, and
-    /// the client draws none itself.
-    pub(crate) shadow: bool,
+    /// Whether Compust decorates the window unless a rule says otherwise, with a shadow and
+    /// rounded corners: its type is decorated, and the client draws neither itself.
+    pub(crate) decorated: bool,
+    /// Whether the window manager shows the window fullscreen: `_NET_WM_STATE` lists
+    /// `_NET_WM_STATE_FULLSCREEN`.
+    pub(crate) fullscreen: bool,
     /// Whether the window is the active one, or the window manager reports none.
     pub(crate) focused: bool,
 }
@@ -94,6 +99,7 @@ pub(crate) struct Overrides {
     pub(crate) blur: Option<bool>,
     pub(crate) fade_ms: Option<u16>,
     pub(crate) shadow: Option<bool>,
+    pub(crate) corner_radius: Option<u8>,
 }
 
 impl Rule {
@@ -111,12 +117,17 @@ impl Rule {
             self.opacity.is_some()
                 || self.blur.is_some()
                 || self.fade_ms.is_some()
-                || self.shadow.is_some(),
-            "rule {number} needs opacity, blur, fade_ms, or shadow"
+                || self.shadow.is_some()
+                || self.corner_radius.is_some(),
+            "rule {number} needs opacity, blur, fade_ms, shadow, or corner_radius"
         );
         ensure!(
             self.opacity.is_none_or(|opacity| opacity <= 100),
             "rule {number}: opacity must be between 0 and 100"
+        );
+        ensure!(
+            self.corner_radius.is_none_or(|radius| radius <= 64),
+            "rule {number}: corner_radius must be between 0 and 64"
         );
         Ok(())
     }
@@ -145,8 +156,21 @@ pub(crate) fn overrides(rules: &[Rule], identity: &Identity) -> Overrides {
         overrides.blur = overrides.blur.or(rule.blur);
         overrides.fade_ms = overrides.fade_ms.or(rule.fade_ms);
         overrides.shadow = overrides.shadow.or(rule.shadow);
+        overrides.corner_radius = overrides.corner_radius.or(rule.corner_radius);
     }
     overrides
+}
+
+/// The radius of a window's rounded corners before its size limits it: its rule's, or else
+/// `global` when Compust decorates the window. A fullscreen window keeps square corners
+/// whatever its rules say, so that it still covers its monitor whole.
+pub(crate) fn corner_radius(global: u8, overrides: Overrides, identity: &Identity) -> u8 {
+    if identity.fullscreen {
+        return 0;
+    }
+    overrides
+        .corner_radius
+        .unwrap_or(if identity.decorated { global } else { 0 })
 }
 
 /// The resource class in a `WM_CLASS` value: the second of two NUL-terminated Latin-1
@@ -177,7 +201,8 @@ mod tests {
             class: class.map(str::to_owned),
             window_type,
             name: name.map(str::to_owned),
-            shadow: window_type.casts_shadow(),
+            decorated: window_type.decorated(),
+            fullscreen: false,
             focused: true,
         }
     }
@@ -190,6 +215,11 @@ mod tests {
             ("wm_class = \"a\"", "rule 1 needs opacity"),
             ("wm_class = \"a\"\nopacity = 101", "opacity must be"),
             ("shadow = true", "rule 1 needs wm_class"),
+            ("corner_radius = 8", "rule 1 needs wm_class"),
+            (
+                "wm_class = \"a\"\ncorner_radius = 65",
+                "corner_radius must be",
+            ),
         ] {
             let error = rule(text).and_then(|rule| rule.validate(1));
             assert!(
@@ -201,6 +231,12 @@ mod tests {
         assert!(rule("class = \"a\"\nblur = false").is_err());
         assert!(
             rule("window_type = \"dock\"\nshadow = true")
+                .and_then(|rule| rule.validate(1))
+                .is_ok()
+        );
+        // A radius alone is a setting, zero included.
+        assert!(
+            rule("window_type = \"notification\"\ncorner_radius = 0")
                 .and_then(|rule| rule.validate(1))
                 .is_ok()
         );
@@ -228,6 +264,7 @@ mod tests {
             blur: None,
             fade_ms: None,
             shadow: None,
+            corner_radius: None,
         };
         assert!(rule.matches(&identity(Some("Brave"), WindowType::Menu, None)));
         assert!(!rule.matches(&identity(Some("brave"), WindowType::Menu, None)));
@@ -252,10 +289,11 @@ mod tests {
             rule("name = \"Other\"\nopacity = 10").ok(),
             rule("wm_class = \"Term\"\nname = \"Notes\"\nblur = true").ok(),
             rule("wm_class = \"Term\"\nblur = false\nopacity = 90\nfade_ms = 0").ok(),
-            rule("window_type = \"normal\"\nshadow = false").ok(),
+            rule("window_type = \"normal\"\nshadow = false\ncorner_radius = 12").ok(),
+            rule("wm_class = \"Term\"\ncorner_radius = 0").ok(),
         ];
         let rules: Vec<_> = rules.into_iter().flatten().collect();
-        assert_eq!(rules.len(), 4);
+        assert_eq!(rules.len(), 5);
         assert_eq!(
             overrides(
                 &rules,
@@ -266,6 +304,7 @@ mod tests {
                 blur: Some(true),
                 fade_ms: Some(0),
                 shadow: Some(false),
+                corner_radius: Some(12),
             }
         );
         assert_eq!(
@@ -275,6 +314,31 @@ mod tests {
             ),
             Overrides::default()
         );
+    }
+
+    #[test]
+    fn corners_follow_rules_then_decoration_and_stay_square_fullscreen() {
+        // Given a window type Compust decorates and one it does not, the global radius rounds
+        // only the first; a rule's radius rounds or squares either, and fullscreen squares all.
+        let normal = identity(None, WindowType::Normal, None);
+        let dock = identity(None, WindowType::Dock, None);
+        let unset = Overrides::default();
+        let set = |radius| Overrides {
+            corner_radius: Some(radius),
+            ..Overrides::default()
+        };
+        assert_eq!(corner_radius(8, unset, &normal), 8);
+        assert_eq!(corner_radius(8, unset, &dock), 0);
+        assert_eq!(corner_radius(8, set(12), &dock), 12);
+        assert_eq!(corner_radius(8, set(0), &normal), 0);
+        assert_eq!(corner_radius(0, set(4), &normal), 4);
+        assert_eq!(corner_radius(0, unset, &normal), 0);
+        let fullscreen = Identity {
+            fullscreen: true,
+            ..normal
+        };
+        assert_eq!(corner_radius(8, unset, &fullscreen), 0);
+        assert_eq!(corner_radius(8, set(12), &fullscreen), 0);
     }
 
     #[test]

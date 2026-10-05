@@ -32,7 +32,7 @@ pub(super) struct Change {
 
 /// A surface as a frame showed it. Comparing the last frame's surfaces with the next one's
 /// finds moves, resizes, recaptures, shape and opacity changes, fades, blur or a shadow turned
-/// on or off, and restacks.
+/// on or off, corners rounded otherwise, and restacks.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Shown {
     window: Window,
@@ -42,10 +42,18 @@ pub(super) struct Shown {
     opacity: u16,
     blur: bool,
     shadow: Option<Shadow>,
+    /// The radius of its rounded corners; zero when they are square.
+    corners: u8,
 }
 
 impl Shown {
-    pub(super) fn new(surface: &Surface, opacity: u16, blur: bool, shadow: Option<Shadow>) -> Self {
+    pub(super) fn new(
+        surface: &Surface,
+        opacity: u16,
+        blur: bool,
+        shadow: Option<Shadow>,
+        corners: u8,
+    ) -> Self {
         Self {
             window: surface.window,
             picture: surface.picture.id,
@@ -58,6 +66,7 @@ impl Shown {
             opacity,
             blur,
             shadow,
+            corners,
         }
     }
 
@@ -205,6 +214,7 @@ mod tests {
             opacity,
             blur: false,
             shadow: None,
+            corners: 0,
         }
     }
 
@@ -274,6 +284,13 @@ mod tests {
         blurred.blur = true;
         assert_eq!(
             changes(&[shown(1, 0, 1000)], &[blurred]),
+            [change(0, 10, 1, true), change(0, 10, 1, true)]
+        );
+        // Rounding its corners changes what shows there, from the surface's own layer up.
+        let mut rounded = shown(1, 0, u16::MAX);
+        rounded.corners = 4;
+        assert_eq!(
+            changes(&[shown(1, 0, u16::MAX)], &[rounded]),
             [change(0, 10, 1, true), change(0, 10, 1, true)]
         );
     }

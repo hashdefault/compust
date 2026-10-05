@@ -146,6 +146,80 @@ fn windows_keep_their_rules_when_they_close_right_after_a_change() -> Result<()>
 }
 
 #[test]
+fn window_states_of_any_shape_leave_identities_followed() -> Result<()> {
+    // Given rounded corners and a rule that dims one class, `_NET_WM_STATE` is read with the
+    // rest of the identity whatever it holds, and class changes keep choosing the rule.
+    let desktop = Desktop::new(&format!("{QUICK}corner_radius = 8\n{DIM}"))?;
+    let window = classed(&desktop, rect(20, 20), "Dim")?;
+    desktop.map(window)?;
+    desktop.until_pixel((40, 40), half_red)?;
+    let state = atom(&desktop, b"_NET_WM_STATE")?;
+    let fullscreen = atom(&desktop, b"_NET_WM_STATE_FULLSCREEN")?;
+    let crowded = vec![fullscreen; 40];
+    let atoms = |values: &[u32]| {
+        values
+            .iter()
+            .flat_map(|value| value.to_ne_bytes())
+            .collect()
+    };
+    // Valid, of another type, of another format, longer than Compust reads, and empty.
+    let states: [(AtomEnum, u8, u32, Vec<u8>); 5] = [
+        (AtomEnum::ATOM, 32, 1, atoms(&[fullscreen])),
+        (AtomEnum::CARDINAL, 32, 1, atoms(&[fullscreen])),
+        (AtomEnum::ATOM, 8, 2, vec![1, 2]),
+        (AtomEnum::ATOM, 32, 40, atoms(&crowded)),
+        (AtomEnum::ATOM, 32, 0, Vec::new()),
+    ];
+    for (index, (kind, format, length, data)) in states.into_iter().enumerate() {
+        desktop
+            .conn
+            .change_property(
+                PropMode::REPLACE,
+                window,
+                state,
+                kind,
+                format,
+                length,
+                &data,
+            )?
+            .check()?;
+        let (class, dimmed) = if index % 2 == 0 {
+            ("Bright", false)
+        } else {
+            ("Dim", true)
+        };
+        desktop
+            .conn
+            .change_property8(
+                PropMode::REPLACE,
+                window,
+                AtomEnum::WM_CLASS,
+                AtomEnum::STRING,
+                format!("instance\0{class}\0").as_bytes(),
+            )?
+            .check()?;
+        desktop.until_pixel((40, 40), |p| if dimmed { half_red(p) } else { p == RED })?;
+    }
+
+    // A window gone before its new state is read closes like any other, and the compositor
+    // goes on: a new window takes its rule.
+    desktop.conn.change_property32(
+        PropMode::REPLACE,
+        window,
+        state,
+        AtomEnum::ATOM,
+        &[fullscreen],
+    )?;
+    desktop.conn.destroy_window(window)?;
+    desktop.conn.flush()?;
+    desktop.until_pixel((40, 40), |p| p == BACKGROUND)?;
+    let next = classed(&desktop, rect(20, 20), "Dim")?;
+    desktop.map(next)?;
+    desktop.until_pixel((40, 40), half_red)?;
+    Ok(())
+}
+
+#[test]
 fn title_rules_follow_title_changes() -> Result<()> {
     let desktop = Desktop::new(&format!(
         "{QUICK}\n[[rules]]\nname = \"Café\"\nopacity = 50\n"

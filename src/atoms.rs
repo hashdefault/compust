@@ -18,6 +18,10 @@ pub(crate) struct Atoms {
     pub(crate) window_type: Atom,
     /// The margins a client-side-decorated window keeps for the shadow it draws itself.
     pub(crate) frame_extents: Atom,
+    /// The client property in which the window manager lists a window's states.
+    pub(crate) net_wm_state: Atom,
+    /// The state of a window the window manager shows fullscreen.
+    pub(crate) fullscreen: Atom,
     /// The root property in which the window manager names the active window.
     pub(crate) active_window: Atom,
     /// Each `_NET_WM_WINDOW_TYPE_` atom with the type it names.
@@ -39,6 +43,8 @@ impl Atoms {
             utf8_string: intern(b"UTF8_STRING")?,
             window_type: intern(b"_NET_WM_WINDOW_TYPE")?,
             frame_extents: intern(b"_GTK_FRAME_EXTENTS")?,
+            net_wm_state: intern(b"_NET_WM_STATE")?,
+            fullscreen: intern(b"_NET_WM_STATE_FULLSCREEN")?,
             active_window: intern(b"_NET_ACTIVE_WINDOW")?,
             window_types: {
                 let cookies = WindowType::ALL
@@ -53,8 +59,8 @@ impl Atoms {
         })
     }
 
-    /// The properties rules match on or shadows depend on, whose changes refresh a window's
-    /// identity.
+    /// The properties rules match on or decorations depend on, whose changes refresh a
+    /// window's identity.
     pub(crate) fn identifies(&self, atom: Atom) -> bool {
         [
             AtomEnum::WM_CLASS,
@@ -66,6 +72,7 @@ impl Atoms {
             || atom == self.net_wm_name
             || atom == self.window_type
             || atom == self.frame_extents
+            || atom == self.net_wm_state
     }
 }
 

@@ -22,7 +22,7 @@ use x11rb::{
         render::QueryPictFormatsReply,
         shape::{ConnectionExt as _, SK},
         xproto::{
-            AtomEnum, ConnectionExt, GetGeometryReply, GetPropertyReply, MapState, Rectangle,
+            Atom, AtomEnum, ConnectionExt, GetGeometryReply, GetPropertyReply, MapState, Rectangle,
             Window, WindowClass,
         },
     },
@@ -232,7 +232,17 @@ impl Surface {
     /// its client's type and decorations suggest. A shaped window casts none, because its
     /// shadow would be that of its bounding rectangle.
     pub(crate) fn casts_shadow(&self) -> bool {
-        self.overrides.shadow.unwrap_or(self.identity.shadow) && self.rectangular()
+        self.overrides.shadow.unwrap_or(self.identity.decorated) && self.rectangular()
+    }
+
+    /// The radius of the surface's rounded corners before its size limits it: as its rule
+    /// says, or else the global one where its client's type and decorations suggest. A shaped
+    /// window keeps its own shape, and a fullscreen one square corners.
+    pub(crate) fn corner_radius(&self, config: &Config) -> u8 {
+        if !self.rectangular() {
+            return 0;
+        }
+        rules::corner_radius(config.corner_radius, self.overrides, &self.identity)
     }
 
     /// Whether the surface's shape is its whole rectangle, border included.
@@ -251,9 +261,9 @@ impl Surface {
 
     /// Read the identity again from the window it came from, unless that window is gone; reports
     /// whether the surface now shows differently: the rules give it other settings, or it
-    /// starts or stops casting a shadow.
+    /// gains or loses its decorations or goes in or out of fullscreen.
     pub(crate) fn refresh_identity(&mut self, atoms: &Atoms, config: &Config) -> Result<bool> {
-        let shadow = self.identity.shadow;
+        let before = (self.identity.decorated, self.identity.fullscreen);
         if let Some(identity) =
             identity(&self.conn, self.identified, atoms, self.override_redirect)?
         {
@@ -264,7 +274,7 @@ impl Surface {
             };
         }
         let ruled = self.apply(config);
-        Ok(ruled || self.identity.shadow != shadow)
+        Ok(ruled || (self.identity.decorated, self.identity.fullscreen) != before)
     }
 
     /// Resolve the rules of `config` for this surface again, as after a reload; reports
@@ -323,8 +333,8 @@ fn new_client(identified: Window, client: Window, frame: Window) -> bool {
     client != identified && client != frame
 }
 
-/// The identity of `client`, from its class, type, title, and frame extents, read in one round
-/// trip; `None` when the client is gone.
+/// The identity of `client`, from its class, type, title, frame extents, and state, read in one
+/// round trip; `None` when the client is gone.
 fn identity(
     conn: &RustConnection,
     client: Window,
@@ -338,13 +348,14 @@ fn identity(
         (atoms.net_wm_name, atoms.utf8_string, 1024),
         (AtomEnum::WM_NAME.into(), AtomEnum::ANY.into(), 1024),
         (atoms.frame_extents, AtomEnum::CARDINAL.into(), 4),
+        (atoms.net_wm_state, AtomEnum::ATOM.into(), 32),
     ];
     let cookies = requests
         .map(|(property, kind, words)| conn.get_property(false, client, property, kind, 0, words));
     // Every reply is read before any error returns: the error of a reply left unread would
     // arrive later as an event.
     let replies = cookies.map(|cookie| -> Result<GetPropertyReply> { Ok(cookie?.reply()?) });
-    let [class, types, transient, utf8, legacy, extents] = match replies {
+    let [class, types, transient, utf8, legacy, extents, state] = match replies {
         [
             Ok(class),
             Ok(types),
@@ -352,7 +363,8 @@ fn identity(
             Ok(utf8),
             Ok(legacy),
             Ok(extents),
-        ] => [class, types, transient, utf8, legacy, extents],
+            Ok(state),
+        ] => [class, types, transient, utf8, legacy, extents, state],
         replies => {
             return match replies.into_iter().find_map(Result::err) {
                 Some(error) if !window_gone(&error) => Err(error),
@@ -392,22 +404,33 @@ fn identity(
     } else {
         None
     };
-    // A client that keeps margins around its window draws its own shadow in them. A window
-    // that names no type casts one only when the window manager handles it: bars, menus, and
-    // tooltips of older toolkits are override-redirect windows without a type.
+    // A client that keeps margins around its window draws its own shadow and corners in them.
+    // A window that names no type is decorated only when the window manager handles it: bars,
+    // menus, and tooltips of older toolkits are override-redirect windows without a type.
     let shades_itself = extents.type_ == u32::from(AtomEnum::CARDINAL)
         && extents.bytes_after == 0
         && extents
             .value32()
             .is_some_and(|mut margins| margins.any(|margin| margin > 0));
-    let shadow = !shades_itself && named.map_or(!override_redirect, WindowType::casts_shadow);
+    let decorated = !shades_itself && named.map_or(!override_redirect, WindowType::decorated);
     Ok(Some(Identity {
         class,
         window_type,
         name,
-        shadow,
+        decorated,
+        fullscreen: lists(&state, atoms.fullscreen),
         focused: false,
     }))
+}
+
+/// Whether `reply`, read as a list of atoms, holds `atom`. A property of another type or
+/// format, or longer than the request read, holds none.
+fn lists(reply: &GetPropertyReply, atom: Atom) -> bool {
+    reply.type_ == u32::from(AtomEnum::ATOM)
+        && reply.bytes_after == 0
+        && reply
+            .value32()
+            .is_some_and(|mut atoms| atoms.any(|listed| listed == atom))
 }
 
 impl Drop for Surface {
@@ -419,5 +442,38 @@ impl Drop for Surface {
         {
             tracing::debug!(%error, "damage cleanup failed");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn property(kind: AtomEnum, format: u8, values: &[u32], bytes_after: u32) -> GetPropertyReply {
+        GetPropertyReply {
+            format,
+            sequence: 0,
+            length: 0,
+            type_: kind.into(),
+            bytes_after,
+            value_len: u32::try_from(values.len()).unwrap(),
+            value: values
+                .iter()
+                .flat_map(|value| value.to_ne_bytes())
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn states_come_only_from_a_whole_list_of_atoms() {
+        // Given `_NET_WM_STATE` replies, a state counts only when a valid list holds it.
+        assert!(lists(&property(AtomEnum::ATOM, 32, &[7, 9], 0), 9));
+        assert!(!lists(&property(AtomEnum::ATOM, 32, &[7], 0), 9));
+        assert!(!lists(&property(AtomEnum::ATOM, 32, &[], 0), 9));
+        assert!(!lists(&property(AtomEnum::NONE, 0, &[], 0), 9));
+        // Of another type, another format, or cut short, the property lists nothing.
+        assert!(!lists(&property(AtomEnum::CARDINAL, 32, &[9], 0), 9));
+        assert!(!lists(&property(AtomEnum::ATOM, 8, &[9], 0), 9));
+        assert!(!lists(&property(AtomEnum::ATOM, 32, &[9], 4), 9));
     }
 }

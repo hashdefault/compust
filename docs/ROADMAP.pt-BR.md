@@ -568,7 +568,7 @@ Animar movimento/redimensionamento de janelas existentes e transições de slide
 
 ### Configuração
 
-**O responsável pelo projeto confirmou este esquema na [tarefa 1](#tarefa-1-concluída-esquema-e-método-dos-cantos); o binário atual ainda não aceita estes campos.**
+**O responsável pelo projeto confirmou este esquema na [tarefa 1](#tarefa-1-concluída-esquema-e-método-dos-cantos). Desde a [tarefa 2](#tarefa-2-concluída-opção-e-tabela-de-cobertura), o `main` aceita estes campos, mas nada desenha cantos arredondados até a tarefa 3; a 0.3.0-beta.1 os rejeita.**
 
 - `corner_radius`: um raio global em pixels, de 0 a 64. Zero, o padrão, não arredonda nada, então uma atualização não muda nenhum desktop, como acontece com as sombras.
 - O `corner_radius` de uma regra, no mesmo intervalo, define o raio das janelas que ela escolhe, seja qual for seu tipo ou suas margens; `corner_radius = 0` as mantém quadradas. Cada opção vem da primeira regra compatível que a define, como nos campos existentes, e uma recarga a resolve de novo.
@@ -576,7 +576,7 @@ Animar movimento/redimensionamento de janelas existentes e transições de slide
 - Uma janela cujo formato delimitador não é o retângulo inteiro mantém esse formato e não é arredondada. Uma janela cujo cliente o gerenciador de janelas marca com `_NET_WM_STATE_FULLSCREEN` continua quadrada, então a suspensão da composição em tela cheia ainda se aplica a ela, inclusive em um monitor entre vários. O Compust lê `_NET_WM_STATE` com o resto da identidade do cliente, e de novo quando ela muda.
 - Na pintura, o raio fica limitado à metade do lado menor da janela, borda incluída, para que os arcos de uma janela pequena nunca se sobreponham.
 
-Exemplo, que o binário atual ainda não aceita:
+Exemplo, que o `main` aceita sem ainda desenhar:
 
 ```toml
 corner_radius = 8
@@ -599,7 +599,7 @@ corner_radius = 12
 3. **GPU.** Enviar a tabela como textura e adicionar um desenho que a multiplique nos quadrados de canto da janela e do seu fundo desfocado; o resto da janela mantém os desenhos atuais. Uma distância calculada no shader seria mais simples, mas não coincidiria com os valores do XRender.
 4. **Oclusão.** Uma superfície opaca arredondada esconde seu formato sem os quatro quadrados de canto, o que nunca esconde mais do que ela cobre. A cena abaixo dos cantos é pintada como abaixo de uma janela translúcida.
 5. **Sombras.** As bordas mantêm suas tiras. Cada canto recebe um ladrilho quadrado com `corner_radius + 2 × shadow_radius` pixels de lado, do canto arredondado desfocado pelos mesmos três filtros de caixa em duas dimensões, calculado uma vez por par de raios. A sombra também preenche as falhas dos cantos dentro dos limites da janela, pelo complemento da cobertura, para que nenhum fundo apareça entre a janela e sua sombra e uma janela translúcida continue tão clara quanto sem a própria sombra.
-6. **Dano.** Acrescentar o raio ao que um quadro mostrou de cada superfície. Uma mudança repinta os limites da superfície e, com sombra, a extensão dela.
+6. **Dano, feito na tarefa 2.** Acrescentar o raio ao que um quadro mostrou de cada superfície. Uma mudança repinta os limites da superfície e, com sombra, a extensão dela.
 
 ### Interação e riscos
 
@@ -627,8 +627,8 @@ corner_radius = 12
 Cada item corresponde a uma issue revisável, com os campos do modelo de recurso: **Problema ou caso de uso**, **Comportamento proposto** e **Como verificar**. O último campo é o critério de conclusão.
 
 1. **Confirmar o esquema e o método da máscara, [concluída](#tarefa-1-concluída-esquema-e-método-dos-cantos).** **Problema ou caso de uso:** depois da 1.0, um campo de configuração não pode mudar dentro da 1.x. **Comportamento proposto:** confirmar o nome, o intervalo e o padrão por tipo do campo, as políticas para janelas em tela cheia e com formato e o método dos cantos no XRender, depois de contar suas requisições por quadro. **Como verificar:** cada questão em aberto desta seção tem uma decisão registrada.
-2. **Adicionar a opção e a tabela de cobertura.** **Problema ou caso de uso:** nada escolhe nem calcula um raio. **Comportamento proposto:** adicionar `corner_radius` a `config.rs` e `rules.rs`, ler o estado de tela cheia do cliente com sua identidade e calcular a tabela em um novo `renderer/corner.rs`. **Como verificar:** os testes de parsing, precedência, identidade e tabela passam, e os quadros com a configuração padrão não mudam.
-3. **Arredondar os cantos no XRender.** **Problema ou caso de uso:** a máscara de opacidade e os pesos do fundo desfocado são uniformes nos cantos. **Comportamento proposto:** máscaras de canto para a janela e seu fundo desfocado em `paint.rs`, o raio em `damage.rs` e os cantos fora do que `cover.rs` esconde. **Como verificar:** os testes de pixels, desfoque, oclusão e repintura por região acima passam no Xvfb.
+2. **Adicionar a opção e a tabela de cobertura, [concluída](#tarefa-2-concluída-opção-e-tabela-de-cobertura).** **Problema ou caso de uso:** nada escolhe nem calcula um raio. **Comportamento proposto:** adicionar `corner_radius` a `config.rs` e `rules.rs`, ler o estado de tela cheia do cliente com sua identidade e calcular a tabela em um novo `renderer/corner.rs`. **Como verificar:** os testes de parsing, precedência, identidade e tabela passam, e os quadros com a configuração padrão não mudam.
+3. **Arredondar os cantos no XRender.** **Problema ou caso de uso:** a máscara de opacidade e os pesos do fundo desfocado são uniformes nos cantos. **Comportamento proposto:** máscaras de canto para a janela e seu fundo desfocado em `paint.rs`, e os cantos fora do que `cover.rs` esconde. **Como verificar:** os testes de pixels, desfoque, oclusão e repintura por região acima passam no Xvfb.
 4. **Arredondar as sombras.** **Problema ou caso de uso:** as tiras da sombra não desenham um canto arredondado, e nada preenche as falhas. **Comportamento proposto:** ladrilhos de canto e preenchimento das falhas em `shadow.rs`, nos dois pintores. **Como verificar:** os testes de sombra acima passam, e os testes de sombra existentes passam sem mudanças.
 5. **Arredondar os cantos no pintor de GPU.** **Problema ou caso de uso:** o `compust-gl` não tem um desenho que multiplique uma textura de cobertura. **Comportamento proposto:** a textura de cobertura e os desenhos de canto em `gpu.rs` e `crates/gl`. **Como verificar:** os testes de paridade passam no dispositivo de software do Mesa e no probe em hardware.
 6. **Validar e documentar.** **Problema ou caso de uso:** testes de pixels sozinhos não mostram custo nem estabilidade de recursos. **Comportamento proposto:** ciclos de recursos em `tests/cases/`, execuções de benchmark em um desktop registrado e atualizações no README, na arquitetura, no `compust.example.toml` e nos dois roteiros. **Como verificar:** cada item de aceitação tem evidências do commit e do ambiente exatos.
@@ -646,6 +646,12 @@ Um programa descartável, mantido fora do repositório, desenhou uma janela de 2
 | Mostrar um fundo desfocado abaixo dela | Mais 1, ou 3 com pesos | Mais 4 que hoje, ou 5 com pesos |
 
 O programa contou as duas primeiras linhas; a linha do fundo desfocado foi contada a partir do código e da ordem da etapa 2, sem o próprio desfoque. Nenhuma dessas requisições espera resposta. O maior disco e sua imagem temporária, no raio 64, são imagens A8 de 128×128, com 16 KiB cada. As tarefas 2 e 3 transformam essas verificações em testes unitários e X11 do repositório.
+
+### Tarefa 2 concluída: opção e tabela de cobertura
+
+`corner_radius` é uma opção global e um campo de regra, cada um de 0 a 64 e rejeitado fora disso; o raio de uma regra, inclusive zero, conta como opção. O raio de cada superfície vem de [`rules::corner_radius`](../src/rules.rs): o da sua regra ou, na falta dele, o global quando a janela é decorada, a mesma condição que lhe dá sombra, que a identidade agora chama de `decorated`. Uma janela em tela cheia, cujo `_NET_WM_STATE` do cliente lista `_NET_WM_STATE_FULLSCREEN`, não recebe raio, digam o que disserem suas regras, nem uma janela com formato. A identidade lê `_NET_WM_STATE` como sétima propriedade na mesma ida e volta, como uma lista de no máximo 32 átomos, e de novo quando ela muda. [corner.rs](../src/renderer/corner.rs) limita o raio à metade do lado menor da superfície, borda incluída, e calcula o disco de cobertura como a tarefa 1 o mediu. O que um quadro mostrou de uma superfície inclui seu raio, então a etapa 6 foi feita aqui em vez da tarefa 3. Nada pinta com o raio ou com o disco ainda; o disco leva um `expect(dead_code)` que a tarefa 3 precisa remover, já que o atributo quebra o build assim que algo usar o disco.
+
+Cinco testes unitários cobrem a simetria do disco, o crescimento em direção ao meio, os valores exatos nos raios 1 e 8 e a área com erro de até um dezesseis avos de pixel por pixel de raio; o limite; a precedência das regras com decoração e tela cheia; e respostas de `_NET_WM_STATE` com tipo, formato ou tamanho errados. Um teste X11 em [rules.rs](../tests/cases/rules.rs) define estados válidos, de outro tipo, de 8 bits, longos demais e vazios, cada um seguido de uma mudança de classe que o compositor precisa acompanhar, depois destrói a janela logo após um novo estado e mapeia outra; cópias temporárias que entram em pânico com um estado de 8 bits ou com qualquer lista de átomos fazem o teste falhar. O README documenta a opção quando a tarefa 3 a desenhar. Os 122 testes X11 passam com o Xvfb 21.1.24 do Xorg, junto com 40 testes unitários e 6 de CLI, Clippy estrito e o build de release.
 
 ### Decisões e trabalho posterior
 

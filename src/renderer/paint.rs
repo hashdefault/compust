@@ -1,5 +1,5 @@
 use super::{
-    Renderer, Source, blur,
+    Renderer, Source, blur, corner,
     cover::{self, Layer},
     damage::{self, Blurred, Change, OUTPUT, Shown},
     shadow::Shadow,
@@ -46,12 +46,14 @@ pub(super) struct Part<'a> {
     pub(super) shadow: Option<(Shadow, Vec<Rect>)>,
 }
 
-/// A surface a frame shows, with its opacity and the shadow it casts.
+/// A surface a frame shows, with its opacity, the shadow it casts, and the radius of its
+/// corners.
 #[derive(Clone, Copy)]
 struct Seen<'a> {
     surface: &'a Surface,
     opacity: u16,
     shadow: Option<Shadow>,
+    corners: u8,
 }
 
 /// What a frame paints, which either painter carries out.
@@ -227,7 +229,7 @@ impl Renderer {
             .iter()
             .map(|seen| {
                 let blur = self.blurs(seen.surface, seen.opacity);
-                Shown::new(seen.surface, seen.opacity, blur, seen.shadow)
+                Shown::new(seen.surface, seen.opacity, blur, seen.shadow, seen.corners)
             })
             .collect();
         let mut changes = damage::changes(&self.shown, &shown);
@@ -458,7 +460,8 @@ impl Renderer {
 }
 
 /// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
-/// rule's or else the global one, times their fade. Each casts the shadow `config` gives it.
+/// rule's or else the global one, times their fade. Each casts the shadow `config` gives it,
+/// and has its corners rounded as `config` says.
 fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
     let now = Instant::now();
     let mut visible = Vec::with_capacity(scene.windows.len());
@@ -474,6 +477,7 @@ fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
                 surface,
                 opacity,
                 shadow: Shadow::cast(surface, opacity, config),
+                corners: corner::radius(surface, config),
             });
         }
     }

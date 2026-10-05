@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use std::{rc::Rc, time::Instant};
 use x11rb::rust_connection::RustConnection;
 mod blur;
+mod corner;
 mod cover;
 mod damage;
 mod gpu;
