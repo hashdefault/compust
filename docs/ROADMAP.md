@@ -679,16 +679,16 @@ Rounded inner border edges, a different radius per corner, and rounding windows 
 | Effects | Blur shows behind a window below full opacity; only a window at full opacity without alpha hides what lies beneath it; a shadow's darkness multiplies its window's opacity; fullscreen unredirection needs the topmost window at full opacity. An inactive window made translucent therefore costs a blur and stops hiding the windows beneath it, while a darkened one stays opaque. |
 | Painters | The XRender painter composites each window through a 1×1 A8 mask that holds its opacity, and the GPU painter multiplies the same value in its shader. Neither has a step that darkens a window. |
 
-### Proposed configuration
+### Configuration
 
-**These fields are a proposal and are not accepted by the current binary.** The owner confirms the schema before coding, following the [feature proposal template](../.github/ISSUE_TEMPLATE/feature.yml).
+**The owner confirmed this schema in [task 1](#task-1-done-schema-and-semantics); the current binary does not accept these fields yet.**
 
 - `active_opacity` and `inactive_opacity`: percentages, 0–100, that an eligible window takes in place of the global `opacity` while it is, or is not, the active window. Absent, the default, they leave the global `opacity` in place, so an upgrade changes no desktop. A rule's `opacity` still wins over both, as it wins over the global one, and the application's opacity still multiplies the result.
 - `inactive_dim`: how much darker an eligible inactive window is drawn, as a percentage of black over it, 0–100, default 0. A rule's `dim`, in the same range, sets it for the windows the rule chooses, which a `focused` selector can narrow.
 - Eligible windows are those Compust decorates, as for shadows and rounded corners: types `normal`, `dialog`, `utility`, `splash`, and `toolbar` without client-side margins. A window whose client is fullscreen is not eligible, so it stays opaque and fullscreen unredirection still applies to it. Menus, tooltips, docks, and the other types count as active for these settings; a rule can still choose any of them by focus.
 - Every change of a window's opacity or dimming eases over its fade duration, its rule's `fade_ms` or else the global one, with the smoothstep of the open and close fades, starting from the value it shows at that moment. That covers a focus change, a reload, and a new `_NET_WM_WINDOW_OPACITY`. With `fade_ms = 0`, changes stay immediate, as today.
 
-Proposed example, not a current configuration:
+Example, which the current binary does not accept yet:
 
 ```toml
 inactive_opacity = 85
@@ -709,7 +709,7 @@ dim = 0
 3. **Dimming in XRender.** After compositing an eligible inactive window, composite black over its clip at the dim strength times its opacity, through the window's own alpha for an ARGB window, so that a transparent margin stays transparent. With rounded corners, the corner mask applies to the dimming as to the window.
 4. **Dimming on the GPU.** Multiply the window's color by one minus the dim strength in the same draw, so the two painters agree within two levels of color, as they do today.
 5. **Damage.** What a frame showed of a surface already includes its opacity; add its dimming, so each step of a transition repaints the surface's bounds and, with a shadow, its extent.
-6. **Focus without `_NET_ACTIVE_WINDOW`, to be decided.** Under a window manager that does not set the property, follow X input focus instead: the client that holds it, or none when focus is on the root or follows the pointer. Otherwise, document which window managers need `XMonad.Hooks.EwmhDesktops` or an equivalent.
+6. **Focus without `_NET_ACTIVE_WINDOW`, decided in task 1.** Under a window manager that does not set the property, follow X input focus instead: the client that holds it, or none when focus is on the root or follows the pointer. The property still wins wherever the window manager sets it.
 
 ### Interaction and risks
 
@@ -718,7 +718,7 @@ dim = 0
 - **Multiple monitors:** an inactive window on another monitor dims too. That matches picom and is documented, not configurable, in this milestone.
 - **Shadows:** a shadow's darkness already follows its window's opacity, so an inactive translucent window casts a lighter shadow; dimming leaves the shadow as it is.
 - **Window Animations and Rounded Corners:** dimming must follow the transforms of the [Window Animations](#window-animations-planned) milestone and the corner mask of [Rounded Corners](#rounded-corners-planned); whichever lands second runs the other's pixel tests through its change. Eased opacity may share the generalized animation state that Window Animations proposes.
-- **Input focus:** if task 5 follows X input focus, focus on the root, `PointerRoot`, a frame, or a window gone before its focus event is read must each count as no active client, never dimming the whole desktop by mistake.
+- **Input focus:** following X input focus, focus on the root, `PointerRoot`, a frame, or a window gone before its focus event is read must each count as no active client, never dimming the whole desktop by mistake.
 
 ### Verification and acceptance
 
@@ -727,7 +727,7 @@ dim = 0
 - [ ] X11 pixel tests in both painters cover active and inactive opacity, precedence with rule and global opacity, application opacity multiplied in, and eligibility: menus, tooltips, docks, client-side-decorated, and fullscreen windows stay as they are.
 - [ ] Dimmed pixels of opaque, ARGB, and shaped windows match an independent reference within two levels, with transparent margins untouched; dimming follows rounded corners if they exist by then.
 - [ ] A focus change, a reload, and a new `_NET_WM_WINDOW_OPACITY` ease over the fade duration, sampled mid-transition, and repainting stops once they settle, back to the recorded idle baseline.
-- [ ] Focus follows `_NET_ACTIVE_WINDOW` as today, and the decided behavior without it is covered, including the root, `PointerRoot`, frames, and a window destroyed before its focus event is read.
+- [ ] Focus follows `_NET_ACTIVE_WINDOW` as today, and X input focus without it, including the root, `PointerRoot`, frames, and a window destroyed before its focus event is read.
 - [ ] After warmup and 1,000 focus changes, XRes counts and owned pixmap bytes return to their settled values.
 - [ ] Hardware records under at least two window managers with focus moved by the window manager itself, not by the probe, and benchmark scenes comparing inactive translucency with dimming, with Compust's and the X server's CPU.
 - [ ] Formatting, strict Clippy, the full suite, the release build, and documentation in both languages, including the README's settings and rules tables and `compust.example.toml`, pass before the milestone is advertised as implemented.
@@ -736,15 +736,19 @@ dim = 0
 
 Each item is one reviewable issue, with the feature template's fields: **Problem or use case**, **Proposed behavior**, and **How to verify it**. The last field is the done criterion.
 
-1. **Confirm the schema and semantics.** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field names and ranges, that the focus settings replace the global opacity rather than multiply it, that changes ease over the fade duration, that fullscreen windows are exempt, and whether to follow X input focus. **How to verify it:** each open question in this section has a recorded decision.
+1. **Confirm the schema and semantics, [done](#task-1-done-schema-and-semantics).** **Problem or use case:** once 1.0 is out, a configuration field cannot change within 1.x. **Proposed behavior:** confirm the field names and ranges, that the focus settings replace the global opacity rather than multiply it, that changes ease over the fade duration, that fullscreen windows are exempt, and whether to follow X input focus. **How to verify it:** each open question in this section has a recorded decision.
 2. **Ease opacity changes.** **Problem or use case:** a focus change, a reload, or a new application opacity jumps in one frame. **Proposed behavior:** a retargetable configured opacity per surface in `animation.rs` and `surface.rs`, with `scene.rs` painting until it settles. **How to verify it:** the unit tests and mid-transition pixel tests above pass, with existing focus and fade tests unchanged at `fade_ms = 0`.
 3. **Add active and inactive opacity.** **Problem or use case:** dimming inactive windows takes a rule that must exclude menus, tooltips, and docks. **Proposed behavior:** `active_opacity` and `inactive_opacity` in `config.rs`, resolved with eligibility and precedence where `paint.rs` computes opacity. **How to verify it:** parsing, precedence, and eligibility tests pass, and frames with the default configuration do not change.
 4. **Dim inactive windows.** **Problem or use case:** translucency costs a blur and occlusion for every inactive window. **Proposed behavior:** `inactive_dim` and a rule's `dim`, drawn in `paint.rs`, `gpu.rs`, and `crates/gl`, with the dimming in `damage.rs`. **How to verify it:** the dimming pixel tests pass in both painters.
-5. **Follow focus without `_NET_ACTIVE_WINDOW`, if confirmed.** **Problem or use case:** under such window managers, nothing dims. **Proposed behavior:** X input focus as the fallback in `events.rs` and `atoms.rs`. **How to verify it:** the focus-source tests above pass, and the existing focus tests pass unchanged.
+5. **Follow focus without `_NET_ACTIVE_WINDOW`.** **Problem or use case:** under such window managers, nothing dims. **Proposed behavior:** X input focus as the fallback in `events.rs` and `atoms.rs`. **How to verify it:** the focus-source tests above pass, and the existing focus tests pass unchanged.
 6. **Qualify and document.** **Problem or use case:** pixel tests alone do not show cost, real window-manager focus behavior, or resource stability. **Proposed behavior:** focus cycles in `tests/cases/`, hardware sessions under two window managers, benchmark runs, and updates to the README, the architecture, `compust.example.toml`, and both roadmaps. **How to verify it:** every acceptance item has evidence for the exact commit and environment.
+
+### Task 1 done: schema and semantics
+
+The owner confirmed on 2026-10-05: the fields are `active_opacity`, `inactive_opacity`, and `inactive_dim`, each 0–100, and a rule's `dim` in the same range; for eligible windows, `active_opacity` and `inactive_opacity` replace the global `opacity` rather than multiply it, so `opacity = 90` with `inactive_opacity = 80` shows an inactive window at 80%, and a rule's `opacity` still wins; opacity and dimming ease over the window's `fade_ms` rather than a duration of their own; fullscreen windows are exempt; and without `_NET_ACTIVE_WINDOW`, Compust follows X input focus.
 
 ### Decisions and later work
 
-The owner still needs to confirm the field names and ranges, that `active_opacity` and `inactive_opacity` replace the global opacity for eligible windows, that opacity changes ease over the fade duration rather than a duration of their own, that fullscreen windows are exempt, and whether Compust follows X input focus without `_NET_ACTIVE_WINDOW`. Dimming toward a color other than black, desaturating inactive windows, and focus per monitor are later work.
+Dimming toward a color other than black, desaturating inactive windows, and focus per monitor are later work.
 
 There are no delivery dates yet. Open an issue to discuss a bounded change or contribute an observed failure; avoid starting several overlapping backend designs before agreeing on the requirements.

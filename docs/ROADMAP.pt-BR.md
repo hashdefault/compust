@@ -679,16 +679,16 @@ Bordas internas arredondadas, um raio diferente por canto e o arredondamento de 
 | Efeitos | O desfoque aparece atrás de uma janela abaixo da opacidade total; só uma janela com opacidade total e sem alfa esconde o que está abaixo dela; a intensidade de uma sombra multiplica a opacidade da janela; a suspensão da composição em tela cheia exige a janela do topo com opacidade total. Uma janela inativa translúcida custa, portanto, um desfoque e deixa de esconder as janelas abaixo dela, enquanto uma escurecida continua opaca. |
 | Pintores | O pintor XRender compõe cada janela por uma máscara A8 de 1×1 que guarda sua opacidade, e o pintor de GPU multiplica o mesmo valor no shader. Nenhum dos dois tem uma etapa que escureça uma janela. |
 
-### Configuração proposta
+### Configuração
 
-**Estes campos são uma proposta e não são aceitos pelo binário atual.** O responsável pelo projeto confirma o esquema antes da implementação, seguindo o [modelo de proposta de recurso](../.github/ISSUE_TEMPLATE/feature.yml).
+**O responsável pelo projeto confirmou este esquema na [tarefa 1](#tarefa-1-concluída-esquema-e-semântica); o binário atual ainda não aceita estes campos.**
 
 - `active_opacity` e `inactive_opacity`: porcentagens, de 0 a 100, que uma janela elegível usa no lugar da `opacity` global enquanto é, ou não é, a janela ativa. Ausentes, o padrão, elas mantêm a `opacity` global, então uma atualização não muda nenhum desktop. A `opacity` de uma regra continua prevalecendo sobre as duas, como prevalece sobre a global, e a opacidade do aplicativo continua multiplicando o resultado.
 - `inactive_dim`: quanto mais escura uma janela inativa elegível é desenhada, como porcentagem de preto sobre ela, de 0 a 100, padrão 0. O `dim` de uma regra, no mesmo intervalo, o define para as janelas que a regra escolhe, que um seletor `focused` pode restringir.
 - Janelas elegíveis são as que o Compust decora, como nas sombras e nos cantos arredondados: tipos `normal`, `dialog`, `utility`, `splash` e `toolbar` sem margens desenhadas pelo cliente. Uma janela cujo cliente está em tela cheia não é elegível, então continua opaca e a suspensão da composição em tela cheia ainda se aplica a ela. Menus, dicas de ferramenta, docks e os demais tipos contam como ativos para essas opções; uma regra ainda pode escolher qualquer um deles pelo foco.
 - Toda mudança na opacidade ou no escurecimento de uma janela é suavizada ao longo da sua duração de fade, o `fade_ms` da regra ou, na falta dele, o global, com o smoothstep dos fades de abertura e fechamento, partindo do valor que ela mostra naquele momento. Isso inclui uma mudança de foco, uma recarga e um novo `_NET_WM_WINDOW_OPACITY`. Com `fade_ms = 0`, as mudanças continuam imediatas, como hoje.
 
-Exemplo proposto, não uma configuração atual:
+Exemplo, que o binário atual ainda não aceita:
 
 ```toml
 inactive_opacity = 85
@@ -709,7 +709,7 @@ dim = 0
 3. **Escurecimento no XRender.** Depois de compor uma janela inativa elegível, compor preto sobre o seu recorte na intensidade do escurecimento vezes a sua opacidade, pelo próprio alfa da janela no caso de uma janela ARGB, para que uma margem transparente continue transparente. Com cantos arredondados, a máscara dos cantos vale para o escurecimento como vale para a janela.
 4. **Escurecimento na GPU.** Multiplicar a cor da janela por um menos a intensidade do escurecimento no mesmo desenho, para que os dois pintores concordem com diferença de até dois níveis de cor, como hoje.
 5. **Dano.** O que um quadro mostrou de uma superfície já inclui sua opacidade; acrescentar o escurecimento, para que cada passo de uma transição repinte os limites da superfície e, com sombra, a extensão dela.
-6. **Foco sem `_NET_ACTIVE_WINDOW`, a decidir.** Com um gerenciador de janelas que não define a propriedade, acompanhar o foco de entrada do X: o cliente que o tem, ou nenhum quando o foco está na raiz ou segue o ponteiro. Caso contrário, documentar quais gerenciadores de janelas precisam de `XMonad.Hooks.EwmhDesktops` ou equivalente.
+6. **Foco sem `_NET_ACTIVE_WINDOW`, decidido na tarefa 1.** Com um gerenciador de janelas que não define a propriedade, acompanhar o foco de entrada do X: o cliente que o tem, ou nenhum quando o foco está na raiz ou segue o ponteiro. A propriedade continua prevalecendo onde o gerenciador de janelas a define.
 
 ### Interação e riscos
 
@@ -718,7 +718,7 @@ dim = 0
 - **Vários monitores:** uma janela inativa em outro monitor também escurece. Isso segue o picom e fica documentado, não configurável, neste marco.
 - **Sombras:** a intensidade de uma sombra já acompanha a opacidade da janela, então uma janela inativa translúcida projeta uma sombra mais clara; o escurecimento deixa a sombra como está.
 - **Animações de janelas e cantos arredondados:** o escurecimento precisa acompanhar as transformações do marco de [Animações de janelas](#animações-de-janelas-planejadas) e a máscara dos cantos de [Cantos arredondados](#cantos-arredondados-planejados); o que chegar depois roda os testes de pixels do outro com a sua mudança. A opacidade suavizada pode compartilhar o estado de animação generalizado que Animações de janelas propõe.
-- **Foco de entrada:** se a tarefa 5 acompanhar o foco de entrada do X, o foco na raiz, `PointerRoot`, numa moldura ou numa janela que sumiu antes de o evento de foco ser lido precisa contar como nenhum cliente ativo, sem nunca escurecer o desktop inteiro por engano.
+- **Foco de entrada:** ao acompanhar o foco de entrada do X, o foco na raiz, `PointerRoot`, numa moldura ou numa janela que sumiu antes de o evento de foco ser lido precisa contar como nenhum cliente ativo, sem nunca escurecer o desktop inteiro por engano.
 
 ### Verificação e aceitação
 
@@ -727,7 +727,7 @@ dim = 0
 - [ ] Testes de pixels X11 nos dois pintores cobrem a opacidade ativa e inativa, a precedência com a opacidade da regra e a global, a multiplicação pela opacidade do aplicativo e a elegibilidade: menus, dicas de ferramenta, docks, janelas com decoração do lado do cliente e janelas em tela cheia continuam como estão.
 - [ ] Os pixels escurecidos de janelas opacas, ARGB e com formato coincidem com uma referência independente com diferença de até dois níveis, com as margens transparentes intactas; o escurecimento acompanha os cantos arredondados se eles já existirem.
 - [ ] Uma mudança de foco, uma recarga e um novo `_NET_WM_WINDOW_OPACITY` se suavizam ao longo da duração do fade, amostrados no meio da transição, e a repintura para quando eles se estabilizam, voltando à referência ociosa registrada.
-- [ ] O foco acompanha o `_NET_ACTIVE_WINDOW` como hoje, e o comportamento decidido sem ele é coberto, inclusive a raiz, `PointerRoot`, molduras e uma janela destruída antes de o evento de foco ser lido.
+- [ ] O foco acompanha o `_NET_ACTIVE_WINDOW` como hoje, e o foco de entrada do X sem ele, inclusive a raiz, `PointerRoot`, molduras e uma janela destruída antes de o evento de foco ser lido.
 - [ ] Após aquecimento e 1.000 mudanças de foco, as contagens XRes e os bytes de pixmaps próprios voltam aos valores estabilizados.
 - [ ] Registros em hardware com pelo menos dois gerenciadores de janelas, com o foco mudado pelo próprio gerenciador e não pelo probe, e cenas de benchmark que comparem a translucidez inativa com o escurecimento, com a CPU do Compust e do servidor X.
 - [ ] Formatação, Clippy estrito, a suíte completa, o build de release e a documentação nos dois idiomas, incluindo as tabelas de opções e de regras do README e o `compust.example.toml`, passam antes de anunciar o marco como implementado.
@@ -736,15 +736,19 @@ dim = 0
 
 Cada item corresponde a uma issue revisável, com os campos do modelo de recurso: **Problema ou caso de uso**, **Comportamento proposto** e **Como verificar**. O último campo é o critério de conclusão.
 
-1. **Confirmar o esquema e a semântica.** **Problema ou caso de uso:** depois da 1.0, um campo de configuração não pode mudar dentro da 1.x. **Comportamento proposto:** confirmar os nomes e intervalos dos campos, que as opções de foco substituem a opacidade global em vez de multiplicá-la, que as mudanças se suavizam ao longo da duração do fade, que janelas em tela cheia ficam de fora e se o foco de entrada do X deve ser acompanhado. **Como verificar:** cada questão em aberto desta seção tem uma decisão registrada.
+1. **Confirmar o esquema e a semântica, [concluída](#tarefa-1-concluída-esquema-e-semântica).** **Problema ou caso de uso:** depois da 1.0, um campo de configuração não pode mudar dentro da 1.x. **Comportamento proposto:** confirmar os nomes e intervalos dos campos, que as opções de foco substituem a opacidade global em vez de multiplicá-la, que as mudanças se suavizam ao longo da duração do fade, que janelas em tela cheia ficam de fora e se o foco de entrada do X deve ser acompanhado. **Como verificar:** cada questão em aberto desta seção tem uma decisão registrada.
 2. **Suavizar as mudanças de opacidade.** **Problema ou caso de uso:** uma mudança de foco, uma recarga ou uma nova opacidade do aplicativo salta num único quadro. **Comportamento proposto:** uma opacidade configurada redirecionável por superfície em `animation.rs` e `surface.rs`, com `scene.rs` pintando até ela se estabilizar. **Como verificar:** os testes unitários e os testes de pixels no meio da transição acima passam, com os testes existentes de foco e de fade inalterados em `fade_ms = 0`.
 3. **Acrescentar a opacidade ativa e inativa.** **Problema ou caso de uso:** escurecer as janelas inativas exige uma regra que precisa excluir menus, dicas de ferramenta e docks. **Comportamento proposto:** `active_opacity` e `inactive_opacity` em `config.rs`, resolvidas com elegibilidade e precedência onde `paint.rs` calcula a opacidade. **Como verificar:** os testes de parsing, precedência e elegibilidade passam, e os quadros com a configuração padrão não mudam.
 4. **Escurecer as janelas inativas.** **Problema ou caso de uso:** a translucidez custa um desfoque e a oclusão de cada janela inativa. **Comportamento proposto:** `inactive_dim` e o `dim` de uma regra, desenhados em `paint.rs`, `gpu.rs` e `crates/gl`, com o escurecimento em `damage.rs`. **Como verificar:** os testes de pixels do escurecimento passam nos dois pintores.
-5. **Acompanhar o foco sem `_NET_ACTIVE_WINDOW`, se confirmado.** **Problema ou caso de uso:** com esses gerenciadores de janelas, nada escurece. **Comportamento proposto:** o foco de entrada do X como alternativa em `events.rs` e `atoms.rs`. **Como verificar:** os testes da origem do foco acima passam, e os testes de foco existentes passam sem mudanças.
+5. **Acompanhar o foco sem `_NET_ACTIVE_WINDOW`.** **Problema ou caso de uso:** com esses gerenciadores de janelas, nada escurece. **Comportamento proposto:** o foco de entrada do X como alternativa em `events.rs` e `atoms.rs`. **Como verificar:** os testes da origem do foco acima passam, e os testes de foco existentes passam sem mudanças.
 6. **Validar e documentar.** **Problema ou caso de uso:** testes de pixels sozinhos não mostram custo, o comportamento real do foco nos gerenciadores de janelas nem estabilidade de recursos. **Comportamento proposto:** ciclos de foco em `tests/cases/`, sessões em hardware com dois gerenciadores de janelas, execuções de benchmark e atualizações no README, na arquitetura, no `compust.example.toml` e nos dois roteiros. **Como verificar:** cada item de aceitação tem evidências do commit e do ambiente exatos.
+
+### Tarefa 1 concluída: esquema e semântica
+
+O responsável pelo projeto confirmou em 2026-10-05: os campos são `active_opacity`, `inactive_opacity` e `inactive_dim`, cada um de 0 a 100, e o `dim` de uma regra no mesmo intervalo; nas janelas elegíveis, `active_opacity` e `inactive_opacity` substituem a `opacity` global em vez de multiplicá-la, então `opacity = 90` com `inactive_opacity = 80` mostra uma janela inativa a 80%, e a `opacity` de uma regra continua prevalecendo; a opacidade e o escurecimento se suavizam ao longo do `fade_ms` da janela em vez de uma duração própria; janelas em tela cheia ficam de fora; e, sem `_NET_ACTIVE_WINDOW`, o Compust acompanha o foco de entrada do X.
 
 ### Decisões e trabalho posterior
 
-O responsável pelo projeto ainda precisa confirmar os nomes e intervalos dos campos, que `active_opacity` e `inactive_opacity` substituem a opacidade global nas janelas elegíveis, que as mudanças de opacidade se suavizam ao longo da duração do fade em vez de uma duração própria, que janelas em tela cheia ficam de fora e se o Compust acompanha o foco de entrada do X sem `_NET_ACTIVE_WINDOW`. Escurecer em direção a uma cor diferente de preto, dessaturar as janelas inativas e foco por monitor ficam para depois.
+Escurecer em direção a uma cor diferente de preto, dessaturar as janelas inativas e foco por monitor ficam para depois.
 
 Ainda não há datas de entrega. Abra uma issue para discutir uma mudança delimitada ou relatar uma falha observada; evite iniciar vários projetos de backend sobrepostos antes de alinhar os requisitos.
