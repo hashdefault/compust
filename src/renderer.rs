@@ -69,6 +69,8 @@ pub(crate) struct Renderer {
     layout: Format,
     /// The format of alpha-only buffers.
     a8: Format,
+    /// The format of 32-bit buffers with alpha, where the server has one.
+    argb: Option<Format>,
     /// `XFixes` region naming the area each Present submission updates.
     update: u32,
 }
@@ -100,21 +102,14 @@ impl Renderer {
         back.repeat(Repeat::PAD)?;
         let output = Picture::borrowed(conn, session.overlay, format)?;
         let a8 = a8_format(&formats)?;
+        let argb = argb_format(&formats);
         let alpha = alpha_mask(session, a8)?;
         let present = config.vsync && session.capabilities.present;
         let event_id = if present {
-            Some(conn.generate_id()?)
+            Some(present_events(session)?)
         } else {
             None
         };
-        if let Some(id) = event_id {
-            conn.present_select_input(
-                id,
-                session.overlay,
-                EventMask::COMPLETE_NOTIFY | EventMask::IDLE_NOTIFY,
-            )?
-            .check()?;
-        }
         let radius = if session.capabilities.bilinear {
             config.blur_radius
         } else {
@@ -170,6 +165,7 @@ impl Renderer {
             corners: corner::Masks::default(),
             layout,
             a8,
+            argb,
             update,
         };
         renderer.invalidate();
@@ -220,6 +216,39 @@ fn a8_format(formats: &QueryPictFormatsReply) -> Result<Format> {
         depth: 8,
         id: format.id,
     })
+}
+
+/// A new subscription to the completion and idle events of the overlay's presentations.
+fn present_events(session: &Session) -> Result<u32> {
+    let id = session.conn.generate_id()?;
+    session
+        .conn
+        .present_select_input(
+            id,
+            session.overlay,
+            EventMask::COMPLETE_NOTIFY | EventMask::IDLE_NOTIFY,
+        )?
+        .check()?;
+    Ok(id)
+}
+
+/// The usual 32-bit ARGB format, when the server offers one.
+fn argb_format(formats: &QueryPictFormatsReply) -> Option<Format> {
+    formats
+        .formats
+        .iter()
+        .find(|f| {
+            f.depth == 32
+                && f.direct.alpha_mask == 255
+                && f.direct.alpha_shift == 24
+                && f.direct.red_shift == 16
+                && f.direct.green_shift == 8
+                && f.direct.blue_shift == 0
+        })
+        .map(|f| Format {
+            depth: 32,
+            id: f.id,
+        })
 }
 
 /// A repeating one-pixel A8 picture, whose alpha sets a composite's opacity.

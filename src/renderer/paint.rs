@@ -215,6 +215,11 @@ impl Renderer {
                 .any(|part| part.shadow.is_some() && part.surface.window == kept.window)
         });
         self.keep_disks(|radius| plan.parts.iter().any(|part| part.corners == radius));
+        self.keep_bands(|radius, border| {
+            plan.parts.iter().any(|part| {
+                part.corners == radius && corner::border(part.surface, part.corners) == Some(border)
+            })
+        });
         for part in &plan.parts {
             self.paint_surface(session, part)?;
         }
@@ -400,6 +405,10 @@ impl Renderer {
         } else {
             None
         };
+        let bordered = match corner::border(surface, corners) {
+            Some(border) => self.bordered(session, corners, border)?,
+            None => None,
+        };
         let backdrop = match beneath {
             Beneath::Scene => None,
             Beneath::Kept(bounds) | Beneath::Fresh { bounds, .. } => self
@@ -418,7 +427,7 @@ impl Renderer {
             self.show_backdrop(session, surface, backdrop, &clip, disk)?;
         }
         match rounded {
-            Some((mask, _)) => self.paint_rounded(session, part, mask),
+            Some((mask, _)) => self.paint_rounded(session, part, mask, bordered.as_ref()),
             None => self.composite(session, surface),
         }
     }

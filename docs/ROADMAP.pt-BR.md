@@ -719,7 +719,7 @@ O Xvfb não tem DRI3, então os testes X11 exercitam apenas o pintor XRender. Po
 
 ### Decisões e trabalho posterior
 
-Bordas internas arredondadas, um raio diferente por canto e o arredondamento de janelas que já têm formato ficam para depois.
+As bordas arredondadas agora acompanham um arco interno recuado pela largura da borda X. A cor vem do pixel superior esquerdo da borda da superfície, então gerenciadores que pintam cada lado com uma cor diferente não preservam essas cores nos cantos. Raios diferentes por canto e o arredondamento de janelas que já têm formato ficam para depois.
 
 ## Opacidade de janelas ativas e inativas: planejada
 

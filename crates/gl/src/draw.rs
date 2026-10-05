@@ -101,6 +101,22 @@ void main() {
 }
 ";
 
+const BORDERED: &str = "
+uniform sampler2D source;
+uniform sampler2D mask;
+uniform sampler2D cover;
+uniform vec2 bordercoord;
+uniform float opacity;
+varying vec2 texcoord;
+varying vec2 maskcoord;
+varying vec2 covercoord;
+void main() {
+    vec4 content = texture2D(source, texcoord) * texture2D(mask, maskcoord).a;
+    vec4 border = texture2D(source, bordercoord) * texture2D(cover, covercoord).a;
+    gl_FragColor = (content + border) * opacity;
+}
+";
+
 const MASKED_COVERED: &str = "
 uniform sampler2D source;
 uniform sampler2D mask;
@@ -133,6 +149,7 @@ struct Program {
     mapping: Option<Location>,
     mask_mapping: Option<Location>,
     cover_mapping: Option<Location>,
+    bordercoord: Option<Location>,
     opacity: Option<Location>,
     color: Option<Location>,
 }
@@ -144,6 +161,7 @@ pub(crate) struct Programs {
     solid: Program,
     masked: Program,
     covered: Program,
+    bordered: Program,
     masked_covered: Program,
     shaded: Program,
     vertices: glow::Buffer,
@@ -155,6 +173,7 @@ impl Programs {
         let solid = program(inner, SOLID)?;
         let masked = program(inner, MASKED)?;
         let covered = program(inner, COVERED)?;
+        let bordered = program(inner, BORDERED)?;
         let masked_covered = program(inner, MASKED_COVERED)?;
         let shaded = program(inner, SHADED)?;
         let gl = inner.gl()?;
@@ -166,6 +185,7 @@ impl Programs {
             solid,
             masked,
             covered,
+            bordered,
             masked_covered,
             shaded,
             vertices,
@@ -183,6 +203,7 @@ impl Drop for Programs {
                 gl.delete_program(self.solid.id);
                 gl.delete_program(self.masked.id);
                 gl.delete_program(self.covered.id);
+                gl.delete_program(self.bordered.id);
                 gl.delete_program(self.masked_covered.id);
                 gl.delete_program(self.shaded.id);
                 gl.delete_buffer(self.vertices);
@@ -227,6 +248,7 @@ fn program(inner: &Inner, fragment: &str) -> Result<Program> {
             mapping: gl.get_uniform_location(id, "mapping"),
             mask_mapping: gl.get_uniform_location(id, "mask_mapping"),
             cover_mapping: gl.get_uniform_location(id, "cover_mapping"),
+            bordercoord: gl.get_uniform_location(id, "bordercoord"),
             opacity: gl.get_uniform_location(id, "opacity"),
             color: gl.get_uniform_location(id, "color"),
         })
@@ -420,6 +442,49 @@ impl Frame<'_> {
             }
             gl.uniform_4_f32_slice(program.mapping.as_ref(), &mapping);
             gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_1_f32(program.opacity.as_ref(), opacity);
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);
+        }
+        self.quads(program, clip)
+    }
+
+    /// Composite a rounded corner's content and border coverage over `clip`. The source's
+    /// top-left pixel supplies the border color; each mask's pixel zero lies at its own origin.
+    pub fn draw_bordered_covered(
+        &mut self,
+        source: &Texture,
+        placement: Placement,
+        (inner, inner_at): (&Texture, (i32, i32)),
+        (ring, ring_at): (&Texture, (i32, i32)),
+        opacity: f32,
+        clip: &[Rect],
+    ) -> Result<()> {
+        let programs = &self.gpu.programs;
+        let program = &programs.bordered;
+        let gl = self.gpu.inner.gl()?;
+        let (source_mapping, filter) = mapping(source, placement)?;
+        let (mask_mapping, _) = mapping(inner, Placement::At(inner_at.0, inner_at.1))?;
+        let (cover_mapping, _) = mapping(ring, Placement::At(ring_at.0, ring_at.1))?;
+        let bordercoord = [0.5 / pixels(source.width)?, 0.5 / pixels(source.height)?];
+        // SAFETY: `gl` made the context current; the program, uniforms, and textures belong to it.
+        unsafe {
+            gl.use_program(Some(program.id));
+            for (unit, texture, filter) in [
+                (glow::TEXTURE2, ring, glow::NEAREST),
+                (glow::TEXTURE1, inner, glow::NEAREST),
+                (glow::TEXTURE0, source, filter),
+            ] {
+                gl.active_texture(unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture.id));
+                for parameter in [glow::TEXTURE_MIN_FILTER, glow::TEXTURE_MAG_FILTER] {
+                    gl.tex_parameter_i32(glow::TEXTURE_2D, parameter, filter.cast_signed());
+                }
+            }
+            gl.uniform_4_f32_slice(program.mapping.as_ref(), &source_mapping);
+            gl.uniform_4_f32_slice(program.mask_mapping.as_ref(), &mask_mapping);
+            gl.uniform_4_f32_slice(program.cover_mapping.as_ref(), &cover_mapping);
+            gl.uniform_2_f32(program.bordercoord.as_ref(), bordercoord[0], bordercoord[1]);
             gl.uniform_1_f32(program.opacity.as_ref(), opacity);
             gl.enable(glow::BLEND);
             gl.blend_func(glow::ONE, glow::ONE_MINUS_SRC_ALPHA);

@@ -719,7 +719,7 @@ Xvfb has no DRI3, so the X11 tests exercise only the XRender painter. The [featu
 
 ### Decisions and later work
 
-Rounded inner border edges, a different radius per corner, and rounding windows that already have a shape are later work.
+Rounded borders now follow an inner arc inset by the X border width. The border color comes from the surface's top-left border pixel, so window managers that paint different colors along each edge cannot preserve those colors at the corners. Different radii per corner and rounding windows that already have a shape are later work.
 
 ## Active and Inactive Opacity: planned
 

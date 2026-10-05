@@ -50,6 +50,7 @@ pub(super) struct Painter {
     /// One coverage disk per radius of rounded corners in use, as `corner::Masks` keeps them
     /// for the `XRender` painter.
     disks: Vec<(u8, Texture)>,
+    bands: Vec<((u8, u8), Texture, Texture)>,
     /// One fully opaque alpha pixel, the second profile of a shadow's patches.
     one: Texture,
 }
@@ -128,6 +129,7 @@ impl Painter {
             backdrops: Vec::new(),
             shadows: Vec::new(),
             disks: Vec::new(),
+            bands: Vec::new(),
             one,
         })
     }
@@ -176,11 +178,29 @@ impl Painter {
         });
         self.disks
             .retain(|(radius, _)| plan.parts.iter().any(|part| part.corners == *radius));
+        self.bands.retain(|((radius, border), _, _)| {
+            plan.parts.iter().any(|part| {
+                part.corners == *radius
+                    && corner::border(part.surface, part.corners) == Some(*border)
+            })
+        });
         for part in plan.parts.iter().filter(|part| part.corners > 0) {
             if !self.disks.iter().any(|(radius, _)| *radius == part.corners) {
                 let side = 2 * u32::from(part.corners);
                 let disk = self.gpu.alpha(side, side, &corner::disk(part.corners))?;
                 self.disks.push((part.corners, disk));
+            }
+            if let Some(border) = corner::border(part.surface, part.corners)
+                && !self
+                    .bands
+                    .iter()
+                    .any(|(key, _, _)| *key == (part.corners, border))
+            {
+                let side = 2 * u32::from(part.corners);
+                let (inner, ring) = corner::bands(part.corners, border);
+                let inner = self.gpu.alpha(side, side, &inner)?;
+                let ring = self.gpu.alpha(side, side, &ring)?;
+                self.bands.push(((part.corners, border), inner, ring));
             }
         }
         for part in &plan.parts {
@@ -380,6 +400,11 @@ impl Painter {
             .find(|(radius, _)| *radius == part.corners)
             .map(|(_, disk)| disk)
             .context("rounded corners have no disk")?;
+        let bands = corner::border(part.surface, part.corners).and_then(|border| {
+            self.bands
+                .iter()
+                .find(|(key, _, _)| *key == (part.corners, border))
+        });
         for (square, (across, down)) in squares(bounds, part.corners) {
             let shown = within(&part.clip, &[square]);
             if shown.is_empty() {
@@ -399,7 +424,17 @@ impl Painter {
                 )?;
             }
             let at = Placement::At(origin.0, origin.1);
-            frame.draw_covered(texture, at, (disk, disk_at), opacity, &shown)?;
+            match bands {
+                Some((_, inner, ring)) => frame.draw_bordered_covered(
+                    texture,
+                    at,
+                    (inner, disk_at),
+                    (ring, disk_at),
+                    opacity,
+                    &shown,
+                )?,
+                None => frame.draw_covered(texture, at, (disk, disk_at), opacity, &shown)?,
+            }
         }
         Ok(())
     }

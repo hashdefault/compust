@@ -95,7 +95,7 @@ Restore any startup line you changed. Logging out also ends Compust: when the X 
 ## Known limits
 
 - Fullscreen unredirection needs one opaque, square window over the whole screen, so it never applies to one monitor of several.
-- Shadows are black, and shaped windows cast none and keep square corners. A thick window border is rounded at its outer edge only.
+- Shadows are black, and shaped windows cast none and keep square corners. Rounded X borders use the top-left border pixel as their color around every corner; window managers that paint different colors on different edges cannot keep those colors distinct at the corners.
 - There are no movement or scale animations, no global settings for the opacity of active and inactive windows beyond rules, and no picom configuration compatibility.
 - Rules match exact text. Focus comes from `_NET_ACTIVE_WINDOW`; under a window manager that does not set it, such as Xmonad without `XMonad.Hooks.EwmhDesktops`, every window counts as focused.
 - A blurred window blurs its whole background again whenever something beneath it changes. `blur_radius` rounds to 2, 4, 8, or 16 pixels.

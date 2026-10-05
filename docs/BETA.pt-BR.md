@@ -95,7 +95,7 @@ Restaure qualquer linha de inicialização que você alterou. Encerrar a sessão
 ## Limitações conhecidas
 
 - A suspensão da composição em tela cheia exige uma janela opaca e quadrada sobre a tela inteira, então nunca vale para um monitor entre vários.
-- As sombras são pretas, e janelas com formato próprio não projetam sombra e mantêm os cantos quadrados. Uma borda de janela grossa é arredondada apenas no lado externo.
+- As sombras são pretas, e janelas com formato próprio não projetam sombra e mantêm os cantos quadrados. Bordas X arredondadas usam o pixel superior esquerdo da borda como cor em todos os cantos; gerenciadores que pintam cada lado com uma cor diferente não mantêm essas cores distintas nos cantos.
 - Não há animações de movimento ou escala, opções globais para a opacidade das janelas ativas e inativas além das regras nem compatibilidade com a configuração do picom.
 - As regras comparam texto idêntico. O foco vem do `_NET_ACTIVE_WINDOW`; com um gerenciador de janelas que não o define, como o Xmonad sem `XMonad.Hooks.EwmhDesktops`, toda janela conta como focada.
 - Uma janela desfocada desfoca de novo todo o seu fundo sempre que algo abaixo dela muda. `blur_radius` é arredondado para 2, 4, 8 ou 16 pixels.

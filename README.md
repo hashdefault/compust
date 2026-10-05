@@ -201,7 +201,7 @@ wm_class = "Alacritty"
 corner_radius = 0
 ```
 
-A window's border, which window managers such as Xmonad draw, is rounded with the window at its outer edge only, so a thick border looks uneven at the corners. Under a tiling window manager, each window's corners show what lies beneath them; a rule with `window_type = "normal"` and `corner_radius = 0` keeps tiled windows square.
+The X border that a window manager such as Xmonad draws follows both corner arcs: the inner arc is inset by the border width. At the corners, Compust uses the border pixel at the window's top-left as the border color, which preserves a uniform X border. A window manager that paints different colors along each border edge cannot preserve those separate colors in every corner. Under a tiling window manager, each window's corners show what lies beneath them; a rule with `window_type = "normal"` and `corner_radius = 0` keeps tiled windows square.
 
 ### Fullscreen unredirection
 

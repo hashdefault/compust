@@ -118,6 +118,58 @@ fn check_at(
     Ok(())
 }
 
+fn check_bordered(
+    image: &[u8],
+    bounds: (i32, i32, i32, i32),
+    radius: i32,
+    border: i32,
+    opacity: f64,
+) -> Result<()> {
+    let (left, top, width, height) = bounds;
+    for y in top - 2..top + height + 2 {
+        for x in left - 2..left + width + 2 {
+            let outer = covered(bounds, radius, x, y);
+            let column = x - left;
+            let row = y - top;
+            let (content, ring) = if (0..width).contains(&column) && (0..height).contains(&row) {
+                let (across, down) = (column.min(width - 1 - column), row.min(height - 1 - row));
+                if across < radius && down < radius {
+                    let inner = if across >= border && down >= border {
+                        coverage(radius - border, across - border, down - border)
+                    } else {
+                        0.0
+                    };
+                    (inner, (outer - inner).max(0.0))
+                } else if column < border
+                    || column >= width - border
+                    || row < border
+                    || row >= height - border
+                {
+                    (0.0, 1.0)
+                } else {
+                    (1.0, 0.0)
+                }
+            } else {
+                (0.0, 0.0)
+            };
+            let paper = 255.0 * (1.0 - opacity * outer);
+            let wanted = [
+                paper + 255.0 * opacity * content,
+                paper,
+                paper + 255.0 * opacity * ring,
+            ];
+            let shown = at(image, x, y)?;
+            for (channel, (shown, wanted)) in shown.iter().zip(wanted).enumerate() {
+                ensure!(
+                    (f64::from(*shown) - wanted).abs() <= 5.0,
+                    "({x}, {y}) content {content:.3}, border {ring:.3}: channel {channel} is {shown}, not {wanted:.1}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn corners_follow_the_arc_over_opaque_translucent_and_argb_windows() -> Result<()> {
     let desktop = Desktop::new(ROUND)?;
@@ -154,42 +206,46 @@ fn corners_follow_the_arc_over_opaque_translucent_and_argb_windows() -> Result<(
 
 #[test]
 fn borders_round_with_their_window() -> Result<()> {
-    let desktop = Desktop::new(ROUND)?;
+    let desktop = Desktop::new("fade_ms = 0\nblur_radius = 0\ncorner_radius = 15\n")?;
     paper(&desktop)?;
-    // A red window with a 6-pixel blue border spans 112 pixels from its outer corner.
-    let window = desktop.conn.generate_id()?;
-    desktop
-        .conn
-        .create_window(
-            24,
-            window,
-            desktop.root,
-            100,
-            60,
-            100,
-            100,
-            6,
-            WindowClass::INPUT_OUTPUT,
-            0,
-            &CreateWindowAux::new()
-                .background_pixel(0x00ff_0000)
-                .border_pixel(0x0000_00ff),
-        )?
-        .check()?;
-    desktop.map(window)?;
-    desktop.until_pixel((150, 110), |p| p == RED)?;
-    desktop.until_pixel((100, 60), |p| p == WHITE)?;
+    let bordered = |x, opacity: Option<u32>| -> Result<Window> {
+        let window = desktop.conn.generate_id()?;
+        desktop
+            .conn
+            .create_window(
+                24,
+                window,
+                desktop.root,
+                x,
+                60,
+                100,
+                100,
+                2,
+                WindowClass::INPUT_OUTPUT,
+                0,
+                &CreateWindowAux::new()
+                    .background_pixel(0x00ff_0000)
+                    .border_pixel(0x0000_00ff),
+            )?
+            .check()?;
+        if let Some(opacity) = opacity {
+            desktop.opacity(window, opacity)?;
+        }
+        desktop.map(window)?;
+        Ok(window)
+    };
+    bordered(20, None)?;
+    bordered(160, Some(0x8000_0000))?;
+    desktop.until_pixel((70, 110), |p| p == RED)?;
+    desktop.until_pixel((20, 60), |p| p == WHITE)?;
+    desktop.until_pixel((210, 110), |[r, g, b]| {
+        r == 255 && (126..=128).contains(&g) && (126..=128).contains(&b)
+    })?;
     let image = desktop.image()?;
-    let border = |x: i32, y: i32| !(106..206).contains(&x) || !(66..166).contains(&y);
-    check_at(&image, (100, 60, 112, 112), 13, |x, y, share| {
-        let [red, blue] = if border(x, y) {
-            [0.0, 255.0]
-        } else {
-            [255.0, 0.0]
-        };
-        let paper = 255.0 * (1.0 - share);
-        [red * share + paper, paper, blue * share + paper]
-    })
+    check_bordered(&image, (20, 60, 104, 104), 15, 2, 1.0)?;
+    let half = f64::from(0x8000_u16) / f64::from(u16::MAX);
+    check_bordered(&image, (160, 60, 104, 104), 15, 2, half)?;
+    Ok(())
 }
 
 #[test]

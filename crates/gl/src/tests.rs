@@ -84,6 +84,51 @@ fn fills_and_composites_at_an_opacity_from_the_top_left() -> Result<()> {
 }
 
 #[test]
+fn bordered_corner_draws_content_and_samples_the_top_left_border_pixel() -> Result<()> {
+    let Some(gpu) = software()? else {
+        return Ok(());
+    };
+    let source = painted(
+        &gpu,
+        (4, 4),
+        &[
+            ([0.0, 1.0, 0.0, 1.0], rect(0, 0, 4, 4)),
+            ([0.0, 0.0, 1.0, 1.0], rect(0, 0, 1, 1)),
+            ([1.0, 0.0, 0.0, 1.0], rect(1, 1, 3, 3)),
+        ],
+    )?;
+    let inner = gpu.alpha(2, 2, &[0, 0, 0, 255])?;
+    let ring = gpu.alpha(2, 2, &[0, 128, 255, 0])?;
+    let target = painted(&gpu, (4, 4), &[([1.0; 4], rect(0, 0, 4, 4))])?;
+    gpu.frame(&target)?.draw_bordered_covered(
+        source.texture(),
+        Placement::At(0, 0),
+        (&inner, (0, 0)),
+        (&ring, (0, 0)),
+        0.5,
+        &[rect(0, 0, 2, 2)],
+    )?;
+    gpu.flush()?;
+    let pixels = gpu.read(&target, rect(0, 0, 4, 4))?;
+    for (point, expected) in [
+        ((0, 0), [255_u8, 255, 255, 255]),
+        ((1, 0), [191, 191, 255, 255]),
+        ((0, 1), [127, 127, 255, 255]),
+        ((1, 1), [255, 127, 127, 255]),
+        ((2, 2), [255, 255, 255, 255]),
+    ] {
+        let shown = pixel(&pixels, 4, point)?;
+        for (channel, (shown, expected)) in shown.iter().zip(expected).enumerate() {
+            assert!(
+                i16::from(*shown).abs_diff(i16::from(expected)) <= 1,
+                "{point:?} channel {channel}: {shown} != {expected}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn shadows_darken_by_the_product_of_two_profiles() -> Result<()> {
     let Some(gpu) = software()? else {
         return Ok(());

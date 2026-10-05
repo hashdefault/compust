@@ -201,7 +201,7 @@ wm_class = "Alacritty"
 corner_radius = 0
 ```
 
-A borda de uma janela, que gerenciadores de janelas como o Xmonad desenham, é arredondada com a janela apenas no lado externo, então uma borda grossa fica irregular nos cantos. Com um gerenciador de janelas lado a lado, os cantos de cada janela mostram o que está abaixo deles; uma regra com `window_type = "normal"` e `corner_radius = 0` mantém quadradas as janelas lado a lado.
+A borda X que um gerenciador de janelas como o Xmonad desenha acompanha os dois arcos dos cantos: o arco interno recua pela largura da borda. Nos cantos, o Compust usa como cor o pixel da borda no canto superior esquerdo da janela, preservando uma borda X uniforme. Um gerenciador que pinta cores diferentes em cada lado não consegue preservar todas essas cores nos cantos. Com um gerenciador de janelas lado a lado, os cantos de cada janela mostram o que está abaixo deles; uma regra com `window_type = "normal"` e `corner_radius = 0` mantém quadradas as janelas lado a lado.
 
 ### Suspensão da composição em tela cheia
 
