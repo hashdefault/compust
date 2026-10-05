@@ -1,0 +1,7 @@
+# First rounded-corner run on the Radeon Vega desktop: overlapping clips
+
+The first dedicated `--features` session with the corners scene, at the clean revision `60e74dbc2dea9d4a77d5b283fc69a4b1b7e724bb` on 2026-10-05 from 14:40:41 -03:00, ran on the same machine and server as the [passing run](../corners-vega-xorg/README.md). XRender passed every scene. GL passed the shadow and focus scenes as before, then stopped at the corners scene: its first pixel beyond the two-level tolerance, (259, 27), was 249 where XRender showed 252. The GL run ended there, so it has no fullscreen phase.
+
+Over the corners scene's left 320×200 pixels, 11,188 pixels differed by more than two levels, by up to 63, all within the half-transparent window and its shadow. Inside the window, GL showed 75% of its red where XRender showed 50%: [GL's capture](features/gl/corners.png) against [XRender's](features/xrender/corners.png). The window was blended twice. A repaint area is a list of rectangles that may overlap, which XRender unions; the GPU painter drew one quad per rectangle, and this window's shadow extent and blur footprint each covered it. Scenes without a shadow behind a blurred translucent window had never produced the overlap. Commit `1fc0a1c` splits clips into disjoint quads before each draw.
+
+These records are kept as the session left them, with the same treatment of logs and captures as the passing run's.

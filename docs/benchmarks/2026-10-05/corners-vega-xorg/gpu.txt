@@ -1,0 +1,4 @@
+08:00.0 VGA compatible controller [0300]: Advanced Micro Devices, Inc. [AMD/ATI] Cezanne [Radeon Vega Series / Radeon Vega Mobile Series] [1002:1638] (rev c9)
+	Subsystem: ASUSTeK Computer Inc. Device [1043:8809]
+	Kernel driver in use: amdgpu
+	Kernel modules: amdgpu

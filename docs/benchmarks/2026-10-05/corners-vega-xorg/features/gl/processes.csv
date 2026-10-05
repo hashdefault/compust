@@ -1,0 +1,7 @@
+phase,process,seconds,cpu_ticks,clock_ticks_per_second,cpu_percent_one_core,rss_before_kib,rss_after_kib
+composed,compust,10.000072,11,100,1.1000,67100,67100
+composed,server,10.000072,16,100,1.6000,91672,91672
+composed,probe,10.000072,2,100,0.2000,3588,3588
+suspended,compust,10.000064,0,100,0.0000,67100,67100
+suspended,server,10.000064,10,100,1.0000,91672,91672
+suspended,probe,10.000064,2,100,0.2000,3588,3588

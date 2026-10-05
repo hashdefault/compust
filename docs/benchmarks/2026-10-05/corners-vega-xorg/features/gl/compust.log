@@ -1,0 +1,4 @@
+[2m2026-10-05T17:48:21.524438Z[0m [32m INFO[0m configuration loaded [3mpath[0m[2m=[0m/home/lucas/compust/artifacts/vega-xorg-corners2/features/gl/compust.toml
+[2m2026-10-05T17:48:21.553265Z[0m [32m INFO[0m drawing with the GPU [3mrenderer[0m[2m=[0m"AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.2.9-1-cachyos)"
+[2m2026-10-05T17:48:21.554344Z[0m [32m INFO[0m compositor started [3mpresent[0m[2m=[0mtrue [3mwindows[0m[2m=[0m2
+[2m2026-10-05T17:48:45.957877Z[0m [32m INFO[0m compositor stopped

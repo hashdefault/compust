@@ -1,0 +1,11 @@
+ 834584 Xorg
+xrender: feature checks passed
+Feature checks failed: /home/lucas/compust/artifacts/vega-xorg-corners/features/gl
+vendor=The X.Org Foundation release=12101024 geometry=1920x1080 depth=24
+PASS: shadows renderer comparison, max channel delta=1
+PASS: 2073600 shadow scene pixels, max channel delta=1
+PASS: focus-left renderer comparison, max channel delta=0
+PASS: focus-right renderer comparison, max channel delta=0
+PASS: focus switches, no active window, absent active-window property
+Error: renderer difference in corners at pixel 52099: [249, 249, 249] vs [252, 252, 252]
+Hardware session finished: /home/lucas/compust/artifacts/vega-xorg-corners

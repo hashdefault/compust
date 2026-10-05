@@ -653,6 +653,23 @@ The [feature probe](benchmarks/2026-10-05/features-vega-xorg/README.md) passed i
 
 The archives keep the CSV files, logs, configurations, and hashes. Their server logs omit the kernel command line and raw EDID and redact monitor serial numbers, and the feature captures are lossless PNG copies of the original PPM files. These sessions use synthetic windows, one monitor, and ten-second phases. Physical hotplug, other window managers, actual applications, and suspend and resume have no record on this server.
 
+## Recorded rounded corners on the Radeon Vega desktop (2026-10-05)
+
+The [feature probe](#check-shadows-focus-and-fullscreen-suspension), with its new corners scene, ran twice on the [Radeon Vega desktop with Xorg 21.1.24](#recorded-xorg-sessions-on-the-radeon-vega-desktop-2026-10-05), as dedicated sessions on vt3 with HDMI-1 alone at 1920×1080 and 60 Hz. The corners scene shows an opaque window rounded at radius 13 with its rounded shadow, and a half-transparent one over a checkered pattern with its shadow and the blur behind it.
+
+The [first run](benchmarks/2026-10-05/corners-vega-xorg-overlap/README.md), at `60e74db`, passed every scene in XRender. In GL, the shadow and focus scenes matched XRender as before, but the half-transparent window of the corners scene showed 75% of its red instead of 50%: 11,188 pixels differed by more than two levels. GL blended it twice. A repaint area is a list of rectangles that may overlap, which XRender unions, and the GPU painter drew one quad per rectangle; this window's shadow extent and blur footprint each covered it. No earlier scene had a shadow behind a blurred translucent window. Commit `1fc0a1c` splits clips into disjoint quads.
+
+The [second run](benchmarks/2026-10-05/corners-vega-xorg/README.md), at the clean commit `1fc0a1c`, passed every scene in both painters. GL's corners image differs from XRender's in 5,865 pixels, each by one level; its shadow image in 45, by one level; and its focus images not at all. Both shadow scenes stay within one level of the independent reference. The GL log names `AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.2.9-1-cachyos)` and records no fallback. The mouse moved briefly during the run; the probe ignores input and its captures exclude the cursor.
+
+| Painter | State | Compust CPU | X server CPU | Compust RSS before/after |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-05/corners-vega-xorg/features/xrender/processes.csv) | Composed | 0.4% | 2.6% | 4,252 / 4,252 KiB |
+| XRender | Suspended | 0.0% | 1.1% | 4,252 / 4,252 KiB |
+| [GL](benchmarks/2026-10-05/corners-vega-xorg/features/gl/processes.csv) | Composed | 1.1% | 1.6% | 67,100 / 67,100 KiB |
+| GL | Suspended | 0.0% | 1.0% | 67,100 / 67,100 KiB |
+
+These are fixed synthetic scenes on one display. Rounded corners under a window manager, on other drivers, with actual applications, and their cost in the benchmark scenes have no record.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

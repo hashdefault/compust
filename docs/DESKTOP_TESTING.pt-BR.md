@@ -653,6 +653,23 @@ O [probe de recursos](benchmarks/2026-10-05/features-vega-xorg/README.md) passou
 
 Os arquivos guardam os CSV, logs, configurações e hashes. Seus logs do servidor omitem a linha de comando do kernel e o EDID bruto e ocultam os números de série dos monitores, e as capturas do probe de recursos são cópias PNG sem perdas dos PPM originais. Essas sessões usam janelas sintéticas, um monitor e fases de dez segundos. Hotplug físico, outros gerenciadores de janelas, aplicativos reais e suspensão e retomada não têm registro neste servidor.
 
+## Cantos arredondados registrados no desktop com Radeon Vega (2026-10-05)
+
+O [probe de recursos](#verificar-sombras-foco-e-suspensão-em-tela-cheia), com sua nova cena de cantos, rodou duas vezes no [desktop com Radeon Vega e Xorg 21.1.24](#sessões-xorg-registradas-no-desktop-com-radeon-vega-2026-10-05), em sessões dedicadas no vt3 com apenas a HDMI-1 ativa em 1920×1080 a 60 Hz. A cena de cantos mostra uma janela opaca arredondada com raio 13 e sua sombra arredondada, e uma semitransparente sobre um quadriculado com sua sombra e o desfoque atrás dela.
+
+A [primeira execução](benchmarks/2026-10-05/corners-vega-xorg-overlap/README.md), em `60e74db`, passou em todas as cenas no XRender. No GL, as cenas de sombras e de foco coincidiram com o XRender como antes, mas a janela semitransparente da cena de cantos mostrou 75% do seu vermelho em vez de 50%: 11.188 pixels diferiram por mais de dois níveis. O GL a misturou duas vezes. Uma área de repintura é uma lista de retângulos que podem se sobrepor, que o XRender une, e o pintor de GPU desenhava um quad por retângulo; a extensão da sombra e a área de alcance do desfoque dessa janela cobriam a janela cada uma. Nenhuma cena anterior tinha uma sombra atrás de uma janela translúcida desfocada. O commit `1fc0a1c` divide os recortes em quads disjuntos.
+
+A [segunda execução](benchmarks/2026-10-05/corners-vega-xorg/README.md), no commit limpo `1fc0a1c`, passou em todas as cenas nos dois pintores. A imagem de cantos do GL difere da do XRender em 5.865 pixels, cada um por um nível; a de sombras em 45, por um nível; e as de foco em nenhum. As duas cenas de sombras ficam a até um nível da referência independente. O log do GL indica `AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.2.9-1-cachyos)` e não registra volta ao XRender. O mouse se moveu brevemente durante a execução; o probe ignora entradas e suas capturas não incluem o cursor.
+
+| Pintor | Estado | CPU do Compust | CPU do servidor X | RSS do Compust antes/depois |
+| --- | --- | --- | --- | --- |
+| [XRender](benchmarks/2026-10-05/corners-vega-xorg/features/xrender/processes.csv) | Composto | 0,4% | 2,6% | 4.252 / 4.252 KiB |
+| XRender | Suspenso | 0,0% | 1,1% | 4.252 / 4.252 KiB |
+| [GL](benchmarks/2026-10-05/corners-vega-xorg/features/gl/processes.csv) | Composto | 1,1% | 1,6% | 67.100 / 67.100 KiB |
+| GL | Suspenso | 0,0% | 1,0% | 67.100 / 67.100 KiB |
+
+São cenas sintéticas fixas em uma tela. Cantos arredondados com um gerenciador de janelas, em outros drivers, com aplicativos reais e seu custo nas cenas de benchmark não têm registro.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.
