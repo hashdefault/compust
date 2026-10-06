@@ -12,14 +12,11 @@ A compositor combines application windows into the final desktop image. Compust 
 
 ## Showcase
 
-xmonad + compust
+Xmonad with Compust: transparency, shadows, rounded corners, and fade animations.
 
-transparency, shadows, rounded corners, fade animation
+[![Xmonad with Compust: three translucent tiled terminals with shadows and rounded corners over a wallpaper](docs/media/showcase.webp)](docs/media/showcase.mp4)
 
-https://github.com/user-attachments/assets/766d8cc8-47c9-46e0-b071-9c5f5c8dcf8f
-
-
-
+Select the preview to play the full video (H.264, 1080p, 11 seconds).
 
 ## Milestones and verified environments
 

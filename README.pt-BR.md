@@ -10,6 +10,14 @@ O compositor combina as janelas dos aplicativos para formar a imagem final da á
 
 **Estado atual: quinta beta, versão 0.3.0-beta.2, para testes controlados.** Testes automatizados de pixels rodam no Xvfb, e há sessões registradas em três máquinas. Um desktop AMD com gráficos Radeon Vega e Xorg rodou o código desta beta, com i3 e nas verificações de recursos dos dois renderizadores; um desktop AMD com Radeon RX 9060 XT e XLibre rodou a 0.3.0-beta.1 com cinco gerenciadores de janelas, e um laptop Intel com Xorg rodou as betas anteriores. Outros drivers, servidores e gerenciadores de janelas ainda precisam de testes da comunidade. Seus recursos e desempenho são documentados apenas para as cargas e os ambientes registrados. O [guia da beta](docs/BETA.pt-BR.md) explica como instalar, voltar ao compositor anterior e relatar problemas. Os [marcos](#marcos-e-ambientes-verificados) abaixo mostram o que está pronto, e o [marco 1.0](docs/ROADMAP.pt-BR.md#10-versão-estável) do [roteiro de desenvolvimento](docs/ROADMAP.pt-BR.md) define o que uma versão estável ainda exige. Seu [estado e prioridades](docs/ROADMAP.pt-BR.md#estado-e-prioridades-2026-10-05) ordenam o que vem a seguir.
 
+## Demonstração
+
+Xmonad com o Compust: transparência, sombras, cantos arredondados e animações de fade.
+
+[![Xmonad com o Compust: três terminais translúcidos lado a lado, com sombras e cantos arredondados, sobre um papel de parede](docs/media/showcase.webp)](docs/media/showcase.mp4)
+
+Selecione a prévia para ver o vídeo completo (H.264, 1080p, 11 segundos).
+
 ## Marcos e ambientes verificados
 
 Cada linha leva ao seu registro.
