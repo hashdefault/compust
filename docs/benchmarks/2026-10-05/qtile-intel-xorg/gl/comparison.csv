@@ -1,0 +1,8 @@
+image,pixels_differing,pixels_over_2_levels,max_level_difference
+0-empty.png,2,0,1
+1-tiled.png,3048,0,2
+2-focus-moved.png,3048,0,2
+3-floating.png,4738,0,2
+4-after-group-switch.png,4738,0,2
+5-fullscreen.png,994448,994448,255
+6-empty-again.png,2,0,1

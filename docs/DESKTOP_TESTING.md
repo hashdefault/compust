@@ -670,6 +670,25 @@ The [second run](benchmarks/2026-10-05/corners-vega-xorg/README.md), at the clea
 
 These are fixed synthetic scenes on one display. Rounded corners under a window manager, on other drivers, with actual applications, and their cost in the benchmark scenes have no record.
 
+## Recorded qtile session on the Intel laptop (2026-10-05)
+
+The [Intel laptop](#recorded-intelxorg-sessions-2026-10-03), an Intel Core i3-1005G1 with Iris Plus Graphics G1 (Ice Lake) on i915, ran the packaged binary `0.3.0~beta.2+git20261005.3dfd920-1` in its usual session: Linux Mint 22.3, Xorg 21.1.11 with modesetting and glamor, Mesa 25.2.8, eDP-1 at 1366×768 and 60 Hz, and qtile 0.37.1 with 3-pixel X borders and 10-pixel margins. The session's own configuration blurs at radius 4, casts shadows of radius 10 offset by 5 and 5 at 90%, and rounds corners at radius 8. This is a live session, not the [hardware procedure](#run-the-desktop-checks-on-hardware): a [driver](benchmarks/2026-10-05/qtile-intel-xorg/tools/driver.py) written for it shows synthetic windows on an empty qtile group and measures captures of the composed screen, first in XRender and then in GL after saving `backend = "gl"`.
+
+Each painter [passed 20 checks of 20](benchmarks/2026-10-05/qtile-intel-xorg/README.md). Rounded corners kept the border ring, the interior, and what lies outside each arc correct on tiled and floating windows, and followed qtile's border colors when focus moved. Shadows fell off as configured beside tiled and floating windows. A window at 50% over white read exactly half its color, and the blur behind it flattened a 2-pixel checker at the documented weight. Leaving the group and returning gave the same frame, fullscreen through qtile covered the screen with square corners, and 32 rapid create, map, and destroy sequences left the empty group unchanged. GL's captures differ from XRender's by at most two levels, in 3,048 to 4,738 pixels. The GL log names `Mesa Intel(R) UHD Graphics (ICL GT1)` and records no fallback.
+
+| Phase | Painter | Compust CPU | X server CPU | Compust RSS |
+| --- | --- | ---: | ---: | ---: |
+| [Idle, four windows](benchmarks/2026-10-05/qtile-intel-xorg/xrender/results.json) | XRender | 0.0% | 0.3% | 3,712 KiB |
+| Tiled window repainting at 60 Hz | XRender | 1.1% | 6.2% | 3,712 KiB |
+| Same, beneath a 50% window with blur | XRender | 1.4% | 8.5% | 3,712 KiB |
+| [Idle, four windows](benchmarks/2026-10-05/qtile-intel-xorg/gl/results.json) | GL | 0.2% | 0.2% | 78,336 KiB |
+| Tiled window repainting at 60 Hz | GL | 3.4% | 4.2% | 78,336 KiB |
+| Same, beneath a 50% window with blur | GL | 5.4% | 4.0% | 78,336 KiB |
+
+Three things were seen besides the checks. After the reload back to XRender, Compust's RSS stayed at 77,176 KiB instead of returning to 3,712 KiB. Forty-four seconds after the last run, with nothing under test, the log recorded `Present did not finish a submission` once a second for 14 seconds; its cause was not found. A checker of 4-pixel cells on the blur's own grid stayed visible behind the 50% window in an earlier pass.
+
+The phases last six to eight seconds, ran once, and shared the session with a terminal and a bar. Applications, Present timing, hotplug, and suspend and resume were not checked under qtile, and the repository's probe has no qtile mode.
+
 ## Complete the hardware gates
 
 Use a dedicated Xorg or XLibre test session with the intended window manager. Record the exact commit and build hashes, distribution, server version, GPU and driver, window-manager version/configuration, `compust --diagnose`, `xrandr --verbose`, and compositor configuration. Stop the existing compositor before starting Compust; retain the command needed to restore it. Do not run the scenario probe against a normal working session: it creates and destroys windows and switches workspaces. The monitor-sampling mode above moves only its own marker.

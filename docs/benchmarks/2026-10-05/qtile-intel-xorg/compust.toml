@@ -1,0 +1,44 @@
+# Without --config, Compust reads $XDG_CONFIG_HOME/compust/compust.toml (~/.config by default).
+# Saving this file applies it without restarting, and so does `pkill -USR1 -x compust`.
+# Percent opacity, 0..100. Application _NET_WM_WINDOW_OPACITY is multiplied by this.
+opacity = 100
+# Fade in/out duration. Zero disables animations.
+fade_ms = 180
+# Blur radius in pixels, 0..16, rounded to 2, 4, 8, or 16. Zero disables blur.
+blur_radius = 4
+# How far a shadow spreads beyond its window in pixels, 0..64. Zero draws no shadows.
+shadow_radius = 10
+# Where a shadow lies from its window in pixels, -64..64: right and down, or left and up when
+# negative.
+shadow_offset_x = 5
+shadow_offset_y = 5
+# How dark a shadow is where it is darkest, in percent.
+shadow_opacity = 90
+# Radius of rounded window corners in pixels, 0..64. Zero keeps corners square.
+corner_radius = 8
+# Maximum repaint rate; idle desktops do not repaint.
+max_fps = 120
+# Use Present when supported; the XRender fallback is not synchronized to vblank.
+vsync = true
+# "xrender" draws through the X server. "gl" draws with OpenGL ES on the server's GPU through
+# DRI3 1.2 and falls back to XRender, with a warning, where it cannot.
+backend = "xrender"
+# Stop compositing while one opaque window covers the whole screen, as a fullscreen game or
+# video does; windows then draw to the screen directly.
+unredirect_fullscreen = false
+
+# Per-window rules go after the settings above. Each chooses windows by `wm_class` (the second
+# WM_CLASS string), `window_type` (an EWMH type such as "normal", "dialog", "menu", "popup_menu",
+# "tooltip", or "dock"), `name` (the title), matching the exact text, or `focused` (whether it
+# is the active window), and sets `opacity`, `blur`, `fade_ms`, `shadow`, or `corner_radius`
+# for them. Each setting comes from the first matching rule that sets it.
+# `xprop` shows a window's class, type, and title.
+#
+# [[rules]]
+# wm_class = "Alacritty"
+# opacity = 90
+#
+# [[rules]]
+# window_type = "tooltip"
+# blur = false
+# fade_ms = 0

@@ -670,6 +670,25 @@ A [segunda execução](benchmarks/2026-10-05/corners-vega-xorg/README.md), no co
 
 São cenas sintéticas fixas em uma tela. Cantos arredondados com um gerenciador de janelas, em outros drivers, com aplicativos reais e seu custo nas cenas de benchmark não têm registro.
 
+## Sessão com qtile registrada no laptop Intel (2026-10-05)
+
+O [laptop Intel](#sessões-registradas-em-intelxorg-2026-10-03), um Intel Core i3-1005G1 com Iris Plus Graphics G1 (Ice Lake) e i915, rodou o binário empacotado `0.3.0~beta.2+git20261005.3dfd920-1` em sua sessão habitual: Linux Mint 22.3, Xorg 21.1.11 com modesetting e glamor, Mesa 25.2.8, eDP-1 em 1366×768 a 60 Hz e qtile 0.37.1 com bordas X de 3 pixels e margens de 10 pixels. A configuração da própria sessão desfoca com raio 4, projeta sombras de raio 10 deslocadas em 5 e 5 a 90% e arredonda os cantos com raio 8. É uma sessão em uso, não o [procedimento de hardware](#executar-as-verificações-de-desktop-em-hardware): um [script](benchmarks/2026-10-05/qtile-intel-xorg/tools/driver.py) escrito para ela mostra janelas sintéticas em um grupo vazio do qtile e mede capturas da tela composta, primeiro no XRender e depois no GL, após salvar `backend = "gl"`.
+
+Cada pintor [passou em 20 de 20 verificações](benchmarks/2026-10-05/qtile-intel-xorg/README.md). Os cantos arredondados mantiveram corretos o anel da borda, o interior e o que fica fora de cada arco em janelas lado a lado e flutuantes, e acompanharam as cores de borda do qtile quando o foco mudou. As sombras decaíram como configurado ao lado de janelas lado a lado e flutuantes. Uma janela a 50% sobre branco mostrou exatamente metade da sua cor, e o desfoque atrás dela aplainou um quadriculado de 2 pixels com o peso documentado. Sair do grupo e voltar resultou no mesmo quadro, a tela cheia pelo qtile cobriu a tela com cantos retos, e 32 sequências rápidas de criar, mapear e destruir deixaram o grupo vazio inalterado. As capturas do GL diferem das do XRender por no máximo dois níveis, em 3.048 a 4.738 pixels. O log do GL indica `Mesa Intel(R) UHD Graphics (ICL GT1)` e não registra volta ao XRender.
+
+| Fase | Pintor | CPU do Compust | CPU do servidor X | RSS do Compust |
+| --- | --- | ---: | ---: | ---: |
+| [Ocioso, quatro janelas](benchmarks/2026-10-05/qtile-intel-xorg/xrender/results.json) | XRender | 0,0% | 0,3% | 3.712 KiB |
+| Janela lado a lado repintando a 60 Hz | XRender | 1,1% | 6,2% | 3.712 KiB |
+| O mesmo, sob uma janela a 50% com desfoque | XRender | 1,4% | 8,5% | 3.712 KiB |
+| [Ocioso, quatro janelas](benchmarks/2026-10-05/qtile-intel-xorg/gl/results.json) | GL | 0,2% | 0,2% | 78.336 KiB |
+| Janela lado a lado repintando a 60 Hz | GL | 3,4% | 4,2% | 78.336 KiB |
+| O mesmo, sob uma janela a 50% com desfoque | GL | 5,4% | 4,0% | 78.336 KiB |
+
+Três coisas foram vistas além das verificações. Após recarregar de volta para o XRender, o RSS do Compust ficou em 77.176 KiB em vez de voltar a 3.712 KiB. Quarenta e quatro segundos depois da última execução, sem nada em teste, o log registrou `Present did not finish a submission` uma vez por segundo durante 14 segundos; a causa não foi encontrada. Um quadriculado com células de 4 pixels na própria grade do desfoque continuou visível atrás da janela a 50% em uma passagem anterior.
+
+As fases duram de seis a oito segundos, rodaram uma vez e dividiram a sessão com um terminal e uma barra. Aplicativos, a temporização do Present, hotplug e suspensão e retomada não foram verificados com o qtile, e o probe do repositório não tem modo para o qtile.
+
 ## Concluir os critérios de hardware
 
 Use uma sessão de teste dedicada de Xorg ou XLibre com o gerenciador pretendido. Registre commit exato e hashes do build, distribuição, versão do servidor, GPU e driver, versão/configuração do gerenciador, `compust --diagnose`, `xrandr --verbose` e configuração do compositor. Pare o compositor existente antes de iniciar o Compust; guarde o comando para restaurá-lo. Não execute o probe de cenários no seu ambiente habitual de trabalho: ele cria e destrói janelas e troca workspaces. O modo de amostragem de monitores descrito acima move apenas o próprio marcador.

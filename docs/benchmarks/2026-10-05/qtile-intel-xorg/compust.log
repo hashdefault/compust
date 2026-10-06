@@ -1,0 +1,17 @@
+2026-10-06T02:19:12.933740Z  INFO configuration reloaded path=~/.config/compust/compust.toml
+2026-10-06T02:19:13.004926Z  INFO drawing with the GPU renderer="Mesa Intel(R) UHD Graphics (ICL GT1)"
+2026-10-06T02:20:07.133251Z  INFO configuration reloaded path=~/.config/compust/compust.toml
+2026-10-06T02:20:51.136069Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:52.143073Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:53.148168Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:54.153424Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:55.158705Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:56.164899Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:57.169619Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:58.175057Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:20:59.180738Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:21:00.186500Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:21:01.192259Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:21:02.198976Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:21:03.206581Z  WARN Present did not finish a submission; replacing its buffers
+2026-10-06T02:21:04.211899Z  WARN Present did not finish a submission; replacing its buffers

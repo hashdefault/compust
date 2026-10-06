@@ -1,0 +1,3 @@
+ea147544a121a1748147e3c23f3f280d2e7f82b195b2e3b14f785f1482ba5863  /usr/bin/compust
+compust 0.3.0~beta.2+git20261005.3dfd920-1
+compust 0.3.0-beta.2

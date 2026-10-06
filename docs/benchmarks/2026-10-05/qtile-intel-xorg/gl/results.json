@@ -1,0 +1,147 @@
+{
+ "backend": "gl",
+ "results": [
+  {
+   "check": "tiling: two windows side by side with borders",
+   "ok": true,
+   "detail": "white (10, 45, 673, 713, 3), checker (693, 45, 663, 713, 3), active True"
+  },
+  {
+   "check": "corners: tiled white, unfocused",
+   "ok": true,
+   "detail": "border (36, 40, 59), width 3; wrong pixels outside/ring/inside = 0/24, 0/52, 0/52"
+  },
+  {
+   "check": "corners: tiled checker, focused",
+   "ok": true,
+   "detail": "border (125, 207, 255), width 3; wrong pixels outside/ring/inside = 0/24, 0/52, 0/52"
+  },
+  {
+   "check": "borders: focused and unfocused colors differ",
+   "ok": true,
+   "detail": "focused (125, 207, 255), unfocused (36, 40, 59)"
+  },
+  {
+   "check": "shadow: right of a tiled window, in the gap over the wallpaper",
+   "ok": true,
+   "detail": "darkening across the 10 px gap: [0.79, 0.73, 0.66, 0.58, 0.49, 0.41, 0.33, 0.25, 0.2, 0.18]; wallpaper brightness there 97/255"
+  },
+  {
+   "check": "shadow: above the window, limited by the offset",
+   "ok": true,
+   "detail": "darkening 1..8 px above: [0.07, 0.04, 0.02, 0.0, 0.0, 0.0, 0.0, 0.0] (radius 10 - offset 5 = 5)"
+  },
+  {
+   "check": "corners: tiled white, after gaining focus",
+   "ok": true,
+   "detail": "border (125, 207, 255), width 3; wrong pixels outside/ring/inside = 0/24, 0/52, 0/52"
+  },
+  {
+   "check": "corners: tiled checker, after losing focus",
+   "ok": true,
+   "detail": "border (36, 40, 59), width 3; wrong pixels outside/ring/inside = 0/24, 0/52, 0/52"
+  },
+  {
+   "check": "borders: colors swap when focus moves",
+   "ok": true,
+   "detail": "white (125, 207, 255), checker (36, 40, 59)"
+  },
+  {
+   "check": "floating: dialogs keep their size above the tiles",
+   "ok": true,
+   "detail": "red (483, 165, 424, 264, 2), blue (90, 465, 264, 184, 2)"
+  },
+  {
+   "check": "transparency: 50% red over white",
+   "ok": true,
+   "detail": "mean [255.0, 128.0, 128.0], expected (255, 128, 128); 155x184 px"
+  },
+  {
+   "check": "blur: 2 px checker behind the 50% red window",
+   "ok": true,
+   "detail": "mean [191.0, 64.0, 64.0], green from 32 to 96; the documented weighting (backdrop shown at the window's 50%) gives 32 and 96 around a flat 64, and no blur would give 0 and 128"
+  },
+  {
+   "check": "corners: floating 50% red, left corners over white",
+   "ok": true,
+   "detail": "border (146, 148, 157), width 2; wrong pixels outside/ring/inside = 0/12, 0/8, 0/44"
+  },
+  {
+   "check": "transparency: its border is 50% of qtile's border color over white",
+   "ok": true,
+   "detail": "border (146, 148, 157), expected [146, 148, 157]"
+  },
+  {
+   "check": "shadow: right of the opaque floating window, on white",
+   "ok": true,
+   "detail": "darkness by distance 0..17 px: [0.79, 0.73, 0.66, 0.58, 0.49, 0.4, 0.32, 0.24, 0.17, 0.11, 0.07, 0.04, 0.02, 0.01, 0.0, 0.0, 0.0, 0.0]; gone at 13 px; half of the 0.90 maximum falls 5 px out, at the offset"
+  },
+  {
+   "check": "shadow: left of it, limited by the offset",
+   "ok": true,
+   "detail": "darkness 1..8 px left: [0.07, 0.04, 0.02, 0.01, 0.0, 0.0, 0.0, 0.0]"
+  },
+  {
+   "check": "workspaces: same frame after switching away and back",
+   "ok": true,
+   "detail": "0 pixels differ below the bar"
+  },
+  {
+   "check": "fullscreen: window covers the screen, corners included",
+   "ok": true,
+   "detail": "geometry (0, 0, 1366, 768, 0), screen corner pixels [(0, 0, 255), (0, 0, 255), (0, 0, 255), (0, 0, 255)]"
+  },
+  {
+   "check": "lifecycle: empty group restored after 32 rapid windows",
+   "ok": true,
+   "detail": "0 pixels differ from the first empty capture"
+  },
+  {
+   "check": "process: compositor still running, same pid",
+   "ok": true,
+   "detail": "RSS 78096 -> 78336 KiB"
+  }
+ ],
+ "measurements": [
+  {
+   "phase": "idle, 4 windows",
+   "seconds": 6,
+   "cpu_percent": {
+    "compust": 0.2,
+    "xorg": 0.2
+   },
+   "compust_rss_kib": 78336,
+   "xorg_rss_kib": 104088
+  },
+  {
+   "phase": "opaque window repainting at 60 Hz",
+   "seconds": 8,
+   "cpu_percent": {
+    "compust": 3.4,
+    "xorg": 4.2
+   },
+   "compust_rss_kib": 78336,
+   "xorg_rss_kib": 104088
+  },
+  {
+   "phase": "same, under a 600x400 50% window with blur",
+   "seconds": 8,
+   "cpu_percent": {
+    "compust": 5.4,
+    "xorg": 4.0
+   },
+   "compust_rss_kib": 78336,
+   "xorg_rss_kib": 104088
+  },
+  {
+   "phase": "idle, empty group",
+   "seconds": 6,
+   "cpu_percent": {
+    "compust": 0.0,
+    "xorg": 0.3
+   },
+   "compust_rss_kib": 78336,
+   "xorg_rss_kib": 104088
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+Linux Mint 22.3
+X.Org X Server 1.21.1.11 (xorg-server 2:21.1.12-1ubuntu1.8), modesetting driver with glamor
+qtile 0.37.1
+model name	: Intel(R) Core(TM) i3-1005G1 CPU @ 1.20GHz
