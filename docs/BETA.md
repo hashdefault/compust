@@ -8,7 +8,7 @@ This beta adds the features of the 1.0 milestone's first step, shadows, fullscre
 
 ## Declared scope
 
-One recorded machine has run this beta's code: an AMD desktop with integrated Radeon Vega graphics, on Xorg.
+Two recorded machines have run this beta's code: an AMD desktop with integrated Radeon Vega graphics, on Xorg, and an Intel laptop under qtile, which ran the packaged build that adds one fix to the release.
 
 | Area | Recorded with this beta's code | Evidence |
 | --- | --- | --- |
@@ -18,10 +18,11 @@ One recorded machine has run this beta's code: an AMD desktop with integrated Ra
 | Monitors | One output at 1920×1080 and 60 Hz | Same sessions |
 | Rendering | Present and direct XRender, fades, transparency, and blur | Same sessions |
 | Features | Shadows, focus rules, rounded corners, and fullscreen suspension, in XRender and in the GPU renderer, without a window manager | [Feature checks](DESKTOP_TESTING.md#recorded-rounded-corners-on-the-radeon-vega-desktop-2026-10-05) |
+| Packaged build under qtile | Shadows, transparency, blur, and rounded corners with qtile 0.37.1's borders, in XRender and in the GPU renderer, on an Intel Core i3-1005G1 laptop with Iris Plus graphics and i915, Xorg 21.1.11, and one 1366×768 panel | [Qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) |
 
-The desktop sessions ran at `ed2cdb0`, before rounded corners, which are off by default, and before a fix to the GPU renderer, which they did not use. The feature checks ran at `1fc0a1c`, whose compositor source differs from the release's only in its version number. Both used local builds with synthetic windows; none was repeated with the packaged binary. Physical hotplug and suspend and resume were not recorded on Xorg.
+The desktop sessions ran at `ed2cdb0`, before rounded corners, which are off by default, and before a fix to the GPU renderer, which they did not use. The feature checks ran at `1fc0a1c`, whose compositor source differs from the release's only in its version number. Both used local builds with synthetic windows; none was repeated with the packaged binary. The qtile session ran the Open Build Service package `0.3.0~beta.2+git20261005.3dfd920-1`, the release plus the fix for rounded X borders, in the laptop's usual session; a driver written for it measured captures of synthetic windows, and the probe's scenarios were not run there. Physical hotplug and suspend and resume were not recorded on Xorg.
 
-The RX 9060 XT desktop on XLibre ran 0.3.0-beta.1 under Xmonad, Openbox, i3, and bspwm, and recorded the shadow, focus, and fullscreen fixtures in both renderers before this beta; the Intel laptop ran the 0.2.0 betas. Their records, listed in the [compatibility matrix](ROADMAP.md#compatibility-matrix), do not cover this beta's code. NVIDIA GPUs, Intel GPUs and XLibre with this beta, other window managers, clearly different refresh rates, more than two monitors, and HDR are untested. Reports from any of these setups are especially useful.
+The RX 9060 XT desktop on XLibre ran 0.3.0-beta.1 under Xmonad, Openbox, i3, and bspwm, and recorded the shadow, focus, and fullscreen fixtures in both renderers before this beta; the Intel laptop's probe sessions, hotplug, and suspend ran the 0.2.0 betas. Their records, listed in the [compatibility matrix](ROADMAP.md#compatibility-matrix), do not cover this beta's code. NVIDIA GPUs, XLibre with this beta, the probe's scenarios on Intel GPUs, window managers other than i3 and qtile, clearly different refresh rates, more than two monitors, and HDR are untested. Reports from any of these setups are especially useful.
 
 ## Install
 
@@ -79,7 +80,7 @@ Saving the configuration applies it without restarting, once the file has stayed
 
 ### Try the GPU renderer
 
-`backend = "gl"` in the configuration draws with OpenGL ES on the X server's GPU instead of XRender. It is opt-in and recorded on two AMD desktops with radeonsi: the RX 9060 XT on XLibre with 0.3.0-beta.1, and the Radeon Vega on Xorg with this beta's feature checks, rounded corners included. Where it cannot start, or when a frame fails, Compust logs a warning and uses XRender for the rest of the session. Reports from Intel and NVIDIA drivers are especially useful; include the log lines that name the device or the fallback.
+`backend = "gl"` in the configuration draws with OpenGL ES on the X server's GPU instead of XRender. It is opt-in and recorded on two AMD desktops with radeonsi: the RX 9060 XT on XLibre with 0.3.0-beta.1, and the Radeon Vega on Xorg with this beta's feature checks, rounded corners included. It also ran on the Intel laptop's Iris Plus graphics with the packaged build [under qtile](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05), without a fallback. Where it cannot start, or when a frame fails, Compust logs a warning and uses XRender for the rest of the session. Reports from other Intel GPUs and from NVIDIA drivers are especially useful; include the log lines that name the device or the fallback.
 
 ## Return to your previous compositor
 
@@ -99,7 +100,7 @@ Restore any startup line you changed. Logging out also ends Compust: when the X 
 - There are no movement or scale animations, no global settings for the opacity of active and inactive windows beyond rules, and no picom configuration compatibility.
 - Rules match exact text. Focus comes from `_NET_ACTIVE_WINDOW`; under a window manager that does not set it, such as Xmonad without `XMonad.Hooks.EwmhDesktops`, every window counts as focused.
 - A blurred window blurs its whole background again whenever something beneath it changes. `blur_radius` rounds to 2, 4, 8, or 16 pixels.
-- The GPU renderer is recorded on two desktops. There it draws the same frames as XRender within two levels of color, uses about 62 MiB more memory, and costs more than XRender while windows are resized.
+- The GPU renderer is recorded on two AMD desktops and one Intel laptop. On the desktops it draws the same frames as XRender within two levels of color, uses about 62 MiB more memory, and costs more than XRender while windows are resized. On the laptop its captures matched within two levels, it used about 73 MiB more, and that memory stayed after a reload back to XRender.
 - One process composes one X screen. Multiple monitors share one surface, and Present follows the timing of one monitor.
 - Present copies a single buffer. Whether output tears depends on the driver: XLibre's modesetting driver enables TearFree by default, and Xorg 21.1.24's has none.
 

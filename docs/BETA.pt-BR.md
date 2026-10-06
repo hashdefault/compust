@@ -8,7 +8,7 @@ Esta beta traz os recursos da primeira etapa do marco 1.0, sombras, suspensão d
 
 ## Escopo declarado
 
-Uma máquina registrada rodou o código desta beta: um desktop AMD com gráficos Radeon Vega integrados, no Xorg.
+Duas máquinas registradas rodaram o código desta beta: um desktop AMD com gráficos Radeon Vega integrados, no Xorg, e um laptop Intel com o qtile, que rodou o pacote que acrescenta uma correção à versão.
 
 | Área | Registrado com o código desta beta | Evidências |
 | --- | --- | --- |
@@ -18,10 +18,11 @@ Uma máquina registrada rodou o código desta beta: um desktop AMD com gráficos
 | Monitores | Uma saída em 1920×1080 a 60 Hz | Mesmas sessões |
 | Renderização | Present e XRender direto, fades, transparência e desfoque | Mesmas sessões |
 | Recursos | Sombras, regras pelo foco, cantos arredondados e suspensão em tela cheia, no XRender e no renderizador de GPU, sem gerenciador de janelas | [Verificações de recursos](DESKTOP_TESTING.pt-BR.md#cantos-arredondados-registrados-no-desktop-com-radeon-vega-2026-10-05) |
+| Pacote com o qtile | Sombras, transparência, desfoque e cantos arredondados com as bordas do qtile 0.37.1, no XRender e no renderizador de GPU, em um laptop Intel Core i3-1005G1 com gráficos Iris Plus e i915, Xorg 21.1.11 e um painel de 1366×768 | [Sessão com qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) |
 
-As sessões de desktop rodaram em `ed2cdb0`, antes dos cantos arredondados, que vêm desligados, e antes de uma correção no renderizador de GPU, que elas não usaram. As verificações de recursos rodaram em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Ambas usaram compilações locais com janelas sintéticas; nenhuma foi repetida com o binário empacotado. O hotplug físico e a suspensão e retomada não foram registrados no Xorg.
+As sessões de desktop rodaram em `ed2cdb0`, antes dos cantos arredondados, que vêm desligados, e antes de uma correção no renderizador de GPU, que elas não usaram. As verificações de recursos rodaram em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Ambas usaram compilações locais com janelas sintéticas; nenhuma foi repetida com o binário empacotado. A sessão com o qtile rodou o pacote `0.3.0~beta.2+git20261005.3dfd920-1` do Open Build Service, a versão mais a correção das bordas X arredondadas, na sessão habitual do laptop; um script escrito para ela mediu capturas de janelas sintéticas, e os cenários do probe não foram executados ali. O hotplug físico e a suspensão e retomada não foram registrados no Xorg.
 
-O desktop com RX 9060 XT e XLibre rodou a 0.3.0-beta.1 com Xmonad, Openbox, i3 e bspwm, e registrou os testes de sombras, foco e tela cheia nos dois renderizadores antes desta beta; o laptop Intel rodou as betas 0.2.0. Seus registros, listados na [matriz de compatibilidade](ROADMAP.pt-BR.md#matriz-de-compatibilidade), não cobrem o código desta beta. GPUs NVIDIA, GPUs Intel e o XLibre com esta beta, outros gerenciadores de janelas, taxas de atualização claramente diferentes, mais de dois monitores e HDR não foram testados. Relatos de qualquer uma dessas configurações são especialmente úteis.
+O desktop com RX 9060 XT e XLibre rodou a 0.3.0-beta.1 com Xmonad, Openbox, i3 e bspwm, e registrou os testes de sombras, foco e tela cheia nos dois renderizadores antes desta beta; as sessões do probe, o hotplug e a suspensão do laptop Intel rodaram as betas 0.2.0. Seus registros, listados na [matriz de compatibilidade](ROADMAP.pt-BR.md#matriz-de-compatibilidade), não cobrem o código desta beta. GPUs NVIDIA, o XLibre com esta beta, os cenários do probe em GPUs Intel, gerenciadores de janelas além do i3 e do qtile, taxas de atualização claramente diferentes, mais de dois monitores e HDR não foram testados. Relatos de qualquer uma dessas configurações são especialmente úteis.
 
 ## Instalar
 
@@ -79,7 +80,7 @@ Salvar a configuração a aplica sem reiniciar, depois que o arquivo fica um dé
 
 ### Experimentar o renderizador de GPU
 
-`backend = "gl"` na configuração desenha com OpenGL ES na GPU do servidor X, em vez do XRender. Ele é opcional e foi registrado em dois desktops AMD com radeonsi: a RX 9060 XT no XLibre com a 0.3.0-beta.1, e a Radeon Vega no Xorg com as verificações de recursos desta beta, cantos arredondados incluídos. Onde ele não conseguir iniciar, ou quando um quadro falhar, o Compust registra um aviso e usa o XRender pelo resto da sessão. Relatos com drivers Intel e NVIDIA são especialmente úteis; inclua as linhas do log que informam o dispositivo ou o retorno ao XRender.
+`backend = "gl"` na configuração desenha com OpenGL ES na GPU do servidor X, em vez do XRender. Ele é opcional e foi registrado em dois desktops AMD com radeonsi: a RX 9060 XT no XLibre com a 0.3.0-beta.1, e a Radeon Vega no Xorg com as verificações de recursos desta beta, cantos arredondados incluídos. Ele também rodou nos gráficos Iris Plus do laptop Intel com o pacote, [com o qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05), sem retorno ao XRender. Onde ele não conseguir iniciar, ou quando um quadro falhar, o Compust registra um aviso e usa o XRender pelo resto da sessão. Relatos com outras GPUs Intel e com drivers NVIDIA são especialmente úteis; inclua as linhas do log que informam o dispositivo ou o retorno ao XRender.
 
 ## Voltar ao compositor anterior
 
@@ -99,7 +100,7 @@ Restaure qualquer linha de inicialização que você alterou. Encerrar a sessão
 - Não há animações de movimento ou escala, opções globais para a opacidade das janelas ativas e inativas além das regras nem compatibilidade com a configuração do picom.
 - As regras comparam texto idêntico. O foco vem do `_NET_ACTIVE_WINDOW`; com um gerenciador de janelas que não o define, como o Xmonad sem `XMonad.Hooks.EwmhDesktops`, toda janela conta como focada.
 - Uma janela desfocada desfoca de novo todo o seu fundo sempre que algo abaixo dela muda. `blur_radius` é arredondado para 2, 4, 8 ou 16 pixels.
-- O renderizador de GPU foi registrado em dois desktops. Neles, desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, usa cerca de 62 MiB a mais de memória e custa mais que o XRender enquanto janelas são redimensionadas.
+- O renderizador de GPU foi registrado em dois desktops AMD e em um laptop Intel. Nos desktops, desenha os mesmos quadros que o XRender com diferença de até dois níveis de cor, usa cerca de 62 MiB a mais de memória e custa mais que o XRender enquanto janelas são redimensionadas. No laptop, suas capturas coincidiram com diferença de até dois níveis, ele usou cerca de 73 MiB a mais, e essa memória permaneceu depois de recarregar de volta para o XRender.
 - Um processo compõe uma tela X. Vários monitores compartilham uma superfície, e o Present segue o ritmo de um dos monitores.
 - O Present copia um único buffer. A ocorrência de tearing depende do driver: o driver modesetting do XLibre ativa o TearFree por padrão, e o do Xorg 21.1.24 não tem TearFree.
 
