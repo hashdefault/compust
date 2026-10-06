@@ -10,6 +10,17 @@ A compositor combines application windows into the final desktop image. Compust 
 
 **Status: fifth beta, version 0.3.0-beta.2, for controlled testing.** Automated pixel tests run on Xvfb, and sessions are recorded on three machines. An AMD desktop with Radeon Vega graphics on Xorg ran this beta's code, under i3 and in the feature checks of both renderers; an AMD desktop with a Radeon RX 9060 XT on XLibre ran 0.3.0-beta.1 under five window managers, and an Intel laptop on Xorg ran the earlier betas. Other drivers, servers, and window managers still need community testing. Its features and performance are documented only for the recorded workloads and environments. The [beta guide](docs/BETA.md) explains how to install it, return to your previous compositor, and report problems. The [milestones](#milestones-and-verified-environments) below show what is done, and the [1.0 milestone](docs/ROADMAP.md#10-stable-release) of the [roadmap](docs/ROADMAP.md) defines what a stable release still requires. Its [status and priorities](docs/ROADMAP.md#status-and-priorities-2026-10-05) order what comes next.
 
+# Showcase 
+
+xmonad + compust
+
+transparency, shadows, rounded corners, fade animation
+
+https://github.com/user-attachments/assets/766d8cc8-47c9-46e0-b071-9c5f5c8dcf8f
+
+
+
+
 ## Milestones and verified environments
 
 Each row links to its record.
