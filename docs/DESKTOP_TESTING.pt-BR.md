@@ -8,6 +8,8 @@ Este guia cobre o trabalho reproduzível de desktops da etapa 3 da beta. O Xmona
 
 Instale a toolchain Rust fixada pelo projeto, um linker C, GHC com as bibliotecas `xmonad` e `xmonad-contrib`, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr` e utilitários Linux como `timeout`, `getconf` e `sha256sum`. Execute na raiz do repositório. O script aloca os dois displays automaticamente e inicia uma configuração privada do Xmonad; pode rodar em uma sessão Wayland ou sem desktop. Defina `WINDOW_MANAGER` como `openbox`, `i3` ou `bspwm` para testar um deles, cada um com sua própria configuração privada ([Openbox](../tools/desktop/openbox.xml), [i3](../tools/desktop/i3.config), [bspwm](../tools/desktop/bspwmrc)); isso exige o gerenciador escolhido instalado, e não GHC nem Xmonad.
 
+Defina `WINDOW_MANAGER=spectrwm` para usar a [configuração privada do spectrwm](../tools/desktop/spectrwm.conf), com dois workspaces e borda de 2 pixels pintada dentro de cada moldura. Os mesmos três modos exercitam organização tiling, tela cheia, workspaces e ciclo de vida das janelas.
+
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
 cargo build --release --locked --bin compust --example desktop_probe

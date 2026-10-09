@@ -6,7 +6,7 @@ if [[ ${1:-} == --help ]]; then
     printf '%s\n' "$usage"
     printf 'Run isolated Xmonad checks; Present is the default. Build release binaries first.\n'
     printf 'Set DESKTOP_DISPLAY and SERVER_PID to use an existing dedicated X server instead.\n'
-    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, i3, or bspwm.\n'
+    printf 'Set WINDOW_MANAGER to xmonad (the default), openbox, i3, bspwm, or spectrwm.\n'
     exit 0
 fi
 if (( $# < 1 || $# > 2 )); then
@@ -27,6 +27,7 @@ case "$window_manager" in
     openbox) scenarios=(--layout stacking) ;;
     i3) scenarios=(--layout tiling --frames --workspace-anchor) ;;
     bspwm) scenarios=(--layout tiling --vacated-tile may-remain) ;;
+    spectrwm) scenarios=(--layout tiling) ;;
     *) printf 'Unknown window manager: %s\n' "$window_manager" >&2; exit 2 ;;
 esac
 if [[ -n ${DESKTOP_DISPLAY:-} && -z ${SERVER_PID:-} ]]; then
@@ -74,12 +75,17 @@ elif [[ $window_manager == i3 ]]; then
     wm_binary=$(command -v i3)
     # A private socket keeps this instance apart from an i3 session on another display.
     wm_command=(env "I3SOCK=$work/i3.sock" "$wm_binary" -c "$wm_source")
-else
+elif [[ $window_manager == bspwm ]]; then
     wm_source=tools/desktop/bspwmrc
     wm_binary=$(command -v bspwm)
     version_option=-v
     # bspwm runs its configuration as a program, which reaches it through this private socket.
     wm_command=(env "BSPWM_SOCKET=$work/bspwm.sock" "$wm_binary" -c "$wm_source")
+else
+    wm_source=tools/desktop/spectrwm.conf
+    wm_binary=$(command -v spectrwm)
+    version_option=-v
+    wm_command=("$wm_binary" -c "$wm_source")
 fi
 
 if [[ -n ${DESKTOP_DISPLAY:-} ]]; then
@@ -138,7 +144,12 @@ date -Is >"$report/started.txt"
 lscpu >"$report/cpu.txt"
 rustc --version >"$report/rust-version.txt"
 # Read the whole output first: closing the pipe early would fail the run under pipefail.
-wm_version=$("$window_manager" "$version_option")
+if [[ $window_manager == spectrwm ]]; then
+    # spectrwm prints its version on stderr and deliberately exits with status 1.
+    wm_version=$("$window_manager" "$version_option" 2>&1) || [[ $? == 1 ]]
+else
+    wm_version=$("$window_manager" "$version_option")
+fi
 printf '%s\n' "${wm_version%%$'\n'*}" >"$report/wm-version.txt"
 cp "$config" "$report/compust.toml"
 sha256sum target/release/compust target/release/examples/desktop_probe \

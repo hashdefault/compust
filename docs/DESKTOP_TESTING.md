@@ -8,6 +8,8 @@ This guide covers the reproducible desktop work in beta step 3. Xmonad running i
 
 Install the pinned Rust toolchain, a C linker, GHC with the `xmonad` and `xmonad-contrib` libraries, Xvfb, Xephyr, `xprop`, `xdpyinfo`, `xrandr`, and standard Linux utilities including `timeout`, `getconf`, and `sha256sum`. Run from the repository root. The runner allocates both displays automatically and starts a private Xmonad configuration; it can run from a Wayland session or without a desktop. Set `WINDOW_MANAGER` to `openbox`, `i3`, or `bspwm` to test one of those instead, each with its own private configuration ([Openbox](../tools/desktop/openbox.xml), [i3](../tools/desktop/i3.config), [bspwm](../tools/desktop/bspwmrc)); that needs the chosen window manager installed, not GHC or Xmonad.
 
+Set `WINDOW_MANAGER=spectrwm` to use the [private spectrwm configuration](../tools/desktop/spectrwm.conf), with two workspaces and a 2-pixel border painted inside each frame. The same three modes exercise its tiling, fullscreen, workspace, and window lifecycle behavior.
+
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
 cargo build --release --locked --bin compust --example desktop_probe
