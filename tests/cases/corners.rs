@@ -249,6 +249,82 @@ fn borders_round_with_their_window() -> Result<()> {
 }
 
 #[test]
+fn painted_frame_borders_round_with_their_client() -> Result<()> {
+    let desktop = Desktop::new("fade_ms = 0\nblur_radius = 0\ncorner_radius = 15\n")?;
+    paper(&desktop)?;
+    let state = atom(&desktop, b"WM_STATE")?;
+    let mut windows = Vec::new();
+    // spectrwm draws its border inside a frame with protocol border_width=0.
+    for (x, opacity) in [(20, None), (160, Some(0x8000_0000))] {
+        let frame = desktop.window(area(x, 60, 104, 104), 0x0000_00ff)?;
+        let client = desktop.conn.generate_id()?;
+        desktop
+            .conn
+            .create_window(
+                24,
+                client,
+                frame,
+                2,
+                2,
+                100,
+                100,
+                0,
+                WindowClass::INPUT_OUTPUT,
+                0,
+                &CreateWindowAux::new().background_pixel(0x00ff_0000),
+            )?
+            .check()?;
+        desktop
+            .conn
+            .change_property32(PropMode::REPLACE, client, state, state, &[1, 0])?
+            .check()?;
+        if let Some(opacity) = opacity {
+            desktop.opacity(client, opacity)?;
+        }
+        desktop.map(client)?;
+        desktop.map(frame)?;
+        windows.push((frame, client));
+    }
+    desktop.until_pixel((70, 110), |p| p == RED)?;
+    desktop.until_pixel((210, 110), |[r, g, b]| {
+        r == 255 && (126..=128).contains(&g) && (126..=128).contains(&b)
+    })?;
+    desktop.screenshot("corners-painted-frames")?;
+    let image = desktop.image()?;
+    check_bordered(&image, (20, 60, 104, 104), 15, 2, 1.0)?;
+    let half = f64::from(0x8000_u16) / f64::from(u16::MAX);
+    check_bordered(&image, (160, 60, 104, 104), 15, 2, half)?;
+
+    // Changing the client's inset without resizing its frame must refresh the contour.
+    let (frame, client) = *windows.first().context("missing opaque frame")?;
+    desktop
+        .conn
+        .configure_window(
+            client,
+            &ConfigureWindowAux::new().x(4).y(4).width(96).height(96),
+        )?
+        .check()?;
+    desktop.until_pixel((33, 62), |p| p == BLUE)?;
+    check_bordered(&desktop.image()?, (20, 60, 104, 104), 15, 4, 1.0)?;
+
+    // The border's new focus color must also reach the arc, not just the straight edges.
+    desktop.fill(frame, area(0, 0, 104, 104), 0x0000_ff00)?;
+    desktop.until_pixel((33, 62), |p| p == [0, 255, 0])?;
+    let [red, green, blue] = desktop.pixel((24, 64))?;
+    let paper = 255.0 * (1.0 - coverage(15, 4, 4));
+    ensure!(green == 255 && red == blue && (f64::from(red) - paper).abs() <= 5.0);
+
+    // Turning off corners restores the original square decoration without changing Shape.
+    desktop.reload("fade_ms = 0\nblur_radius = 0\ncorner_radius = 0\n")?;
+    desktop.until_pixel((20, 60), |p| p == [0, 255, 0])?;
+    for (frame, _) in windows {
+        let shape = desktop.conn.shape_query_extents(frame)?.reply()?;
+        assert!(!shape.bounding_shaped && !shape.clip_shaped);
+    }
+    Ok(())
+}
+
+#[test]
 fn blur_stops_at_the_arcs() -> Result<()> {
     let desktop = Desktop::new("fade_ms = 0\nblur_radius = 4\ncorner_radius = 13\n")?;
     striped(&desktop, 320)?;

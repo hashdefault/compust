@@ -3,7 +3,9 @@ use x11rb::{
     errors::ReplyError,
     protocol::{
         ErrorKind,
-        xproto::{Atom, ChangeWindowAttributesAux, ConnectionExt, EventMask, Window},
+        xproto::{
+            Atom, ChangeWindowAttributesAux, ConnectionExt, EventMask, GetGeometryReply, Window,
+        },
     },
     rust_connection::RustConnection,
 };
@@ -14,6 +16,34 @@ pub(super) struct ClientTree {
 }
 
 impl ClientTree {
+    /// A uniform frame decoration, including the protocol border. Title bars and asymmetric
+    /// margins keep their own pixels rather than being redrawn as a single-color ring.
+    pub(super) fn border(
+        &self,
+        conn: &RustConnection,
+        frame: Window,
+        bounds: &GetGeometryReply,
+    ) -> Result<u16> {
+        if self.client == frame {
+            return Ok(bounds.border_width);
+        }
+        let geometry = conn.get_geometry(self.client)?.reply()?;
+        let offset = conn
+            .translate_coordinates(self.client, frame, 0, 0)?
+            .reply()?;
+        let left = i32::from(offset.dst_x);
+        let top = i32::from(offset.dst_y);
+        let right = i32::from(bounds.width) - left - i32::from(geometry.width);
+        let bottom = i32::from(bounds.height) - top - i32::from(geometry.height);
+        Ok(
+            if left > 0 && [top, right, bottom].iter().all(|&side| side == left) {
+                bounds.border_width.saturating_add(u16::try_from(left)?)
+            } else {
+                bounds.border_width
+            },
+        )
+    }
+
     pub(super) fn discover(conn: &RustConnection, frame: Window, state: Atom) -> Result<Self> {
         let mut tree = Self {
             client: frame,

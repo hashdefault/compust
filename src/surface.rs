@@ -35,6 +35,8 @@ pub(crate) struct Surface {
     pub(crate) picture: Picture,
     pub(crate) damage: u32,
     pub(crate) geometry: GetGeometryReply,
+    /// The uniform border the corner arcs carry, whether an X border or painted in a frame.
+    pub(crate) corner_border: u16,
     pub(crate) size: Size,
     pub(crate) shape: Vec<Rectangle>,
     pub(crate) opacity: u16,
@@ -98,6 +100,7 @@ impl Surface {
         };
         picture.pixmap = Some(pixmap);
         let client_tree = ClientTree::discover(conn, window, context.atoms.wm_state)?;
+        let corner_border = client_tree.border(conn, window, &geometry)?;
         let client = client_tree.client;
         let (identified, mut identity) = match context.replaces {
             Some(old) if !new_client(old.identified, client, window) => {
@@ -126,6 +129,7 @@ impl Surface {
                 height: 1,
             },
             geometry,
+            corner_border,
             shape: Vec::new(),
             opacity: u16::MAX,
             has_alpha,
@@ -212,6 +216,9 @@ impl Surface {
         active: Option<Window>,
     ) -> Result<()> {
         self.client_tree = ClientTree::discover(&self.conn, self.window, atoms.wm_state)?;
+        self.corner_border = self
+            .client_tree
+            .border(&self.conn, self.window, &self.geometry)?;
         let client = self.client_tree.client;
         if new_client(self.identified, client, self.window) {
             self.identified = client;

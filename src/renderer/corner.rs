@@ -48,9 +48,9 @@ fn limit(radius: u8, size: Size) -> u8 {
     u8::try_from(half).map_or(radius, |half| radius.min(half))
 }
 
-/// The width of the X border that the arcs of corners of `radius` carry around with them.
+/// The uniform border that the arcs of corners of `radius` carry around with them.
 pub(super) fn border(surface: &Surface, radius: u8) -> Option<u8> {
-    let width = u8::try_from(surface.geometry.border_width).unwrap_or(radius);
+    let width = u8::try_from(surface.corner_border).unwrap_or(radius);
     (radius > 0 && width > 0).then_some(width.min(radius))
 }
 

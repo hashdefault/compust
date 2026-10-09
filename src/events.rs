@@ -63,6 +63,7 @@ impl Compositor {
                     self.dirty = true;
                 } else {
                     let changed = self.configure(&event)?;
+                    self.clients_changed(&[event.event])?;
                     self.dirty |= self.scene.restack(&self.session)? || changed;
                 }
             }
