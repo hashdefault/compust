@@ -1,3 +1,13 @@
+compust (0.3.0~beta.3-1) unstable; urgency=medium
+
+  * Package the 0.3.0-beta.3 prerelease, tag v0.3.0-beta.3 at
+    807752fccbb1ad618f9d0543f84cc52f2fcef41a.
+    It makes the X border follow rounded corners in both renderers,
+    recognizes borders painted inside window manager frames, and keeps a
+    closing window fading over the neighbor that takes its place.
+
+ -- Lucas G. Bueno <lucasgbueno@proton.me>  Fri, 23 Oct 2026 13:06:43 +0000
+
 compust (0.3.0~beta.2+git20261005.3dfd920-1) unstable; urgency=medium
 
   * Fix rounded X borders so the inner and outer corner arcs follow the

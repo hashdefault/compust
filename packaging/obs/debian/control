@@ -22,6 +22,6 @@ Description: Experimental X11 compositor in Rust
  rounded corners, per-window rules and configuration reloads. XRender is the
  default renderer, with an optional OpenGL ES renderer and XRender fallback.
  .
- This package is the 0.3.0-beta.2 prerelease; BUILDINFO names its Git
+ This package is the 0.3.0-beta.3 prerelease; BUILDINFO names its Git
  revision. Run it from an X11 session after stopping the compositor
  already serving that screen.

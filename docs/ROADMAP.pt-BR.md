@@ -305,6 +305,8 @@ A versão 0.3.0-beta.3 traz o que veio depois da 0.3.0-beta.2: uma borda X mais 
 
 Nenhuma sessão registrada rodou exatamente este código. A [sessão com o qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) no laptop Intel rodou o snapshot empacotado `0.3.0~beta.2+git20261005.3dfd920-1`, que tem a mudança das bordas no XRender e no renderizador de GPU. As molduras pintadas e o fade de fechamento têm apenas testes automatizados: os testes X11 do fade de fechamento, um para uma janela destruída e outro para uma desmapeada, falham sem a mudança, e os 135 testes X11 passam no Xvfb 21.1.24 do Xorg.
 
+Duas execuções do [`package.sh`](../tools/package.sh) no desktop com Radeon Vega produziram arquivos idênticos. O binário empacotado informou sua versão e não exige nenhum símbolo da glibc mais recente que a 2.34. O arquivo da versão baixado coincidiu com o `SHA256SUMS`. Os [pacotes do Open Build Service](../packaging/obs/README.md) compilam a tag como `0.3.0~beta.3` para Debian 13, Fedora 43 e 44 e openSUSE Tumbleweed; cada build rodou a suíte completa de testes, inclusive os 135 testes X11, e passou.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |

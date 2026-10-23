@@ -305,6 +305,8 @@ Version 0.3.0-beta.3 carries what followed 0.3.0-beta.2: an X border narrower th
 
 No recorded session ran this exact source. The [qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop ran the packaged snapshot `0.3.0~beta.2+git20261005.3dfd920-1`, which has the border change in XRender and in the GPU renderer. Painted frames and the closing fade have automated tests only: the X11 tests for the closing fade, one for a destroyed window and one for an unmapped one, fail without the change, and all 135 X11 tests pass on Xorg's Xvfb 21.1.24.
 
+Two [`package.sh`](../tools/package.sh) runs on the Radeon Vega desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34. The downloaded release archive matched `SHA256SUMS`. The [Open Build Service packages](../packaging/obs/README.md) build the tag as `0.3.0~beta.3` for Debian 13, Fedora 43 and 44, and openSUSE Tumbleweed; every build ran the full test suite, all 135 X11 tests included, and passed.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
