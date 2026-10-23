@@ -43,6 +43,10 @@ pub(crate) struct Surface {
     pub(crate) has_alpha: bool,
     pub(crate) fade: Fade,
     pub(crate) mapped: bool,
+    /// For a surface that is closing: the windows that lay above it and over its area when it
+    /// began, which keep covering it while it fades; see `Scene::restack`. `None` when it is
+    /// not closing, or closed without a stacking order to go by.
+    pub(crate) blockers: Option<Vec<Window>>,
     /// What rules match on, from the client window.
     identity: Identity,
     /// The window `identity` came from.
@@ -135,6 +139,7 @@ impl Surface {
             has_alpha,
             fade: Fade::opening(Instant::now(), fade_duration(context.config, overrides)),
             mapped: true,
+            blockers: None,
             identity,
             identified,
             override_redirect: attr.override_redirect,

@@ -81,3 +81,53 @@ fn preserves_stacking_of_destroyed_window_during_fade() -> Result<()> {
     assert!(desktop.compositor.0.try_wait()?.is_none());
     Ok(())
 }
+
+/// Two tiled windows, the right one above the left in the stack, when `close` takes the left
+/// one away and the right one grows over its place at once, as a tiling manager does: the
+/// closing window keeps fading over the neighbor instead of vanishing under it.
+fn closes_beside_a_neighbor(
+    name: &str,
+    close: impl FnOnce(&Desktop, Window) -> Result<()>,
+) -> Result<()> {
+    let mut desktop = Desktop::new("fade_ms = 1000\nblur_radius = 0")?;
+    let left = desktop.window(rect(20, 20), 0x00ff_0000)?;
+    let right = desktop.window(rect(120, 20), 0x0000_00ff)?;
+    desktop.map(left)?;
+    desktop.map(right)?;
+    desktop.until_pixel((60, 60), |p| p == [255, 0, 0])?;
+    desktop.until_pixel((160, 60), |p| p == [0, 0, 255])?;
+
+    desktop.conn.grab_server()?.check()?;
+    close(&desktop, left)?;
+    desktop
+        .conn
+        .configure_window(right, &ConfigureWindowAux::new().x(20).width(200))?
+        .check()?;
+    desktop.conn.ungrab_server()?.check()?;
+
+    let [red, _, blue] = desktop.until_pixel((60, 60), |[r, _, b]| r > 40 && b > 40)?;
+    desktop.screenshot(name)?;
+    assert!(
+        red > 40 && blue > 40,
+        "closing window under its neighbor: {red} {blue}"
+    );
+    desktop.until_pixel((60, 60), |p| p == [0, 0, 255])?;
+    assert!(desktop.compositor.0.try_wait()?.is_none());
+    Ok(())
+}
+
+#[test]
+fn destroyed_window_fades_over_the_neighbor_that_takes_its_place() -> Result<()> {
+    closes_beside_a_neighbor("fade-destroyed-over-neighbor", |desktop, window| {
+        desktop.conn.destroy_window(window)?.check()?;
+        Ok(())
+    })
+}
+
+#[test]
+fn unmapped_window_fades_over_the_neighbor_that_takes_its_place() -> Result<()> {
+    closes_beside_a_neighbor("fade-unmapped-over-neighbor", |desktop, window| {
+        desktop.conn.unmap_window(window)?.check()?;
+        Ok(())
+    })
+}

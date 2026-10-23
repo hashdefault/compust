@@ -38,11 +38,9 @@ impl Compositor {
             }
             // Repainting for a window that shows nothing would hold the next real frame back
             // by a vblank, because the single buffer waits for each submission to finish.
-            Event::UnmapNotify(event) => {
-                self.dirty |= self.scene.close(event.window, &self.config);
-            }
+            Event::UnmapNotify(event) => self.closed(event.window)?,
             Event::DestroyNotify(event) => {
-                self.dirty |= self.scene.close(event.window, &self.config);
+                self.closed(event.window)?;
                 self.clients_changed(&[event.event, event.window])?;
             }
             Event::ReparentNotify(event) => {
@@ -215,6 +213,16 @@ impl Compositor {
             }
             _ => (),
         }
+    }
+
+    /// Start fading `window` out, if it was shown. The closing surface changes its place in
+    /// the stack, so the order is worked out again at once.
+    fn closed(&mut self, window: Window) -> Result<()> {
+        if self.scene.close(window, &self.config) {
+            self.scene.restack(&self.session)?;
+            self.dirty = true;
+        }
+        Ok(())
     }
 
     fn shape_changed(&mut self, window: Window) -> Result<()> {

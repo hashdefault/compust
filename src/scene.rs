@@ -133,9 +133,18 @@ impl Scene {
             self.stack.query(session)?;
         }
         let mut children = self.stack.children.clone();
-        // Keep fading snapshots below their former upper neighbor after destruction.
+        // A closing surface takes its place below the windows that covered it, and above the
+        // rest: the neighbor a tiling manager grows over its area goes under it, so that the
+        // fade is not cut short by that neighbor.
+        let closing: Vec<_> = self
+            .windows
+            .iter()
+            .filter(|surface| surface.blockers.is_some())
+            .collect();
+        children.retain(|id| !closing.iter().any(|surface| surface.window == *id));
+        // Keep other fading snapshots below their former upper neighbor after destruction.
         for (index, surface) in self.windows.iter().enumerate().rev() {
-            if !children.contains(&surface.window) {
+            if surface.blockers.is_none() && !children.contains(&surface.window) {
                 let above = self
                     .windows
                     .iter()
@@ -143,6 +152,15 @@ impl Scene {
                     .find_map(|upper| children.iter().position(|id| *id == upper.window));
                 children.insert(above.unwrap_or(children.len()), surface.window);
             }
+        }
+        // From the lowest up, so that a closing surface covering another lands above it.
+        for surface in &closing {
+            let covered = surface.blockers.as_deref().unwrap_or_default();
+            let below = covered
+                .iter()
+                .filter_map(|blocker| children.iter().position(|id| id == blocker))
+                .min();
+            children.insert(below.unwrap_or(children.len()), surface.window);
         }
         let position = |surface: &Surface| {
             children
@@ -159,17 +177,26 @@ impl Scene {
 
     /// Start closing the mapped surface of `window`; reports whether there was one.
     pub(crate) fn close(&mut self, window: Window, config: &Config) -> bool {
-        match self
+        let Some(index) = self
             .windows
-            .iter_mut()
-            .find(|s| s.window == window && s.mapped)
-        {
-            Some(surface) => {
-                surface.close(Instant::now(), config);
-                true
-            }
-            None => false,
+            .iter()
+            .position(|s| s.window == window && s.mapped)
+        else {
+            return false;
+        };
+        let area = self.windows.get(index).map(Surface::bounds);
+        let blockers = self
+            .windows
+            .iter()
+            .skip(index + 1)
+            .filter(|upper| area.is_some_and(|area| upper.bounds().intersect(area).is_some()))
+            .map(|upper| upper.window)
+            .collect();
+        if let Some(surface) = self.windows.get_mut(index) {
+            surface.close(Instant::now(), config);
+            surface.blockers = Some(blockers);
         }
+        true
     }
 
     pub(crate) fn animate(&mut self, now: Instant) -> bool {

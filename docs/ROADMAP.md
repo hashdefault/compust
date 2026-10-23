@@ -165,7 +165,7 @@ Four additional scenarios in [stability.rs](../tests/cases/stability.rs) pass: 3
 
 ### Step 1 continuation: fades, shapes, and destruction
 
-Three defects were reproduced and fixed. Remapping during close now captures the new content and resumes opening from the current opacity. A destroyed window stays below its former upper neighbor while fading, even after another stacking event. Shapes remain in local coordinates; the XRender clip origin applies the window position without prematurely saturating negative coordinates and leaving black pixels.
+Three defects were reproduced and fixed. Remapping during close now captures the new content and resumes opening from the current opacity. A destroyed window stays below the windows that covered it while fading, even after another stacking event. Later, a closing window was also placed above the neighbor that a tiling manager grows over its place, which had cut the fade short; two X11 tests in [fades.rs](../tests/cases/fades.rs) cover a destroyed and an unmapped window. Shapes remain in local coordinates; the XRender clip origin applies the window position without prematurely saturating negative coordinates and leaving black pixels.
 
 The remap and stacking regressions in [fades.rs](../tests/cases/fades.rs) and the extreme-coordinate regression in [shapes.rs](../tests/cases/shapes.rs) failed before the fixes and passed afterward. Additional coverage includes destruction during opening, empty and disjoint shapes, 20-pixel borders, off-screen blur clipping, and a 4096×2048 window moved fully off-screen and back. A unit test checks continuity, monotonicity, and the exact endpoint when reopening a fade.
 
