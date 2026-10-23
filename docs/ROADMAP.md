@@ -6,7 +6,7 @@ The goal is a minimal Rust compositor that becomes a practical choice for Xorg a
 
 ## Status and priorities (2026-10-05)
 
-The latest release is [0.3.0-beta.2](#fifth-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
+The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
 
 ### Done
 
@@ -26,7 +26,7 @@ The latest release is [0.3.0-beta.2](#fifth-beta-prerelease), a GitHub prereleas
 In order, each with the reason it comes before the next. Items 1 to 6 lie on the [path to 1.0](#release-path).
 
 1. **Find the stale frame after a monitor change.** The X11 test `regions::monitor_changes_repaint_the_whole_screen` failed in 4 of 12 full parallel runs on the Radeon Vega desktop on 2026-10-05, as often before the rounded-corner work as after it: after a monitor change, 4,800 pixels differed from a full repaint, from (0, 180) on. It passed 20 runs in a row alone, in CI, and in every Open Build Service build. 1.0 promises that ordinary activity never leaves stale pixels, and a test that fails at random also hides new failures. Reproduce it under load, find the ordering it depends on, and fix it with a regression that fails without the fix.
-2. **Bring 0.3.0-beta.2 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
+2. **Bring 0.3.0-beta.3 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
 3. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. A [live qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop has since recorded corners, shadows, and blur under one window manager in both renderers, with synthetic windows and without the probe. Testers' reports from item 2 can supply part of it.
 4. **Start the endurance runs.** [Step 4](#4-endurance) has not started. Write the automated run of 10,000 window cycles with XRes checks, and count the week of daily use on the Radeon Vega desktop, which already runs Compust as its compositor.
 5. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
@@ -299,6 +299,12 @@ Its declared scope covers one machine: the Radeon Vega desktop, now on Xorg 21.1
 
 Two [`package.sh`](../tools/package.sh) runs on the Radeon Vega desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34; it links no EGL library, which the GPU renderer loads when it starts. On Xorg's Xvfb 21.1.24 it refused to start beside another compositor, exited successfully after SIGTERM, and exited with a connection error when its X server stopped. The downloaded release archive matched `SHA256SUMS`. The [Open Build Service packages](../packaging/obs/README.md) build the tag as `0.3.0~beta.2` for Debian 13, Fedora 43 and 44, and openSUSE Tumbleweed; every build ran the full test suite, all 132 X11 tests included, and passed.
 
+### Sixth beta prerelease
+
+Version 0.3.0-beta.3 carries what followed 0.3.0-beta.2: an X border narrower than the corner radius follows the arcs in both renderers, so that its color is no longer cut away at the corners; a border that a window manager paints inside its frame, as spectrwm does around a client whose X border is zero, is recognized the same way when its margin is uniform; and a closing window keeps fading over the neighbor that a tiling manager grows over its place, where the neighbor had covered it and cut the fade short. The [beta guide](BETA.md) lists the scope, and the [release notes](releases/v0.3.0-beta.3.md) list the changes.
+
+No recorded session ran this exact source. The [qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop ran the packaged snapshot `0.3.0~beta.2+git20261005.3dfd920-1`, which has the border change in XRender and in the GPU renderer. Painted frames and the closing fade have automated tests only: the X11 tests for the closing fade, one for a destroyed window and one for an unmapped one, fail without the change, and all 135 X11 tests pass on Xorg's Xvfb 21.1.24.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -468,7 +474,7 @@ Publish betas as features land; [0.3.0-beta.1](#fourth-beta-prerelease) started 
 
 1. **0.3.0-beta.1, [published](#fourth-beta-prerelease):** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing can start.
 2. **0.3.0-beta.2, [published](#fifth-beta-prerelease):** step 1's three features, rounded corners, and reload on save, so that outside testing covers what 1.0 promises.
-3. **Further 0.3 betas** as fixes and records land.
+3. **Further 0.3 betas** as fixes and records land; [0.3.0-beta.3](#sixth-beta-prerelease) is the first, with the border and closing-fade fixes.
 4. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
 5. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.
 

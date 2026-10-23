@@ -2,15 +2,15 @@
 
 [English (US)](BETA.md) | [Português (Brasil)](BETA.pt-BR.md)
 
-Compust 0.3.0-beta.2 is the fifth beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
+Compust 0.3.0-beta.3 is the sixth beta, meant for controlled community testing. It is not yet a replacement for picom. Support is declared only where recorded evidence exists; other setups are welcome for testing but remain unqualified.
 
-This beta adds the features of the 1.0 milestone's first step, shadows, fullscreen unredirection, and rules that choose windows by focus, along with rounded corners and configuration reloads when the file is saved, and it fixes two rendering errors. The [release notes](releases/v0.3.0-beta.2.md) list the changes.
+This beta carries the X border around rounded corners, recognizes borders that a window manager paints inside its frames, and keeps a closing window fading over the neighbor that takes its place. The [release notes](releases/v0.3.0-beta.3.md) list the changes.
 
 ## Declared scope
 
-Two recorded machines have run this beta's code: an AMD desktop with integrated Radeon Vega graphics, on Xorg, and an Intel laptop under qtile, which ran the packaged build that adds one fix to the release.
+No recorded machine has run this beta's exact code. Two ran its predecessors: an AMD desktop with integrated Radeon Vega graphics, on Xorg, with 0.3.0-beta.2's code, and an Intel laptop under qtile, which ran the packaged build that adds the border change.
 
-| Area | Recorded with this beta's code | Evidence |
+| Area | Recorded with earlier code | Evidence |
 | --- | --- | --- |
 | X server | Xorg 21.1.24 in a native session | [Desktop sessions](DESKTOP_TESTING.md#recorded-xorg-sessions-on-the-radeon-vega-desktop-2026-10-05) |
 | Window manager | i3 4.25.1 | Same sessions |
@@ -20,25 +20,25 @@ Two recorded machines have run this beta's code: an AMD desktop with integrated 
 | Features | Shadows, focus rules, rounded corners, and fullscreen suspension, in XRender and in the GPU renderer, without a window manager | [Feature checks](DESKTOP_TESTING.md#recorded-rounded-corners-on-the-radeon-vega-desktop-2026-10-05) |
 | Packaged build under qtile | Shadows, transparency, blur, and rounded corners with qtile 0.37.1's borders, in XRender and in the GPU renderer, on an Intel Core i3-1005G1 laptop with Iris Plus graphics and i915, Xorg 21.1.11, and one 1366×768 panel | [Qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) |
 
-The desktop sessions ran at `ed2cdb0`, before rounded corners, which are off by default, and before a fix to the GPU renderer, which they did not use. The feature checks ran at `1fc0a1c`, whose compositor source differs from the release's only in its version number. Both used local builds with synthetic windows; none was repeated with the packaged binary. The qtile session ran the Open Build Service package `0.3.0~beta.2+git20261005.3dfd920-1`, the release plus the fix for rounded X borders, in the laptop's usual session; a driver written for it measured captures of synthetic windows, and the probe's scenarios were not run there. Physical hotplug and suspend and resume were not recorded on Xorg.
+The desktop sessions ran at `ed2cdb0`, before rounded corners, which are off by default, and before a fix to the GPU renderer, which they did not use. The feature checks ran at `1fc0a1c`, whose compositor source differs from the release's only in its version number. Both used local builds with synthetic windows; none was repeated with the packaged binary. The qtile session ran the Open Build Service package `0.3.0~beta.2+git20261005.3dfd920-1`, the release plus the fix for rounded X borders, in the laptop's usual session; a driver written for it measured captures of synthetic windows, and the probe's scenarios were not run there. Physical hotplug and suspend and resume were not recorded on Xorg. This beta's other two changes, borders painted inside frames and the closing fade, have automated tests only; no hardware session has run them.
 
 The RX 9060 XT desktop on XLibre ran 0.3.0-beta.1 under Xmonad, Openbox, i3, and bspwm, and recorded the shadow, focus, and fullscreen fixtures in both renderers before this beta; the Intel laptop's probe sessions, hotplug, and suspend ran the 0.2.0 betas. Their records, listed in the [compatibility matrix](ROADMAP.md#compatibility-matrix), do not cover this beta's code. NVIDIA GPUs, XLibre with this beta, the probe's scenarios on Intel GPUs, window managers other than i3 and qtile, clearly different refresh rates, more than two monitors, and HDR are untested. Reports from any of these setups are especially useful.
 
 ## Install
 
-Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed users can install packages instead, as the [README](../README.md#install) describes. Otherwise, download `compust-0.3.0-beta.2-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.2), then verify and unpack them:
+Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed users can install packages instead, as the [README](../README.md#install) describes. Otherwise, download `compust-0.3.0-beta.3-x86_64-linux.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.3), then verify and unpack them:
 
 ```sh
 sha256sum -c SHA256SUMS
-tar -xzf compust-0.3.0-beta.2-x86_64-linux.tar.gz
-cd compust-0.3.0-beta.2-x86_64-linux
+tar -xzf compust-0.3.0-beta.3-x86_64-linux.tar.gz
+cd compust-0.3.0-beta.3-x86_64-linux
 ./compust --version
 ```
 
 The binary needs x86_64 Linux with glibc 2.34 or newer. `BUILDINFO` records the source revision, compiler, and build command. To build from source instead, install the pinned Rust toolchain and run:
 
 ```sh
-git clone --branch v0.3.0-beta.2 https://github.com/hashdefault/compust.git
+git clone --branch v0.3.0-beta.3 https://github.com/hashdefault/compust.git
 cd compust
 cargo build --release --locked
 ```
@@ -96,6 +96,7 @@ Restore any startup line you changed. Logging out also ends Compust: when the X 
 ## Known limits
 
 - Fullscreen unredirection needs one opaque, square window over the whole screen, so it never applies to one monitor of several.
+- A closing window fades above the windows that were not over it when it closed. A window manager that grows the neighbor before the window closes still lets the neighbor cover it.
 - Shadows are black, and shaped windows cast none and keep square corners. Rounded X borders use the top-left border pixel as their color around every corner; window managers that paint different colors on different edges cannot keep those colors distinct at the corners.
 - There are no movement or scale animations, no global settings for the opacity of active and inactive windows beyond rules, and no picom configuration compatibility.
 - Rules match exact text. Focus comes from `_NET_ACTIVE_WINDOW`; under a window manager that does not set it, such as Xmonad without `XMonad.Hooks.EwmhDesktops`, every window counts as focused.

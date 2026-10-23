@@ -2,15 +2,15 @@
 
 [English (US)](BETA.md) | [Português (Brasil)](BETA.pt-BR.md)
 
-O Compust 0.3.0-beta.2 é a quinta beta, voltada a testes controlados da comunidade. Ele ainda não substitui o picom. O suporte é declarado somente onde há evidências registradas; outras configurações são bem-vindas para testes, mas continuam sem validação.
+O Compust 0.3.0-beta.3 é a sexta beta, voltada a testes controlados da comunidade. Ele ainda não substitui o picom. O suporte é declarado somente onde há evidências registradas; outras configurações são bem-vindas para testes, mas continuam sem validação.
 
-Esta beta traz os recursos da primeira etapa do marco 1.0, sombras, suspensão da composição em tela cheia e regras que escolhem janelas pelo foco, junto com cantos arredondados e recarga da configuração quando o arquivo é salvo, e corrige dois erros de renderização. As [notas da versão](releases/v0.3.0-beta.2.md) listam as mudanças.
+Esta beta leva a borda X para dentro dos cantos arredondados, reconhece bordas que um gerenciador de janelas pinta dentro das molduras e mantém uma janela que fecha desvanecendo acima da vizinha que ocupa o lugar dela. As [notas da versão](releases/v0.3.0-beta.3.md) listam as mudanças.
 
 ## Escopo declarado
 
-Duas máquinas registradas rodaram o código desta beta: um desktop AMD com gráficos Radeon Vega integrados, no Xorg, e um laptop Intel com o qtile, que rodou o pacote que acrescenta uma correção à versão.
+Nenhuma máquina registrada rodou exatamente o código desta beta. Duas rodaram o de suas antecessoras: um desktop AMD com gráficos Radeon Vega integrados, no Xorg, com o código da 0.3.0-beta.2, e um laptop Intel com o qtile, que rodou o pacote que acrescenta a mudança das bordas.
 
-| Área | Registrado com o código desta beta | Evidências |
+| Área | Registrado com código anterior | Evidências |
 | --- | --- | --- |
 | Servidor X | Xorg 21.1.24 em sessão nativa | [Sessões de desktop](DESKTOP_TESTING.pt-BR.md#sessões-xorg-registradas-no-desktop-com-radeon-vega-2026-10-05) |
 | Gerenciador de janelas | i3 4.25.1 | Mesmas sessões |
@@ -20,25 +20,25 @@ Duas máquinas registradas rodaram o código desta beta: um desktop AMD com grá
 | Recursos | Sombras, regras pelo foco, cantos arredondados e suspensão em tela cheia, no XRender e no renderizador de GPU, sem gerenciador de janelas | [Verificações de recursos](DESKTOP_TESTING.pt-BR.md#cantos-arredondados-registrados-no-desktop-com-radeon-vega-2026-10-05) |
 | Pacote com o qtile | Sombras, transparência, desfoque e cantos arredondados com as bordas do qtile 0.37.1, no XRender e no renderizador de GPU, em um laptop Intel Core i3-1005G1 com gráficos Iris Plus e i915, Xorg 21.1.11 e um painel de 1366×768 | [Sessão com qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) |
 
-As sessões de desktop rodaram em `ed2cdb0`, antes dos cantos arredondados, que vêm desligados, e antes de uma correção no renderizador de GPU, que elas não usaram. As verificações de recursos rodaram em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Ambas usaram compilações locais com janelas sintéticas; nenhuma foi repetida com o binário empacotado. A sessão com o qtile rodou o pacote `0.3.0~beta.2+git20261005.3dfd920-1` do Open Build Service, a versão mais a correção das bordas X arredondadas, na sessão habitual do laptop; um script escrito para ela mediu capturas de janelas sintéticas, e os cenários do probe não foram executados ali. O hotplug físico e a suspensão e retomada não foram registrados no Xorg.
+As sessões de desktop rodaram em `ed2cdb0`, antes dos cantos arredondados, que vêm desligados, e antes de uma correção no renderizador de GPU, que elas não usaram. As verificações de recursos rodaram em `1fc0a1c`, cujo código do compositor difere do desta versão apenas no número da versão. Ambas usaram compilações locais com janelas sintéticas; nenhuma foi repetida com o binário empacotado. A sessão com o qtile rodou o pacote `0.3.0~beta.2+git20261005.3dfd920-1` do Open Build Service, a versão mais a correção das bordas X arredondadas, na sessão habitual do laptop; um script escrito para ela mediu capturas de janelas sintéticas, e os cenários do probe não foram executados ali. O hotplug físico e a suspensão e retomada não foram registrados no Xorg. As outras duas mudanças desta beta, bordas pintadas dentro das molduras e o fade de fechamento, têm apenas testes automatizados; nenhuma sessão em hardware as rodou.
 
 O desktop com RX 9060 XT e XLibre rodou a 0.3.0-beta.1 com Xmonad, Openbox, i3 e bspwm, e registrou os testes de sombras, foco e tela cheia nos dois renderizadores antes desta beta; as sessões do probe, o hotplug e a suspensão do laptop Intel rodaram as betas 0.2.0. Seus registros, listados na [matriz de compatibilidade](ROADMAP.pt-BR.md#matriz-de-compatibilidade), não cobrem o código desta beta. GPUs NVIDIA, o XLibre com esta beta, os cenários do probe em GPUs Intel, gerenciadores de janelas além do i3 e do qtile, taxas de atualização claramente diferentes, mais de dois monitores e HDR não foram testados. Relatos de qualquer uma dessas configurações são especialmente úteis.
 
 ## Instalar
 
-No Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed, é possível instalar pacotes, como o [README](../README.pt-BR.md#instalação) descreve. Caso contrário, baixe `compust-0.3.0-beta.2-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.2), depois verifique e extraia os arquivos:
+No Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed, é possível instalar pacotes, como o [README](../README.pt-BR.md#instalação) descreve. Caso contrário, baixe `compust-0.3.0-beta.3-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.3), depois verifique e extraia os arquivos:
 
 ```sh
 sha256sum -c SHA256SUMS
-tar -xzf compust-0.3.0-beta.2-x86_64-linux.tar.gz
-cd compust-0.3.0-beta.2-x86_64-linux
+tar -xzf compust-0.3.0-beta.3-x86_64-linux.tar.gz
+cd compust-0.3.0-beta.3-x86_64-linux
 ./compust --version
 ```
 
 O binário exige Linux x86_64 com glibc 2.34 ou mais recente. `BUILDINFO` registra a revisão do código, o compilador e o comando de compilação. Para compilar a partir do código-fonte, instale a toolchain Rust fixada pelo projeto e execute:
 
 ```sh
-git clone --branch v0.3.0-beta.2 https://github.com/hashdefault/compust.git
+git clone --branch v0.3.0-beta.3 https://github.com/hashdefault/compust.git
 cd compust
 cargo build --release --locked
 ```
@@ -95,6 +95,7 @@ Restaure qualquer linha de inicialização que você alterou. Encerrar a sessão
 
 ## Limitações conhecidas
 
+- Uma janela que fecha desvanece acima das janelas que não estavam sobre ela quando fechou. Um gerenciador de janelas que expande a vizinha antes de a janela fechar ainda deixa a vizinha cobri-la.
 - A suspensão da composição em tela cheia exige uma janela opaca e quadrada sobre a tela inteira, então nunca vale para um monitor entre vários.
 - As sombras são pretas, e janelas com formato próprio não projetam sombra e mantêm os cantos quadrados. Bordas X arredondadas usam o pixel superior esquerdo da borda como cor em todos os cantos; gerenciadores que pintam cada lado com uma cor diferente não mantêm essas cores distintas nos cantos.
 - Não há animações de movimento ou escala, opções globais para a opacidade das janelas ativas e inativas além das regras nem compatibilidade com a configuração do picom.

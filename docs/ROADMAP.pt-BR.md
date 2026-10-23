@@ -6,7 +6,7 @@ O objetivo é tornar este compositor mínimo em Rust uma opção prática para u
 
 ## Estado e prioridades (2026-10-05)
 
-A versão mais recente é a [0.3.0-beta.2](#quinta-pré-versão-beta), uma pré-versão no GitHub com pacotes do Open Build Service para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed. Esta seção resume o que está feito e ordena o que vem a seguir; as seções abaixo guardam os registros.
+A versão mais recente é a [0.3.0-beta.3](#sexta-pré-versão-beta), uma pré-versão no GitHub com pacotes do Open Build Service para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed. Esta seção resume o que está feito e ordena o que vem a seguir; as seções abaixo guardam os registros.
 
 ### Feito
 
@@ -26,7 +26,7 @@ A versão mais recente é a [0.3.0-beta.2](#quinta-pré-versão-beta), uma pré-
 Em ordem, cada uma com o motivo de vir antes da seguinte. Os itens 1 a 6 estão no [caminho até a 1.0](#caminho-até-a-versão).
 
 1. **Encontrar o quadro antigo depois de uma mudança de monitor.** O teste X11 `regions::monitor_changes_repaint_the_whole_screen` falhou em 4 de 12 execuções paralelas completas no desktop com Radeon Vega em 2026-10-05, tanto antes do trabalho dos cantos arredondados quanto depois: após uma mudança de monitor, 4.800 pixels diferiram de uma repintura completa, a partir de (0, 180). Ele passou em 20 execuções seguidas sozinho, na CI e em todas as compilações do Open Build Service. A 1.0 promete que o uso comum nunca deixa pixels antigos, e um teste que falha ao acaso também esconde falhas novas. Reproduzir sob carga, encontrar a ordem de que ele depende e corrigir com uma regressão que falhe sem a correção.
-2. **Levar a 0.3.0-beta.2 a testadores externos.** A [etapa 5](#5-testes-externos) exige três testadores além do responsável pelo projeto e depois duas semanas sem relatos novos, a espera mais longa do caminho até a 1.0. Anunciar a beta onde usuários de X11 se reúnem, apontando o guia da beta e os modelos de issue.
+2. **Levar a 0.3.0-beta.3 a testadores externos.** A [etapa 5](#5-testes-externos) exige três testadores além do responsável pelo projeto e depois duas semanas sem relatos novos, a espera mais longa do caminho até a 1.0. Anunciar a beta onde usuários de X11 se reúnem, apontando o guia da beta e os modelos de issue.
 3. **Registrar mais hardware.** A [etapa 2](#2-hardware-e-desktops) ainda não tem o driver da NVIDIA no Xorg, Intel com o código atual, mais gerenciadores de janelas no Xorg, hotplug físico e suspensão e retomada no Xorg, nem aplicativos reais: um navegador e seus menus, um terminal, o mpv, um jogo, uma janela GTK com decoração do lado do cliente e um aplicativo Electron. Essas sessões também cobrem o que a última tarefa dos cantos arredondados pede: cantos com um gerenciador de janelas e com aplicativos. Uma [sessão em uso com o qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) no laptop Intel registrou desde então cantos, sombras e desfoque com um gerenciador de janelas nos dois renderizadores, com janelas sintéticas e sem o probe. Os relatos dos testadores do item 2 podem fornecer parte disso.
 4. **Começar os testes de uso prolongado.** A [etapa 4](#4-uso-prolongado) ainda não começou. Escrever a execução automática de 10.000 ciclos de janelas com conferência de XRes e contar a semana de uso diário no desktop com Radeon Vega, que já usa o Compust como compositor.
 5. **Preparar a distribuição e revisar a configuração.** A [etapa 6](#6-distribuição-e-documentação) ainda precisa de um pacote no Arch User Repository, páginas de manual, um guia de migração do picom e um guia de solução de problemas. Antes da 1.0.0-rc.1, revisar cada opção uma vez, inclusive `corner_radius`, já que a 1.0 as congela.
@@ -299,6 +299,12 @@ Seu escopo declarado cobre uma máquina: o desktop com Radeon Vega, agora no Xor
 
 Duas execuções do [`package.sh`](../tools/package.sh) no desktop com Radeon Vega produziram arquivos idênticos. O binário empacotado informou sua versão e não exige nenhum símbolo da glibc mais recente que a 2.34; ele não se liga a nenhuma biblioteca EGL, que o renderizador de GPU carrega ao iniciar. No Xvfb 21.1.24 do Xorg, ele se recusou a iniciar ao lado de outro compositor, terminou com sucesso após SIGTERM e saiu com um erro de conexão quando seu servidor X parou. O arquivo da versão baixado coincidiu com o `SHA256SUMS`. Os [pacotes do Open Build Service](../packaging/obs/README.md) compilam a tag como `0.3.0~beta.2` para Debian 13, Fedora 43 e 44 e openSUSE Tumbleweed; cada build rodou a suíte completa de testes, inclusive os 132 testes X11, e passou.
 
+### Sexta pré-versão beta
+
+A versão 0.3.0-beta.3 traz o que veio depois da 0.3.0-beta.2: uma borda X mais estreita que o raio dos cantos acompanha os arcos nos dois renderizadores, de modo que sua cor deixa de ser cortada nos cantos; uma borda que um gerenciador de janelas pinta dentro da moldura, como o spectrwm faz em volta de um cliente cuja borda X é zero, é reconhecida da mesma forma quando sua margem é uniforme; e uma janela que fecha continua desvanecendo acima da vizinha que um gerenciador de tiles expande sobre o lugar dela, onde a vizinha a cobria e interrompia o fade. O [guia da beta](BETA.pt-BR.md) traz o escopo, e as [notas da versão](releases/v0.3.0-beta.3.md) listam as mudanças.
+
+Nenhuma sessão registrada rodou exatamente este código. A [sessão com o qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) no laptop Intel rodou o snapshot empacotado `0.3.0~beta.2+git20261005.3dfd920-1`, que tem a mudança das bordas no XRender e no renderizador de GPU. As molduras pintadas e o fade de fechamento têm apenas testes automatizados: os testes X11 do fade de fechamento, um para uma janela destruída e outro para uma desmapeada, falham sem a mudança, e os 135 testes X11 passam no Xvfb 21.1.24 do Xorg.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -468,7 +474,7 @@ Publicar betas à medida que os recursos ficarem prontos; a [0.3.0-beta.1](#quar
 
 1. **0.3.0-beta.1, [publicada](#quarta-pré-versão-beta):** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos possam começar.
 2. **0.3.0-beta.2, [publicada](#quinta-pré-versão-beta):** os três recursos da etapa 1, cantos arredondados e recarga ao salvar, para que os testes externos cubram o que a 1.0 promete.
-3. **Outras betas 0.3** à medida que correções e registros chegarem.
+3. **Outras betas 0.3** à medida que correções e registros chegarem; a [0.3.0-beta.3](#sexta-pré-versão-beta) é a primeira, com as correções das bordas e do fade de fechamento.
 4. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
 5. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
 
