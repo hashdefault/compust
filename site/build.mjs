@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
 import { dirname, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import MarkdownIt from 'markdown-it';
@@ -25,6 +25,18 @@ export function rewriteLink(href, source) {
   return `${repository}/blob/main/${target.split('/').map(encodeURIComponent).join('/')}${url.hash}`;
 }
 
+// Pictures the documents show live in docs/media, and the build publishes them with the site's
+// own assets; a relative source would otherwise resolve under the page that shows it.
+const mediaDirectory = 'docs/media/';
+const picture = /\.(?:webp|png|jpe?g|gif|svg)$/i;
+
+export function rewriteImage(src, source) {
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(src) || src.startsWith('/')) return src;
+  const target = decodeURIComponent(new URL(src, `https://source.invalid/${source}`).pathname.slice(1));
+  if (target.startsWith(mediaDirectory) && picture.test(target)) return `${base}assets/media/${encodeURIComponent(target.slice(mediaDirectory.length))}`;
+  return `${repository}/raw/main/${target.split('/').map(encodeURIComponent).join('/')}`;
+}
+
 export function renderDocument(source, markdown, locale) {
   const parser = new MarkdownIt({ html: false, linkify: false });
   const headings = [];
@@ -43,6 +55,7 @@ export function renderDocument(source, markdown, locale) {
     }
     for (const child of token.children || []) {
       if (child.type === 'link_open') child.attrSet('href', rewriteLink(child.attrGet('href'), source));
+      if (child.type === 'image') child.attrSet('src', rewriteImage(child.attrGet('src'), source));
     }
   }
   const fence = parser.renderer.rules.fence;
@@ -63,6 +76,10 @@ export async function build(output = resolve(root, 'site/dist')) {
     await writeFile(resolve(output, 'assets', assets[extension]), content);
   }
   await copyFile(resolve(root, 'site/assets/favicon.svg'), resolve(output, 'assets/favicon.svg'));
+  await mkdir(resolve(output, 'assets/media'), { recursive: true });
+  for (const name of (await readdir(resolve(root, mediaDirectory))).filter((name) => picture.test(name))) {
+    await copyFile(resolve(root, mediaDirectory, name), resolve(output, 'assets/media', name));
+  }
   const routes = [];
   async function emit(path, html) {
     const destination = resolve(output, `${path.slice(base.length)}index.html`);

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { build, renderDocument, rewriteLink } from './build.mjs';
+import { build, renderDocument, rewriteImage, rewriteLink } from './build.mjs';
 import { locales } from './content.mjs';
 import { base, origin } from './templates.mjs';
 
@@ -12,6 +12,16 @@ test('documentation links resolve from their original source locations', () => {
   assert.equal(rewriteLink('../README.md', 'docs/ARCHITECTURE.md'), '/compust/docs/getting-started/');
   assert.equal(rewriteLink('LICENSE', 'README.md'), 'https://github.com/hashdefault/compust/blob/main/LICENSE');
   assert.equal(rewriteLink('https://example.org/x11', 'README.md'), 'https://example.org/x11');
+});
+
+test('documentation pictures are published with the site', () => {
+  assert.equal(rewriteImage('docs/media/showcase.webp', 'README.md'), '/compust/assets/media/showcase.webp');
+  assert.equal(rewriteImage('media/showcase.webp', 'docs/ARCHITECTURE.md'), '/compust/assets/media/showcase.webp');
+  assert.equal(rewriteImage('https://example.org/a.png', 'README.md'), 'https://example.org/a.png');
+  assert.equal(rewriteImage('tools/shot.png', 'README.md'), 'https://github.com/hashdefault/compust/raw/main/tools/shot.png');
+  const { html } = renderDocument('README.md', '[![Alt](docs/media/showcase.webp)](docs/media/showcase.mp4)\n', locales.en);
+  assert.ok(html.includes('src="/compust/assets/media/showcase.webp"'), html);
+  assert.ok(html.includes('href="https://github.com/hashdefault/compust/blob/main/docs/media/showcase.mp4"'), html);
 });
 
 test('fragments written for GitHub match the unaccented site headings', () => {
