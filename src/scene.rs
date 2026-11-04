@@ -4,7 +4,7 @@ use crate::{
     surface::{Capture, Surface},
 };
 use anyhow::Result;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use x11rb::{
     NONE,
     errors::ReplyError,
@@ -13,6 +13,11 @@ use x11rb::{
         xproto::{ConnectionExt, Window},
     },
 };
+
+/// How long a resized window over a closing one keeps showing its previous capture while its
+/// client has not drawn all of the new one; see `Scene::resized`. After that, the new capture
+/// shows whatever it holds.
+const HOLD: Duration = Duration::from_secs(1);
 
 #[derive(Default)]
 pub(crate) struct Scene {
@@ -192,17 +197,76 @@ impl Scene {
             .filter(|upper| area.is_some_and(|area| upper.bounds().intersect(area).is_some()))
             .map(|upper| upper.window)
             .collect();
+        let mut managed = false;
         if let Some(surface) = self.windows.get_mut(index) {
             surface.close(Instant::now(), config);
             surface.blockers = Some(blockers);
+            managed = surface.managed();
+        }
+        // The window manager may now grow any other window over this one's place; see
+        // `resized`. Menus and tooltips, which it leaves alone, make it move nothing.
+        if managed {
+            for surface in self.windows.iter_mut().filter(|surface| surface.mapped) {
+                surface.watch_drawing();
+            }
         }
         true
     }
 
+    /// Put `replacement`, captured after the window of the surface at `index` was resized, in
+    /// that surface's place, keeping its fade. Until the client draws, the server fills a
+    /// resized window's new pixmap with what the screen showed there, so where a closing surface
+    /// lay, the new pixmap shows that surface as it was before it began to fade: it would stay
+    /// in sight after its fade, until the client drew, as a slow one does long after. Over a
+    /// closing surface, the previous capture therefore shows until the client has drawn all of
+    /// the new one or `HOLD` passes.
+    pub(crate) fn resized(&mut self, index: usize, mut replacement: Surface, now: Instant) {
+        let bounds = replacement.bounds();
+        let over_closing = self.windows.iter().any(|other| {
+            !other.mapped
+                && other.window != replacement.window
+                && other.bounds().intersect(bounds).is_some()
+        });
+        if let Some(surface) = self.windows.get_mut(index) {
+            std::mem::swap(&mut replacement.fade, &mut surface.fade);
+            let previous = std::mem::replace(surface, replacement);
+            surface.succeed(previous, over_closing.then(|| now + HOLD));
+        }
+    }
+
+    /// Drop the surfaces whose fade out finished and end the holds whose time is up; reports
+    /// whether a fade is still running or a hold ended. Once nothing closes, the windows that
+    /// hold nothing are no longer watched.
     pub(crate) fn animate(&mut self, now: Instant) -> bool {
         self.windows
             .retain(|surface| surface.mapped || surface.fade.active(now));
-        self.windows.iter().any(|surface| surface.fade.active(now))
+        let mut expired = false;
+        for surface in &mut self.windows {
+            expired |= surface.expire(now);
+        }
+        if self.windows.iter().all(|surface| surface.mapped) {
+            for surface in self.windows.iter_mut().filter(|s| !s.holds()) {
+                surface.unwatch();
+            }
+        }
+        expired || self.windows.iter().any(|surface| surface.fade.active(now))
+    }
+
+    /// `child`, inside the window that `parent` belongs to, changed size or place; see
+    /// `Surface::relayout`.
+    pub(crate) fn relayout(&mut self, parent: Window, child: Window) {
+        for surface in self
+            .windows
+            .iter_mut()
+            .filter(|surface| surface.window != child && surface.watches(parent))
+        {
+            surface.relayout();
+        }
+    }
+
+    /// The first time a hold ends unless its client draws before.
+    pub(crate) fn deadline(&self) -> Option<Instant> {
+        self.windows.iter().filter_map(Surface::hold_deadline).min()
     }
 }
 

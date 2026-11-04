@@ -96,6 +96,7 @@ Restaure qualquer linha de inicialização que você alterou. Encerrar a sessão
 ## Limitações conhecidas
 
 - Uma janela que fecha desvanece acima das janelas que não estavam sobre ela quando fechou. Um gerenciador de janelas que expande a vizinha antes de a janela fechar ainda deixa a vizinha cobri-la.
+- Uma janela que o gerenciador de janelas expande sobre outra que fecha mostra a imagem anterior até o cliente desenhar a nova, por no máximo um segundo. Um cliente mais lento que isso mostra na parte nova a última imagem da janela que fecha até desenhar.
 - A suspensão da composição em tela cheia exige uma janela opaca e quadrada sobre a tela inteira, então nunca vale para um monitor entre vários.
 - As sombras são pretas, e janelas com formato próprio não projetam sombra e mantêm os cantos quadrados. Bordas X arredondadas usam o pixel superior esquerdo da borda como cor em todos os cantos; gerenciadores que pintam cada lado com uma cor diferente não mantêm essas cores distintas nos cantos.
 - Não há animações de movimento ou escala, opções globais para a opacidade das janelas ativas e inativas além das regras nem compatibilidade com a configuração do picom.

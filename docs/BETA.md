@@ -97,6 +97,7 @@ Restore any startup line you changed. Logging out also ends Compust: when the X 
 
 - Fullscreen unredirection needs one opaque, square window over the whole screen, so it never applies to one monitor of several.
 - A closing window fades above the windows that were not over it when it closed. A window manager that grows the neighbor before the window closes still lets the neighbor cover it.
+- A window that a window manager grows over a closing one shows its previous image until its client draws the new one, for at most a second. A client slower than that shows the closing window's last image in its new part until it draws.
 - Shadows are black, and shaped windows cast none and keep square corners. Rounded X borders use the top-left border pixel as their color around every corner; window managers that paint different colors on different edges cannot keep those colors distinct at the corners.
 - There are no movement or scale animations, no global settings for the opacity of active and inactive windows beyond rules, and no picom configuration compatibility.
 - Rules match exact text. Focus comes from `_NET_ACTIVE_WINDOW`; under a window manager that does not set it, such as Xmonad without `XMonad.Hooks.EwmhDesktops`, every window counts as focused.

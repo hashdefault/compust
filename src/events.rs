@@ -11,7 +11,7 @@ use x11rb::{
     NONE,
     protocol::{
         Event,
-        damage::ConnectionExt as _,
+        damage::{ConnectionExt as _, NotifyEvent as DamageNotifyEvent},
         present::{CompleteKind, CompleteMode, CompleteNotifyEvent},
         xproto::{ConfigureNotifyEvent, ConnectionExt as _, MapState, Place, Window, WindowClass},
     },
@@ -61,6 +61,9 @@ impl Compositor {
                     self.dirty = true;
                 } else {
                     let changed = self.configure(&event)?;
+                    if event.event != root {
+                        self.scene.relayout(event.event, event.window);
+                    }
                     self.clients_changed(&[event.event])?;
                     self.dirty |= self.scene.restack(&self.session)? || changed;
                 }
@@ -68,17 +71,7 @@ impl Compositor {
             Event::CirculateNotify(_) => {
                 self.dirty |= self.scene.restack(&self.session)?;
             }
-            Event::DamageNotify(event) => {
-                if let Some(surface) = self.scene.windows.iter().find(|s| s.damage == event.damage)
-                {
-                    self.session
-                        .conn
-                        .damage_subtract(event.damage, NONE, NONE)?;
-                    self.renderer
-                        .damage(Source::Window(surface.window), surface.damaged(event.area));
-                    self.dirty = true;
-                }
-            }
+            Event::DamageNotify(event) => self.drawn(&event)?,
             Event::ShapeNotify(event) => self.shape_changed(event.affected_window)?,
             Event::PropertyNotify(event) => self.property_changed(event)?,
             Event::PresentIdleNotify(event)
@@ -215,6 +208,29 @@ impl Compositor {
         }
     }
 
+    /// Something drew in a window: in the pixmap a surface shows, which the next frame
+    /// repaints, or in a window watched while another closes; see `Surface::painted`.
+    fn drawn(&mut self, event: &DamageNotifyEvent) -> Result<()> {
+        if let Some(surface) = self.scene.windows.iter().find(|s| s.damage == event.damage) {
+            self.session
+                .conn
+                .damage_subtract(event.damage, NONE, NONE)?;
+            self.renderer
+                .damage(Source::Window(surface.window), surface.damaged(event.area));
+            self.dirty = true;
+        } else if let Some(surface) = self
+            .scene
+            .windows
+            .iter_mut()
+            .find(|s| s.watching(event.damage))
+        {
+            // The level's high bit says that more reports follow at once.
+            let more = u8::from(event.level) & 0x80 != 0;
+            self.dirty |= surface.painted(event.area, more);
+        }
+        Ok(())
+    }
+
     /// Start fading `window` out, if it was shown. The closing surface changes its place in
     /// the stack, so the order is worked out again at once.
     fn closed(&mut self, window: Window) -> Result<()> {
@@ -321,12 +337,15 @@ impl Compositor {
     fn configure(&mut self, event: &ConfigureNotifyEvent) -> Result<bool> {
         let window = event.window;
         let active = self.scene.active;
-        let Some(surface) = self
+        let Some(index) = self
             .scene
             .windows
-            .iter_mut()
-            .find(|s| s.window == window && s.mapped)
+            .iter()
+            .position(|s| s.window == window && s.mapped)
         else {
+            return Ok(false);
+        };
+        let Some(surface) = self.scene.windows.get_mut(index) else {
             return Ok(false);
         };
         let captured = &surface.geometry;
@@ -338,10 +357,7 @@ impl Compositor {
             && event.border_width == captured.border_width
         {
             // A move keeps the pixmap and its shape; later events carry later positions.
-            let moved = (surface.geometry.x, surface.geometry.y) != (event.x, event.y);
-            surface.geometry.x = event.x;
-            surface.geometry.y = event.y;
-            return Ok(moved);
+            return Ok(surface.move_to(event.x, event.y));
         }
         let capture = Surface::capture(
             window,
@@ -355,9 +371,9 @@ impl Compositor {
             },
         );
         match capture {
-            Ok(Some(mut replacement)) => {
-                std::mem::swap(&mut replacement.fade, &mut surface.fade);
-                *surface = replacement;
+            Ok(Some(replacement)) => {
+                self.scene
+                    .resized(index, replacement, std::time::Instant::now());
             }
             Ok(None) => (),
             Err(error) if vanished(&error) => {

@@ -5,7 +5,7 @@ use crate::{
     atoms::{Atoms, cardinal},
     config::Config,
     picture::{Picture, Size},
-    region::Rect,
+    region::{Rect, without},
     rules::{self, Identity, Overrides, WindowType},
 };
 use anyhow::{Context, Result};
@@ -47,6 +47,13 @@ pub(crate) struct Surface {
     /// began, which keep covering it while it fades; see `Scene::restack`. `None` when it is
     /// not closing, or closed without a stacking order to go by.
     pub(crate) blockers: Option<Vec<Window>>,
+    /// The capture a resize replaced, which frames show instead of this one until the client
+    /// draws into its new pixmap; see `Scene::resized`.
+    held: Option<Held>,
+    /// Damage on the window itself, reporting every rectangle drawn in it, while a window
+    /// closes nearby; see `Scene::close`. Unlike `damage`, it follows the window across a
+    /// resize, so it also reports what the client draws before the new pixmap is captured.
+    watch: Option<Watch>,
     /// What rules match on, from the client window.
     identity: Identity,
     /// The window `identity` came from.
@@ -57,6 +64,24 @@ pub(crate) struct Surface {
     /// What the rules give this surface.
     pub(crate) overrides: Overrides,
     conn: Rc<RustConnection>,
+}
+
+/// Damage that reports what is drawn in a window.
+struct Watch {
+    damage: u32,
+    /// Whether its first report has come. The server reports the whole window as damaged
+    /// when the damage is made, which says nothing of what the client drew.
+    settled: bool,
+}
+
+/// An earlier capture of a surface's window, shown in place of a newer one.
+struct Held {
+    surface: Box<Surface>,
+    /// When the newer capture shows even though its client has not drawn all of it.
+    until: Instant,
+    /// What is left to draw inside the window since its size or a child's last changed, in
+    /// window coordinates.
+    unpainted: Vec<Rect>,
 }
 
 pub(crate) struct Capture<'a> {
@@ -140,6 +165,8 @@ impl Surface {
             fade: Fade::opening(Instant::now(), fade_duration(context.config, overrides)),
             mapped: true,
             blockers: None,
+            held: None,
+            watch: None,
             identity,
             identified,
             override_redirect: attr.override_redirect,
@@ -210,6 +237,168 @@ impl Surface {
         Rect::at(area, (self.geometry.x, self.geometry.y))
     }
 
+    /// What frames show of the surface: the capture held in its place, or else itself.
+    pub(crate) fn shown(&self) -> &Self {
+        self.held.as_ref().map_or(self, |held| &held.surface)
+    }
+
+    /// Take over from `previous`, the capture of the same window that this one replaces after
+    /// a resize, along with its watch. A capture that `previous` held stays held, with its own
+    /// deadline, because its client has not drawn all of the window since; otherwise
+    /// `previous` itself is held until `until`, when there is one. Either way, only what is
+    /// drawn from now on counts.
+    pub(crate) fn succeed(&mut self, mut previous: Self, until: Option<Instant>) {
+        self.watch = previous.watch.take();
+        self.held = match (previous.held.take(), until) {
+            (Some(held), _) => Some(held),
+            (None, Some(until)) => Some(Held {
+                surface: Box::new(previous),
+                until,
+                unpainted: Vec::new(),
+            }),
+            (None, None) => None,
+        };
+        self.relayout();
+        if self.held.is_some() {
+            // Watching only now misses what the client drew before, which the deadline covers.
+            if self.watch.is_none() {
+                self.watch_drawing();
+            }
+        }
+    }
+
+    /// Whether the window manager handles the window, as it does not menus and tooltips.
+    pub(crate) fn managed(&self) -> bool {
+        !self.override_redirect
+    }
+
+    /// Whether frames show an earlier capture in place of this one.
+    pub(crate) fn holds(&self) -> bool {
+        self.held.is_some()
+    }
+
+    /// Watch what is drawn in the window, unless that is already watched.
+    pub(crate) fn watch_drawing(&mut self) {
+        if self.watch.is_some() {
+            return;
+        }
+        let damage = (|| -> Result<u32> {
+            let damage = self.conn.generate_id()?;
+            // A window gone meanwhile reports nothing, and is let go of with the surface.
+            self.conn
+                .damage_create(damage, self.window, ReportLevel::RAW_RECTANGLES)?
+                .ignore_error();
+            Ok(damage)
+        })();
+        match damage {
+            Ok(damage) => {
+                self.watch = Some(Watch {
+                    damage,
+                    settled: false,
+                });
+            }
+            Err(error) => tracing::debug!(%error, "watching a window's drawing failed"),
+        }
+    }
+
+    /// Stop watching what is drawn in the window.
+    pub(crate) fn unwatch(&mut self) {
+        if let Some(watch) = self.watch.take()
+            && let Err(error) = self
+                .conn
+                .damage_destroy(watch.damage)
+                .map(x11rb::cookie::VoidCookie::ignore_error)
+        {
+            tracing::debug!(%error, "watch cleanup failed");
+        }
+    }
+
+    pub(crate) fn watching(&self, damage: u32) -> bool {
+        self.watch
+            .as_ref()
+            .is_some_and(|watch| watch.damage == damage)
+    }
+
+    /// Something drew `area` in the window, in window coordinates, as the watch reports it,
+    /// with `more` reports to follow at once; reports whether that ends a hold. The hold ends
+    /// once everything inside the border is drawn, because until then the new pixmap may still
+    /// show what the screen showed. The server's own painting stays out: the reports that come
+    /// when the watch is made, and the border it paints, as when a window manager changes its
+    /// color, which it reports over the whole window. The parts of children that a resize
+    /// uncovers it copies from what lies beneath them; see `relayout`. A report bounds what
+    /// one drawing request touched, so a client that draws sparsely after a resize can end a
+    /// hold early.
+    pub(crate) fn painted(&mut self, area: Rectangle, more: bool) -> bool {
+        if let Some(watch) = self.watch.as_mut().filter(|watch| !watch.settled) {
+            watch.settled = !more;
+            return false;
+        }
+        let inside = self.inside();
+        let Some(held) = self.held.as_mut() else {
+            return false;
+        };
+        let area = Rect::at(area, (0, 0));
+        if inside.contains(area) {
+            held.unpainted = without(std::mem::take(&mut held.unpainted), &[area]);
+        }
+        if held.unpainted.is_empty() {
+            self.held = None;
+            return true;
+        }
+        false
+    }
+
+    /// A child of the window changed size or place, as a browser resizes the child it draws
+    /// into after its window grows. The server fills what that uncovers from beneath, so what
+    /// was drawn before counts no longer: the client draws again for the new layout.
+    pub(crate) fn relayout(&mut self) {
+        let inside = self.inside();
+        if let Some(held) = self.held.as_mut() {
+            held.unpainted = vec![inside];
+        }
+    }
+
+    /// The window inside its border, in window coordinates.
+    fn inside(&self) -> Rect {
+        Rect::new(0, 0, self.geometry.width, self.geometry.height)
+    }
+
+    /// When a hold ends if the client draws nothing first. A closing surface keeps the image
+    /// its client last drew until it is gone, so it has none.
+    pub(crate) fn hold_deadline(&self) -> Option<Instant> {
+        self.held
+            .as_ref()
+            .filter(|_| self.mapped)
+            .map(|held| held.until)
+    }
+
+    /// End a hold whose time is up; reports whether one ended.
+    pub(crate) fn expire(&mut self, now: Instant) -> bool {
+        if self.hold_deadline().is_some_and(|until| now >= until) {
+            self.held = None;
+            return true;
+        }
+        false
+    }
+
+    /// Follow a move of the window to (`x`, `y`) on the root, which keeps its pixmap; a held
+    /// capture moves along with it. Reports whether the surface moved.
+    pub(crate) fn move_to(&mut self, x: i16, y: i16) -> bool {
+        let (from_x, from_y) = (self.geometry.x, self.geometry.y);
+        if let Some(held) = self.held.as_mut() {
+            let shift = |held: i16, from: i16, to: i16| {
+                let moved = i32::from(held) + i32::from(to) - i32::from(from);
+                i16::try_from(moved).unwrap_or(if moved < 0 { i16::MIN } else { i16::MAX })
+            };
+            let geometry = &mut held.surface.geometry;
+            geometry.x = shift(geometry.x, from_x, x);
+            geometry.y = shift(geometry.y, from_y, y);
+        }
+        self.geometry.x = x;
+        self.geometry.y = y;
+        (from_x, from_y) != (x, y)
+    }
+
     pub(crate) fn watches(&self, window: Window) -> bool {
         self.client_tree.watched.contains(&window)
     }
@@ -236,8 +425,13 @@ impl Surface {
     /// Follow the active window to `active`; reports whether the rules now give the surface
     /// other settings.
     pub(crate) fn focus(&mut self, active: Option<Window>, config: &Config) -> bool {
+        // A held capture shows meanwhile, with the settings the rules give it for that focus.
+        let held = self
+            .held
+            .as_mut()
+            .is_some_and(|held| held.surface.focus(active, config));
         let now = focused(active, self.identified);
-        std::mem::replace(&mut self.identity.focused, now) != now && self.apply(config)
+        (std::mem::replace(&mut self.identity.focused, now) != now && self.apply(config)) || held
     }
 
     /// Whether the surface casts a shadow where shadows are on: as its rule says, or else as
@@ -292,8 +486,12 @@ impl Surface {
     /// Resolve the rules of `config` for this surface again, as after a reload; reports
     /// whether they now give it other settings.
     pub(crate) fn apply(&mut self, config: &Config) -> bool {
+        let held = self
+            .held
+            .as_mut()
+            .is_some_and(|held| held.surface.apply(config));
         let overrides = rules::overrides(&config.rules, &self.identity);
-        std::mem::replace(&mut self.overrides, overrides) != overrides
+        std::mem::replace(&mut self.overrides, overrides) != overrides || held
     }
 
     /// How long this surface's fades take: its rule's `fade_ms`, or else the global one.
@@ -447,6 +645,7 @@ fn lists(reply: &GetPropertyReply, atom: Atom) -> bool {
 
 impl Drop for Surface {
     fn drop(&mut self) {
+        self.unwatch();
         if let Err(error) = self
             .conn
             .damage_destroy(self.damage)

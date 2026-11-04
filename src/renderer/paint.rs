@@ -526,7 +526,8 @@ impl Renderer {
 
 /// The surfaces a frame shows, bottom to top, with their opacity: their own, times their
 /// rule's or else the global one, times their fade. Each casts the shadow `config` gives it,
-/// and has its corners rounded as `config` says.
+/// and has its corners rounded as `config` says. A surface holding an earlier capture shows
+/// that capture, at its own opacity.
 fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
     let now = Instant::now();
     let mut visible = Vec::with_capacity(scene.windows.len());
@@ -537,6 +538,7 @@ fn visible<'a>(scene: &'a Scene, config: &Config) -> Result<Vec<Seen<'a>>> {
             multiply_alpha(surface.opacity, configured),
             surface.fade.sample(now),
         );
+        let surface = surface.shown();
         if opacity > 0 {
             let corners = corner::radius(surface, config);
             visible.push(Seen {

@@ -189,11 +189,16 @@ impl Compositor {
             let timeout = if (self.dirty || animating) && self.can_paint() {
                 next_frame.saturating_duration_since(Instant::now())
             } else {
-                self.present_deadline().map_or(IDLE_POLL, |deadline| {
-                    deadline
-                        .saturating_duration_since(Instant::now())
-                        .min(IDLE_POLL)
-                })
+                // A held capture gives way at its deadline even if nothing else happens.
+                [self.present_deadline(), self.scene.deadline()]
+                    .into_iter()
+                    .flatten()
+                    .min()
+                    .map_or(IDLE_POLL, |deadline| {
+                        deadline
+                            .saturating_duration_since(Instant::now())
+                            .min(IDLE_POLL)
+                    })
             };
             self.wait(timeout)?;
         }
