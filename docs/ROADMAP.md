@@ -4,7 +4,7 @@
 
 The goal is a minimal Rust compositor that becomes a practical choice for Xorg and XLibre users; the [1.0 milestone](#10-stable-release) defines what that takes. Progress is measured through Compust's own correctness, reliability, latency, and resource records. Rewriting an existing feature in Rust is not, by itself, evidence of better performance.
 
-## Status and priorities (2026-10-05)
+## Status and priorities (2026-11-04)
 
 The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
 
@@ -18,21 +18,21 @@ The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prereleas
 | 1.0 step 1 | Shadows, fullscreen unredirection, and rules by focus, released in 0.3.0-beta.2 | [Step 1](#1-features-picom-users-rely-on) |
 | Rounded corners | Tasks 1 to 5: corners, rounded shadows, and blur at the arcs in both renderers, released in 0.3.0-beta.2 | [Rounded Corners](#rounded-corners-implemented) |
 | Hardware | AMD on XLibre with two desktops and five window managers, AMD on Xorg with i3 and both renderers, and Intel on Xorg with four window managers, hotplug, and suspend | [Compatibility matrix](#compatibility-matrix) |
+| Reliability | The stale frame after a monitor change, which came from its test's timing | [Monitor-change test](#local-beta-testing-the-monitor-change-tests-stale-frame) |
 | Distribution | Reproducible release archives with checksums, and Open Build Service packages built and tested from the release tag | [Fifth beta](#fifth-beta-prerelease), [packaging](../packaging/obs/README.md) |
 | Planned | Active and Inactive Opacity, its schema decided; Window Animations | [Active and Inactive Opacity](#active-and-inactive-opacity-planned), [Window Animations](#window-animations-planned) |
 
 ### Priorities
 
-In order, each with the reason it comes before the next. Items 1 to 6 lie on the [path to 1.0](#release-path).
+In order, each with the reason it comes before the next. Items 1 to 5 lie on the [path to 1.0](#release-path).
 
-1. **Find the stale frame after a monitor change.** The X11 test `regions::monitor_changes_repaint_the_whole_screen` failed in 4 of 12 full parallel runs on the Radeon Vega desktop on 2026-10-05, as often before the rounded-corner work as after it: after a monitor change, 4,800 pixels differed from a full repaint, from (0, 180) on. It passed 20 runs in a row alone, in CI, and in every Open Build Service build. 1.0 promises that ordinary activity never leaves stale pixels, and a test that fails at random also hides new failures. Reproduce it under load, find the ordering it depends on, and fix it with a regression that fails without the fix.
-2. **Bring 0.3.0-beta.3 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
-3. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. A [live qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop has since recorded corners, shadows, and blur under one window manager in both renderers, with synthetic windows and without the probe. Testers' reports from item 2 can supply part of it.
-4. **Start the endurance runs.** [Step 4](#4-endurance) has not started. Write the automated run of 10,000 window cycles with XRes checks, and count the week of daily use on the Radeon Vega desktop, which already runs Compust as its compositor.
-5. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
-6. **Measure the release candidates.** [Step 3](#3-independent-performance-measurements) runs the benchmark scenes on the candidates of item 5 in each environment item 3 qualifies, including the cost of shadows and rounded corners.
-7. **Active and Inactive Opacity, tasks 2 to 6.** Rules by focus already dim inactive windows, so this milestone is recommended after 1.0.0-rc.1, keeping 1.0's settings as they are. If its settings are to be part of 1.0, they must land before the configuration review of item 5.
-8. **Window Animations**, after 1.0.
+1. **Bring 0.3.0-beta.3 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
+2. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. A [live qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop has since recorded corners, shadows, and blur under one window manager in both renderers, with synthetic windows and without the probe. Testers' reports from item 1 can supply part of it.
+3. **Start the endurance runs.** [Step 4](#4-endurance) has not started. Write the automated run of 10,000 window cycles with XRes checks, and count the week of daily use on the Radeon Vega desktop, which already runs Compust as its compositor.
+4. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
+5. **Measure the release candidates.** [Step 3](#3-independent-performance-measurements) runs the benchmark scenes on the candidates of item 4 in each environment item 2 qualifies, including the cost of shadows and rounded corners.
+6. **Active and Inactive Opacity, tasks 2 to 6.** Rules by focus already dim inactive windows, so this milestone is recommended after 1.0.0-rc.1, keeping 1.0's settings as they are. If its settings are to be part of 1.0, they must land before the configuration review of item 4.
+7. **Window Animations**, after 1.0.
 
 ## 0.1 foundation: implemented
 
@@ -150,6 +150,12 @@ The defect is not specific to hotplug or i3: any window manager that resizes a w
 Compust reuses its Present buffer only after the completion and idle events of the previous submission. Outside a RandR change, a lost event left the screen frozen while the compositor kept running. No such loss has been observed on hardware; the risk was found by reviewing the code. A submission that reports nothing within one second is now abandoned: Compust replaces its buffers and repaints the frame once. If the next submission also times out, it waits for new damage before painting again.
 
 A new regression in [presentation.rs](../tests/cases/presentation.rs) withholds one submission's events without any monitor change. It failed before the fix, with the screen left on the previous frame, and passes afterward. All 69 tests, formatting, strict Clippy, and the release build pass. Virtual-terminal switching and suspend/resume, where such a loss is most likely, remain untested on hardware.
+
+### Local beta testing: the monitor-change test's stale frame
+
+Priority 1 of 2026-10-05 followed `regions::monitor_changes_repaint_the_whole_screen`, which failed in 4 of 12 loaded runs of the suite on the Radeon Vega desktop with 4,800 stale pixels below row 180. The stale frame was the test's own. After restoring the monitor, it waited for a pixel that the 240×180 frame had already cleared, then for two of the server's vblanks, which do not show that Compust has painted. Under load it could read the screen before Compust's first frame at the restored size, and Compust repainted the strip in its next frame without further activity.
+
+The test now moves its window past the old width after the restore and waits for it there, which only a frame at the restored size can show. The move leaves the strip below row 180 alone, so the test still requires the full repaint. A second case holds Compust's first Present request after the change in a proxy and releases it at once. Reading the screen at the old point fails in that case in every run, and the new wait passes. Before the change, reading at the old point also failed in 1 of 3 runs of the ordinary case on an idle machine; afterward, both cases passed 10 runs of the region tests in a row on two CPUs with 12 test threads. No compositor code changed. These runs used Xorg's Xvfb 21.1.25: XLibre 25.1.9's Xvfb rejects the tests' RandR CRTC changes with `BadValue`, so eight monitor and Present tests fail there before and after the change.
 
 ### Client/frame lifecycle: implemented
 

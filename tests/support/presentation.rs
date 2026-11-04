@@ -27,12 +27,15 @@ pub(crate) enum Fault {
     /// A wait fence that stays untriggered until `release`: neither completion nor idle
     /// events follow before it.
     Fence,
+    /// Hold the request in the proxy until `resume`, before the server can process it.
+    Hold,
 }
 
 pub(crate) struct Presentation {
     proxy: Proxy,
     commands: SyncSender<Fault>,
     intercepted: Receiver<()>,
+    resume: SyncSender<()>,
     submissions: Arc<AtomicU32>,
     /// Each submission's update region; `None` updates the whole window.
     updates: Arc<Mutex<Vec<Option<Area>>>>,
@@ -64,6 +67,7 @@ impl Presentation {
         conn.sync_create_fence(root, fence, false)?.check()?;
         let (commands, receive) = sync_channel(1);
         let (send, intercepted) = sync_channel(1);
+        let (resume, held) = sync_channel(1);
         let submissions = Arc::new(AtomicU32::new(0));
         let count = Arc::clone(&submissions);
         let updates = Arc::new(Mutex::new(Vec::new()));
@@ -87,16 +91,23 @@ impl Presentation {
                     .map_err(|_| anyhow::anyhow!("update record poisoned"))?
                     .push(update);
                 if let Ok(fault) = receive.try_recv() {
-                    let (offset, replacement) = match fault {
-                        Fault::Depth => (4, incompatible),
-                        Fault::Pixmap => (4, NONE),
-                        Fault::Window => (0, NONE),
-                        Fault::Fence => (28, fence),
+                    let replacement = match fault {
+                        Fault::Depth => Some((4, incompatible)),
+                        Fault::Pixmap => Some((4, NONE)),
+                        Fault::Window => Some((0, NONE)),
+                        Fault::Fence => Some((28, fence)),
+                        Fault::Hold => None,
                     };
-                    body.get_mut(offset..offset + 4)
-                        .context("short Present request")?
-                        .copy_from_slice(&replacement.to_ne_bytes());
+                    if let Some((offset, replacement)) = replacement {
+                        body.get_mut(offset..offset + 4)
+                            .context("short Present request")?
+                            .copy_from_slice(&replacement.to_ne_bytes());
+                    }
                     send.send(())?;
+                    if matches!(fault, Fault::Hold) {
+                        held.recv_timeout(Duration::from_secs(5))
+                            .context("held Present request was not resumed")?;
+                    }
                 }
             }
             Ok(())
@@ -107,6 +118,7 @@ impl Presentation {
                 proxy,
                 commands,
                 intercepted,
+                resume,
                 submissions,
                 updates,
                 fence,
@@ -144,6 +156,11 @@ impl Presentation {
 
     pub(crate) fn submissions(&self) -> u32 {
         self.submissions.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn resume(&self) -> Result<()> {
+        self.resume.send(())?;
+        Ok(())
     }
 
     pub(crate) fn finish(&mut self) -> Result<()> {

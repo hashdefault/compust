@@ -3,7 +3,7 @@ use crate::{
     support::{
         Desktop,
         monitors::Monitor,
-        presentation::{Area, Presentation},
+        presentation::{Area, Fault, Presentation},
     },
 };
 use anyhow::{Context, Result, ensure};
@@ -189,8 +189,17 @@ fn blurred_damage_matches_a_full_repaint(vsync: bool) -> Result<()> {
 
 #[test]
 fn monitor_changes_repaint_the_whole_screen() -> Result<()> {
+    monitor_changes(false)
+}
+
+#[test]
+fn monitor_changes_repaint_the_whole_screen_after_delayed_present() -> Result<()> {
+    monitor_changes(true)
+}
+
+fn monitor_changes(delayed: bool) -> Result<()> {
     let settings = "fade_ms = 0\nblur_radius = 4";
-    let mut desktop = Desktop::new(settings)?;
+    let (mut desktop, mut presentation) = Desktop::with_display(settings, Presentation::start)?;
     // The right half shows the bare background, which no window's changes repaint.
     striped(&desktop, 160)?;
     let moving = desktop.window(rect(20, 20), 0x00ff_0000)?;
@@ -210,11 +219,27 @@ fn monitor_changes_repaint_the_whole_screen() -> Result<()> {
         .configure_window(moving, &ConfigureWindowAux::new().x(120))?
         .check()?;
     desktop.until_pixel((130, 30), |p| p == RED)?;
+    if delayed {
+        presentation.inject(Fault::Hold)?;
+    }
     desktop.resize_root((320, 240))?;
     monitor.restore(&desktop)?;
+    desktop
+        .conn
+        .configure_window(moving, &ConfigureWindowAux::new().x(220))?
+        .check()?;
+    // The old position was already clear in the small frame, so this pixel alone does not
+    // show that a restored frame was shown.
     desktop.until_pixel((60, 30), |p| p != RED)?;
-    desktop.wait_vblanks(2)?;
-
+    if delayed {
+        // Released at once: past Compust's one-second Present timeout, it would replace its
+        // buffers, and the held frame could reach the screen after the new one.
+        presentation.injected()?;
+        presentation.resume()?;
+    }
+    // This move proves a restored frame was shown, without damaging the newly exposed strip
+    // below y = 180.
+    desktop.until_pixel((250, 30), |p| p == RED)?;
     let shown = desktop.image()?;
     assert_same(
         &shown,
@@ -222,7 +247,7 @@ fn monitor_changes_repaint_the_whole_screen() -> Result<()> {
         "after a monitor change",
     );
     assert!(desktop.compositor.0.try_wait()?.is_none());
-    Ok(())
+    presentation.finish()
 }
 
 #[test]
