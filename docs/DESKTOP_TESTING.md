@@ -152,6 +152,17 @@ Each scene directory holds `summary.csv` with Present intervals, CPU, RSS, open 
 
 Present completes no frames while DPMS has the monitors off. The runner turns them on, disables the screen saver and DPMS for the run, and restores the previous settings afterward. Run it in a dedicated session or on an otherwise idle desktop: other applications' redraws become part of every scene, under either Compust painter.
 
+## Run the endurance checks
+
+Step 4 of the [1.0 milestone](ROADMAP.md#4-endurance) has two parts. The automated run drives the real compositor on Xvfb through 10,000 cycles that open, resize, and close windows of seven kinds: opaque, translucent ARGB, with `_NET_WM_WINDOW_OPACITY`, shaped, override-redirect, a 32-bit window that draws into a 24-bit child as browsers do, and a neighbor that grows over a closing window and then redraws. It closes them by unmapping, by unmapping and destroying, or by destroying, and every 250 cycles it reloads between a plain configuration and one with fades, blur, shadows, and rounded corners. It passes when Compust's XRes counts and owned pixmap bytes, read under the plain configuration once nothing fades or is held, match those after a warmup of 100 cycles. A 40-cycle version runs with the X11 tests.
+
+```sh
+XVFB=/path/to/Xvfb COMPUST_ARTIFACTS=artifacts cargo test --release --locked --test x11 \
+    endurance_cycles_keep_resources_stable -- --ignored --nocapture
+```
+
+`COMPUST_ENDURANCE_CYCLES` sets another number of cycles. Every 1,000 cycles the run prints the resources and Compust's resident memory, which `COMPUST_ARTIFACTS` also keeps in `endurance.csv`. The [recorded run](#recorded-endurance-run-2026-11-04) used Xorg's Xvfb.
+
 ## Recorded hardware session: 2026-10-03
 
 The session ran on CachyOS with Linux 7.2.8-2-cachyos and native XLibre 25.1.9 using its modesetting driver. It used the amdgpu kernel driver, an AMD Ryzen 5 5600GT with integrated Radeon Vega graphics, Mesa 26.2.4, libdrm 2.4.134, and Xmonad 0.18.1 with xmonad-contrib 0.18.2. The desktop kept its ordinary Xmonad configuration, status bar, and tray. HDMI-1 was the primary output on the right; DP-1, a DisplayPort-to-VGA adapter, was on the left. Both ran 1920×1080 at 60 Hz for a 3840×1080 root. Picom was stopped before the runs and restarted afterward. The [package versions](benchmarks/2026-10-03/hardware/packages.txt) are archived with the reports.
@@ -690,6 +701,10 @@ Each painter [passed 20 checks of 20](benchmarks/2026-10-05/qtile-intel-xorg/REA
 Three things were seen besides the checks. After the reload back to XRender, Compust's RSS stayed at 77,176 KiB instead of returning to 3,712 KiB. Forty-four seconds after the last run, with nothing under test, the log recorded `Present did not finish a submission` once a second for 14 seconds; its cause was not found. A checker of 4-pixel cells on the blur's own grid stayed visible behind the 50% window in an earlier pass.
 
 The phases last six to eight seconds, ran once, and shared the session with a terminal and a bar. Applications, Present timing, hotplug, and suspend and resume were not checked under qtile, and the repository's probe has no qtile mode.
+
+## Recorded endurance run: 2026-11-04
+
+The automated run passed on the RX 9060 XT desktop, in a release build on Xorg's Xvfb 21.1.25, with the source on top of 09a96bb. Its 10,000 cycles took 321 seconds, about 32 ms each. After them, under the plain configuration, Compust held exactly what it held after the warmup. XRes counted 4 `PIXMAP` of 353,601 bytes in all, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient`, and one each of `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW`, and `XFixesRegion`. Checkpoints under the effects configuration held more, up to 32 `PIXMAP` of 704,257 bytes, for the blur levels, fading windows, and held captures, and every switch back to the plain configuration returned to the baseline. Compust's resident memory went from 4,212 KiB at the baseline to 4,280 KiB by cycle 1,000, and was 4,284 KiB from cycle 5,000 to the end. An earlier run of the same test ended with the same resources, at 4,324 and 4,396 KiB.
 
 ## Complete the hardware gates
 

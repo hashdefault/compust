@@ -152,6 +152,17 @@ Cada diretório de cena contém `summary.csv`, com intervalos do Present, CPU, R
 
 O Present não conclui quadros enquanto o DPMS mantém os monitores desligados. O script os liga, desativa a proteção de tela e o DPMS durante a execução e restaura as opções anteriores ao final. Execute-o em uma sessão dedicada ou em um desktop ocioso: os redesenhos de outros aplicativos entram em todas as cenas, com qualquer pintor do Compust.
 
+## Executar os testes de uso prolongado
+
+A etapa 4 do [marco 1.0](ROADMAP.pt-BR.md#4-uso-prolongado) tem duas partes. A execução automática conduz o compositor real no Xvfb por 10.000 ciclos que abrem, redimensionam e fecham janelas de sete tipos: opaca, ARGB translúcida, com `_NET_WM_WINDOW_OPACITY`, com formato, override-redirect, uma janela de 32 bits que desenha numa filha de 24 bits, como os navegadores, e uma vizinha que cresce sobre uma janela que fecha e depois se redesenha. Ela as fecha desmapeando, desmapeando e destruindo, ou destruindo, e a cada 250 ciclos recarrega alternando entre uma configuração simples e outra com fades, desfoque, sombras e cantos arredondados. Ela passa quando as contagens do XRes e os bytes de pixmaps próprios do Compust, lidos na configuração simples quando nada mais desvanece nem fica retido, são iguais aos de depois de um aquecimento de 100 ciclos. Uma versão de 40 ciclos roda com os testes X11.
+
+```sh
+XVFB=/caminho/do/Xvfb COMPUST_ARTIFACTS=artifacts cargo test --release --locked --test x11 \
+    endurance_cycles_keep_resources_stable -- --ignored --nocapture
+```
+
+`COMPUST_ENDURANCE_CYCLES` define outro número de ciclos. A cada 1.000 ciclos a execução mostra os recursos e a memória residente do Compust, que `COMPUST_ARTIFACTS` também guarda em `endurance.csv`. A [execução registrada](#execução-de-uso-prolongado-registrada-2026-11-04) usou o Xvfb do Xorg.
+
 ## Sessão registrada em hardware: 2026-10-03
 
 A sessão rodou no CachyOS com Linux 7.2.8-2-cachyos e XLibre 25.1.9 nativo usando o driver modesetting. Ela usou o driver de kernel amdgpu, um AMD Ryzen 5 5600GT com gráficos Radeon Vega integrados, Mesa 26.2.4, libdrm 2.4.134 e Xmonad 0.18.1 com xmonad-contrib 0.18.2. O desktop manteve sua configuração habitual do Xmonad, barra de status e bandeja. HDMI-1 era a saída principal, à direita; DP-1, um adaptador DisplayPort para VGA, ficava à esquerda. Ambas usaram 1920×1080 a 60 Hz, formando uma raiz de 3840×1080. O Picom foi parado antes das execuções e reiniciado depois. As [versões dos pacotes](benchmarks/2026-10-03/hardware/packages.txt) estão arquivadas com os relatórios.
@@ -690,6 +701,10 @@ Cada pintor [passou em 20 de 20 verificações](benchmarks/2026-10-05/qtile-inte
 Três coisas foram vistas além das verificações. Após recarregar de volta para o XRender, o RSS do Compust ficou em 77.176 KiB em vez de voltar a 3.712 KiB. Quarenta e quatro segundos depois da última execução, sem nada em teste, o log registrou `Present did not finish a submission` uma vez por segundo durante 14 segundos; a causa não foi encontrada. Um quadriculado com células de 4 pixels na própria grade do desfoque continuou visível atrás da janela a 50% em uma passagem anterior.
 
 As fases duram de seis a oito segundos, rodaram uma vez e dividiram a sessão com um terminal e uma barra. Aplicativos, a temporização do Present, hotplug e suspensão e retomada não foram verificados com o qtile, e o probe do repositório não tem modo para o qtile.
+
+## Execução de uso prolongado registrada: 2026-11-04
+
+A execução automática passou no desktop com RX 9060 XT, num build de release no Xvfb 21.1.25 do Xorg, com o código sobre a 09a96bb. Os 10.000 ciclos levaram 321 segundos, cerca de 32 ms cada. Depois deles, na configuração simples, o Compust tinha exatamente o que tinha depois do aquecimento. O XRes contou 4 `PIXMAP` com 353.601 bytes no total, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient` e um de cada entre `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW` e `XFixesRegion`. Os pontos de controle na configuração com efeitos tinham mais, até 32 `PIXMAP` com 704.257 bytes, pelos níveis do desfoque, pelas janelas desvanecendo e pelas capturas retidas, e cada volta à configuração simples voltava à base. A memória residente do Compust foi de 4.212 KiB na base a 4.280 KiB até o ciclo 1.000 e ficou em 4.284 KiB do ciclo 5.000 até o fim. Uma execução anterior do mesmo teste terminou com os mesmos recursos, com 4.324 e 4.396 KiB.
 
 ## Concluir os critérios de hardware
 

@@ -8,6 +8,8 @@ mod client_lifecycle;
 mod compat;
 #[path = "cases/destruction.rs"]
 mod destruction;
+#[path = "cases/endurance.rs"]
+mod endurance;
 #[path = "cases/fades.rs"]
 mod fades;
 #[path = "cases/properties.rs"]

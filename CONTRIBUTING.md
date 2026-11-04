@@ -15,7 +15,7 @@ cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo test --locked --workspace
 ```
 
-`cargo test` starts isolated Xvfb instances with dynamically allocated displays, launches the actual binary, and checks pixels and X11 state. It needs neither your current `DISPLAY` nor a running desktop. Override the executable with `XVFB=/path/to/Xvfb`. The unit tests alone can be run with `cargo test --bin compust`. The GPU crate's tests need Mesa's EGL and skip without its software device, unless `COMPUST_GPU_TESTS` is set; `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` also checks DRI3 sharing on your session's GPU, with offscreen pixmaps only.
+`cargo test` starts isolated Xvfb instances with dynamically allocated displays, launches the actual binary, and checks pixels and X11 state. It needs neither your current `DISPLAY` nor a running desktop. Override the executable with `XVFB=/path/to/Xvfb`. The unit tests alone can be run with `cargo test --bin compust`. The GPU crate's tests need Mesa's EGL and skip without its software device, unless `COMPUST_GPU_TESTS` is set; `COMPUST_GPU_DISPLAY=:0 cargo test --test gpu` also checks DRI3 sharing on your session's GPU, with offscreen pixmaps only. A 10,000-cycle endurance run is ignored by default; the [desktop testing guide](docs/DESKTOP_TESTING.md#run-the-endurance-checks) shows how to run it.
 
 The tests wait for X11 events with deadlines. Preserve that approach: arbitrary delays make graphics tests flaky. Animation tests can observe time because animation is the behavior under test. Avoid assertions about log wording or private implementation details when the output pixels or protocol state can be checked.
 

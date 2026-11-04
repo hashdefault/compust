@@ -1,6 +1,7 @@
 use super::Desktop;
 use anyhow::{Context, Result, ensure};
 use std::collections::BTreeMap;
+use std::{fs::File, io::Write, time::Instant};
 use x11rb::{
     NONE,
     protocol::{
@@ -16,13 +17,78 @@ pub(crate) struct Resources {
 }
 
 impl Resources {
+    pub(crate) fn pixmap_bytes(&self) -> u64 {
+        self.pixmap_bytes
+    }
+
     /// How many resources of each type the compositor owns, without their sizes.
     pub(crate) fn counts(&self) -> &BTreeMap<String, u32> {
         &self.counts
     }
 }
 
+pub(crate) struct ResourceProgress {
+    name: &'static str,
+    started: Instant,
+    csv: Option<File>,
+}
+
+impl ResourceProgress {
+    pub(crate) fn new(name: &'static str) -> Result<Self> {
+        let csv = std::env::var_os("COMPUST_ARTIFACTS")
+            .map(|directory| {
+                std::fs::create_dir_all(&directory)?;
+                let mut file =
+                    File::create(std::path::PathBuf::from(directory).join(format!("{name}.csv")))?;
+                writeln!(file, "cycle,elapsed_ms,rss_kib,pixmap_bytes,counts")?;
+                Ok::<_, anyhow::Error>(file)
+            })
+            .transpose()?;
+        Ok(Self {
+            name,
+            started: Instant::now(),
+            csv,
+        })
+    }
+
+    pub(crate) fn checkpoint(&mut self, desktop: &Desktop, cycle: usize) -> Result<()> {
+        let resources = desktop.resources()?;
+        let elapsed = self.started.elapsed();
+        #[cfg(target_os = "linux")]
+        let rss = desktop.compositor_rss_kib()?;
+        #[cfg(not(target_os = "linux"))]
+        let rss = 0;
+        eprintln!(
+            "{} cycle={cycle} elapsed={elapsed:?} resources={resources:?} rss_kib={rss}",
+            self.name
+        );
+        if let Some(csv) = &mut self.csv {
+            let counts = format!("{:?}", resources.counts()).replace('"', "\"\"");
+            writeln!(
+                csv,
+                "{cycle},{},{rss},{},\"{counts}\"",
+                elapsed.as_millis(),
+                resources.pixmap_bytes()
+            )?;
+            csv.flush()?;
+        }
+        Ok(())
+    }
+}
+
 impl Desktop {
+    /// Wait for fade snapshots and held captures to release their server resources.
+    pub(crate) fn until_resources(&self, baseline: &Resources) -> Result<Resources> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            let current = self.resources()?;
+            if current == *baseline || std::time::Instant::now() >= deadline {
+                return Ok(current);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
     pub(crate) fn resources(&self) -> Result<Resources> {
         let version = self.conn.res_query_version(1, 2)?.reply()?;
         ensure!(
