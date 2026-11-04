@@ -173,13 +173,13 @@ target/release/examples/endurance_sample sample --display "$DISPLAY" \
     --server-pid "$(pgrep -x Xorg)"
 ```
 
-The sampler only queries the server. Each row holds Compust's PID and start time, its resident memory, its XRes counts and owned pixmap bytes, the milliseconds since the last input, the count of Present timeouts in the log so far, and the server's resident memory. A row marks Compust `absent` when no compositor owns the selection, and sampling goes on. After the week, the summary decides the criterion and exits with 0 when it holds:
+The sampler only queries the server. Each row holds Compust's PID and start time, its resident memory, its XRes counts and owned pixmap bytes, the milliseconds since the last input, the count of Present timeouts in the log so far, and the server's resident memory, with the session it belongs to: the boot and the server's start, which `--server-pid` gives. A row marks Compust `absent` when no compositor owns the selection, and sampling goes on. After the week, the summary decides the criterion and exits with 0 when it holds:
 
 ```sh
 target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
 ```
 
-It requires samples spanning seven days, and one Compust process throughout, with no restart (a new PID or start time) and no `absent` row. No interval may add two Present timeouts, and no two consecutive intervals may add one each. After a 60-minute warmup, the median memory of idle samples, those without input for five minutes, on the last day must be within 5% of that on the first day. A day without idle samples uses all of its samples, and the report says so; with less than two days of samples, memory is not yet decided.
+It requires samples spanning seven days. Within each session of the X server, which a logout or a shutdown ends, one Compust process must run throughout: no restart, which a new PID or start time shows, and no `absent` row once Compust has started. Rows from before it starts do not count, but a session in which it never starts fails. No interval may add two Present timeouts, and no two consecutive intervals may add one each. After a 60-minute warmup in each session, the median memory of idle samples, those without input for five minutes, on the last day must be within 5% of that on the first day. A day without idle samples uses all of its samples, and the report says so; with less than two days of samples, memory is not yet decided.
 
 ## Recorded hardware session: 2026-10-03
 

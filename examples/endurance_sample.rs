@@ -35,7 +35,7 @@ const REQUIRED_DAYS: u64 = 7;
 const MIN_MEMORY_DAYS: u64 = 2;
 const PRESENT_TIMEOUT_WARNING: &str = "Present did not finish a submission";
 
-const CSV_HEADER: &str = "unix_time,utc,status,pid,start_time,rss_kib,pixmap_bytes,resources_total,PIXMAP,PICTURE,WINDOW,DAMAGE,REGION,GC,FENCE,resources,idle_ms,present_timeouts,server_rss_kib";
+const CSV_HEADER: &str = "unix_time,utc,status,pid,start_time,rss_kib,pixmap_bytes,resources_total,PIXMAP,PICTURE,WINDOW,DAMAGE,REGION,GC,FENCE,resources,idle_ms,present_timeouts,server_rss_kib,server_session";
 
 #[derive(Parser)]
 #[command(about = "Sample and summarize a daily-use Compust endurance run")]
@@ -66,7 +66,9 @@ struct SampleArgs {
     /// Compust stderr log file to scan for Present timeout warnings.
     #[arg(long)]
     log: Option<PathBuf>,
-    /// X server PID whose resident memory to record.
+    /// X server PID whose resident memory to record. Its start, with the boot's ID, also names
+    /// the session, so that `summary` tells a compositor that crashed from one that a logout or
+    /// a shutdown ended.
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     server_pid: Option<u32>,
     /// Take one sample and exit.
@@ -393,6 +395,14 @@ fn parse_start_time(stat: &str) -> Result<u64> {
         .context("invalid process start_time")
 }
 
+/// The X server's session: the boot's ID and the server's start in clock ticks since boot,
+/// which together never repeat, while a start alone can after a reboot.
+fn server_session(pid: u32) -> Result<String> {
+    let boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
+        .context("reading the boot ID")?;
+    Ok(format!("{}:{}", boot.trim(), read_start_time(pid)?))
+}
+
 fn read_rss_kib(pid: u32) -> Result<u64> {
     let status = std::fs::read_to_string(format!("/proc/{pid}/status"))
         .with_context(|| format!("reading /proc/{pid}/status"))?;
@@ -460,9 +470,9 @@ fn run_sample(args: &SampleArgs) -> Result<()> {
             .log
             .as_deref()
             .map(|path| log_counter.sample_path(path));
-        let server_rss_kib = match args.server_pid {
-            Some(pid) => read_rss_kib(pid).ok(),
-            None => None,
+        let server = ServerSample {
+            rss_kib: args.server_pid.and_then(|pid| read_rss_kib(pid).ok()),
+            session: args.server_pid.and_then(|pid| server_session(pid).ok()),
         };
 
         write_sample_row(
@@ -472,7 +482,7 @@ fn run_sample(args: &SampleArgs) -> Result<()> {
             compositor.as_ref(),
             idle_ms,
             present_timeouts,
-            server_rss_kib,
+            &server,
         )?;
         writer.flush()?;
 
@@ -483,6 +493,14 @@ fn run_sample(args: &SampleArgs) -> Result<()> {
     }
 }
 
+/// What a row records of the X server, when the sampler was given its PID.
+#[derive(Default)]
+struct ServerSample {
+    rss_kib: Option<u64>,
+    /// See `server_session`.
+    session: Option<String>,
+}
+
 fn write_sample_row(
     writer: &mut impl Write,
     unix_time: u64,
@@ -490,15 +508,18 @@ fn write_sample_row(
     compositor: Option<&CompositorMetrics>,
     idle_ms: u64,
     present_timeouts: Option<u64>,
-    server_rss_kib: Option<u64>,
+    server: &ServerSample,
 ) -> Result<()> {
     let timeouts = present_timeouts.map_or_else(String::new, |count| count.to_string());
-    let server_rss = server_rss_kib.map_or_else(String::new, |rss| rss.to_string());
+    let server_rss = server
+        .rss_kib
+        .map_or_else(String::new, |rss| rss.to_string());
+    let session = server.session.as_deref().unwrap_or_default();
     match compositor {
         Some(metrics) => {
             writeln!(
                 writer,
-                "{unix_time},{utc},ok,{},{},{},{},{},{},{},{},{},{},{},{},{},{idle_ms},{timeouts},{server_rss}",
+                "{unix_time},{utc},ok,{},{},{},{},{},{},{},{},{},{},{},{},{},{idle_ms},{timeouts},{server_rss},{session}",
                 metrics.pid,
                 metrics.start_time,
                 metrics.rss_kib,
@@ -517,7 +538,7 @@ fn write_sample_row(
         None => {
             writeln!(
                 writer,
-                "{unix_time},{utc},absent,,,,,,,,,,,,,,{idle_ms},{timeouts},{server_rss}"
+                "{unix_time},{utc},absent,,,,,,,,,,,,,,{idle_ms},{timeouts},{server_rss},{session}"
             )?;
         }
     }
@@ -541,6 +562,8 @@ struct SampleRow {
     rss_kib: Option<u64>,
     idle_ms: Option<u64>,
     present_timeouts: Option<u64>,
+    /// The X server's session, when the sampler was given its PID; see `server_session`.
+    session: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -555,8 +578,15 @@ struct SpanEvaluation {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CrashEvaluation {
-    distinct_instances: usize,
+    sessions: usize,
+    /// Compositor processes beyond the first within a session.
+    restarts: usize,
+    /// `absent` rows after a session's first `ok` row.
     absent_rows: usize,
+    /// `absent` rows before a session's first `ok` row, which do not count.
+    startup_absent_rows: usize,
+    /// Sessions with no `ok` row at all.
+    sessions_without_compositor: usize,
     passed: bool,
 }
 
@@ -655,6 +685,7 @@ fn parse_csv(reader: impl BufRead) -> Result<Vec<SampleRow>> {
     let rss_col = column("rss_kib")?;
     let idle_col = column("idle_ms")?;
     let timeouts_col = column("present_timeouts")?;
+    let session_col = columns.get("server_session").copied();
 
     let mut rows = Vec::new();
     for line_result in lines {
@@ -701,6 +732,7 @@ fn parse_csv(reader: impl BufRead) -> Result<Vec<SampleRow>> {
         let rss_kib = optional_u64(rss_col, "rss_kib")?;
         let idle_ms = optional_u64(idle_col, "idle_ms")?;
         let present_timeouts = optional_u64(timeouts_col, "present_timeouts")?;
+        let session = optional_text(&fields, session_col);
         if status == Status::Ok {
             ensure!(
                 pid.is_some() && start_time.is_some() && rss_kib.is_some(),
@@ -716,9 +748,16 @@ fn parse_csv(reader: impl BufRead) -> Result<Vec<SampleRow>> {
             rss_kib,
             idle_ms,
             present_timeouts,
+            session,
         });
     }
     Ok(rows)
+}
+
+/// The text of an optional column, `None` when the column or its value is missing.
+fn optional_text(fields: &[&str], index: Option<usize>) -> Option<String> {
+    let text = fields.get(index?)?.trim();
+    (!text.is_empty()).then(|| text.to_owned())
 }
 
 fn evaluate_all(rows: &[SampleRow], warmup_minutes: u64, min_idle_ms: u64) -> SummaryReport {
@@ -754,25 +793,52 @@ fn evaluate_span(rows: &[SampleRow]) -> SpanEvaluation {
     }
 }
 
-/// Criterion (b): exactly one `(pid, start_time)` pair and zero `absent` rows.
+/// Criterion (b): within each X server session, one `(pid, start_time)` pair and no `absent`
+/// row after the session's first `ok` row. A session ends with its server, as at a logout or a
+/// shutdown, and the next one starts a new compositor, which is no crash. `absent` rows before
+/// a session's first `ok` row come from a sampler started before the compositor and do not
+/// count, but a session in which no compositor ever ran fails. Rows without a session, from a
+/// sampler not given the server's PID, form one session.
 fn evaluate_crashes(rows: &[SampleRow]) -> CrashEvaluation {
-    let mut instances = BTreeSet::new();
-    let mut absent_rows = 0_usize;
+    #[derive(Default)]
+    struct Session {
+        instances: BTreeSet<(u32, u64)>,
+        absent: usize,
+        startup_absent: usize,
+    }
+    let mut sessions: BTreeMap<Option<&str>, Session> = BTreeMap::new();
     for row in rows {
+        let session = sessions.entry(row.session.as_deref()).or_default();
         match (row.status, row.pid, row.start_time) {
             (Status::Ok, Some(pid), Some(start_time)) => {
-                instances.insert((pid, start_time));
+                session.instances.insert((pid, start_time));
             }
-            _ => {
-                absent_rows = absent_rows.saturating_add(1);
+            _ if session.instances.is_empty() => {
+                session.startup_absent = session.startup_absent.saturating_add(1);
             }
+            _ => session.absent = session.absent.saturating_add(1),
         }
     }
-    let distinct_instances = instances.len();
+    let restarts = sessions
+        .values()
+        .map(|session| session.instances.len().saturating_sub(1))
+        .sum();
+    let absent_rows = sessions.values().map(|session| session.absent).sum();
+    let startup_absent_rows = sessions
+        .values()
+        .map(|session| session.startup_absent)
+        .sum();
+    let sessions_without_compositor = sessions
+        .values()
+        .filter(|session| session.instances.is_empty())
+        .count();
     CrashEvaluation {
-        distinct_instances,
+        sessions: sessions.len(),
+        restarts,
         absent_rows,
-        passed: absent_rows == 0 && distinct_instances == 1,
+        startup_absent_rows,
+        sessions_without_compositor,
+        passed: restarts == 0 && absent_rows == 0 && sessions_without_compositor == 0,
     }
 }
 
@@ -813,8 +879,9 @@ fn evaluate_timeouts(rows: &[SampleRow]) -> TimeoutEvaluation {
     }
 }
 
-/// Criterion (d): after `--warmup-minutes`, compare the median `rss_kib` of idle samples
-/// (`idle_ms >= min_idle_ms`) in the first 24 h after warmup with that of the last 24 h.
+/// Criterion (d): after `--warmup-minutes` of each session, compare the median `rss_kib` of
+/// idle samples (`idle_ms >= min_idle_ms`) in the first 24 h after warmup with that of the last
+/// 24 h.
 /// When a 24 h window has no idle samples, use all `ok` samples in that window and report the
 /// fallback. With less than two days of data overall, report the criterion as undecidable.
 fn evaluate_idle_memory(
@@ -834,32 +901,40 @@ fn evaluate_idle_memory(
         };
     }
 
-    let warmup_end = first
-        .unix_time
-        .saturating_add(warmup_minutes.saturating_mul(60));
-    let first_window_end = warmup_end.saturating_add(SECONDS_PER_DAY);
-    let last_window_start = last
-        .unix_time
-        .saturating_sub(SECONDS_PER_DAY)
-        .max(warmup_end);
-
-    let first_window: Vec<&SampleRow> = rows
+    // Each session warms up anew: a logout or a shutdown starts a new compositor.
+    let mut session_starts: BTreeMap<Option<&str>, u64> = BTreeMap::new();
+    for row in rows {
+        session_starts
+            .entry(row.session.as_deref())
+            .or_insert(row.unix_time);
+    }
+    let warmup = warmup_minutes.saturating_mul(60);
+    let eligible: Vec<&SampleRow> = rows
         .iter()
         .filter(|row| {
             row.status == Status::Ok
                 && row.rss_kib.is_some()
-                && row.unix_time >= warmup_end
-                && row.unix_time <= first_window_end
+                && session_starts
+                    .get(&row.session.as_deref())
+                    .is_some_and(|&start| row.unix_time >= start.saturating_add(warmup))
         })
         .collect();
-    let last_window: Vec<&SampleRow> = rows
+    let Some(first_eligible) = eligible.first().map(|row| row.unix_time) else {
+        return MemoryEvaluation::Undecidable {
+            reason: "no ok samples after warmup",
+        };
+    };
+    let first_window_end = first_eligible.saturating_add(SECONDS_PER_DAY);
+    let last_window_start = last.unix_time.saturating_sub(SECONDS_PER_DAY);
+    let first_window: Vec<&SampleRow> = eligible
         .iter()
-        .filter(|row| {
-            row.status == Status::Ok
-                && row.rss_kib.is_some()
-                && row.unix_time >= last_window_start
-                && row.unix_time <= last.unix_time
-        })
+        .copied()
+        .filter(|row| row.unix_time <= first_window_end)
+        .collect();
+    let last_window: Vec<&SampleRow> = eligible
+        .iter()
+        .copied()
+        .filter(|row| row.unix_time >= last_window_start)
         .collect();
 
     let Some((first_twice_median_kib, first_samples, first_used_all)) =
@@ -952,9 +1027,12 @@ fn print_report(report: &SummaryReport) {
         status_word(report.span.passed),
     );
     println!(
-        "no_crash: distinct_instances={} absent_rows={}: {}",
-        report.crashes.distinct_instances,
+        "no_crash: sessions={} restarts={} absent_rows={} startup_absent_rows={} sessions_without_compositor={}: {}",
+        report.crashes.sessions,
+        report.crashes.restarts,
         report.crashes.absent_rows,
+        report.crashes.startup_absent_rows,
+        report.crashes.sessions_without_compositor,
         status_word(report.crashes.passed),
     );
     println!(
@@ -998,7 +1076,7 @@ fn print_report(report: &SummaryReport) {
                 format!("-{}.{:02}%", bps / 100, bps % 100)
             };
             println!(
-                "idle_memory: first_24h_median_kib={} (n={first_samples}, {first_kind}) last_24h_median_kib={} (n={last_samples}, {last_kind}) delta={signed_bps} (limit <= +5.00%): {}",
+                "idle_memory: first_24h_median_kib={} (n={first_samples}, {first_kind}) last_24h_median_kib={} (n={last_samples}, {last_kind}) delta={signed_bps} (limit within 5.00% either way): {}",
                 format_half_kib(*first_twice_median_kib),
                 format_half_kib(*last_twice_median_kib),
                 status_word(*passed),
@@ -1034,7 +1112,13 @@ mod tests {
             rss_kib: Some(rss_kib),
             idle_ms: Some(idle_ms),
             present_timeouts,
+            session: None,
         }
+    }
+
+    fn in_session(mut row: SampleRow, session: &str) -> SampleRow {
+        row.session = Some(session.into());
+        row
     }
 
     fn absent_row(unix_time: u64, idle_ms: u64, present_timeouts: Option<u64>) -> SampleRow {
@@ -1047,6 +1131,7 @@ mod tests {
             rss_kib: None,
             idle_ms: Some(idle_ms),
             present_timeouts,
+            session: None,
         }
     }
 
@@ -1097,8 +1182,11 @@ mod tests {
         assert_eq!(
             evaluate_crashes(&steady),
             CrashEvaluation {
-                distinct_instances: 1,
+                sessions: 1,
+                restarts: 0,
                 absent_rows: 0,
+                startup_absent_rows: 0,
+                sessions_without_compositor: 0,
                 passed: true,
             }
         );
@@ -1110,7 +1198,7 @@ mod tests {
         ];
         let eval_new_pid = evaluate_crashes(&new_pid);
         assert!(!eval_new_pid.passed);
-        assert_eq!(eval_new_pid.distinct_instances, 2);
+        assert_eq!(eval_new_pid.restarts, 1);
         assert_eq!(eval_new_pid.absent_rows, 0);
 
         // A restart that reuses the same PID has a new /proc/PID/stat start_time and fails.
@@ -1120,7 +1208,7 @@ mod tests {
         ];
         let eval_same_pid = evaluate_crashes(&same_pid_restart);
         assert!(!eval_same_pid.passed);
-        assert_eq!(eval_same_pid.distinct_instances, 2);
+        assert_eq!(eval_same_pid.restarts, 1);
 
         // An absent row fails even when the same process returns afterward.
         let with_absence = [
@@ -1130,8 +1218,78 @@ mod tests {
         ];
         let eval_absence = evaluate_crashes(&with_absence);
         assert!(!eval_absence.passed);
-        assert_eq!(eval_absence.distinct_instances, 1);
+        assert_eq!(eval_absence.restarts, 0);
         assert_eq!(eval_absence.absent_rows, 1);
+    }
+
+    #[test]
+    fn crashes_are_counted_within_server_sessions() {
+        // A shutdown between days starts a new server and a new compositor, which passes,
+        // and absent rows before a session's compositor starts do not count.
+        let days = [
+            in_session(absent_row(1_000, 0, Some(0)), "boot-a:100"),
+            in_session(ok_row(1_600, 42, 9_000, 4000, 0, Some(0)), "boot-a:100"),
+            in_session(ok_row(2_200, 42, 9_000, 4000, 0, Some(0)), "boot-a:100"),
+            in_session(absent_row(90_000, 0, Some(0)), "boot-b:100"),
+            in_session(ok_row(90_600, 42, 9_000, 4000, 0, Some(0)), "boot-b:100"),
+        ];
+        assert_eq!(
+            evaluate_crashes(&days),
+            CrashEvaluation {
+                sessions: 2,
+                restarts: 0,
+                absent_rows: 0,
+                startup_absent_rows: 2,
+                sessions_without_compositor: 0,
+                passed: true,
+            }
+        );
+
+        // A compositor that restarts while its server keeps running is a crash.
+        let mut crashed = days.to_vec();
+        crashed.push(in_session(
+            ok_row(91_200, 51, 99_000, 4000, 0, Some(0)),
+            "boot-b:100",
+        ));
+        let eval_crashed = evaluate_crashes(&crashed);
+        assert!(!eval_crashed.passed);
+        assert_eq!(eval_crashed.restarts, 1);
+
+        // So is one that disappears, and a session in which none ever ran fails too.
+        let mut vanished = days.to_vec();
+        vanished.push(in_session(absent_row(91_200, 0, Some(0)), "boot-b:100"));
+        assert_eq!(evaluate_crashes(&vanished).absent_rows, 1);
+        let mut empty = days.to_vec();
+        empty.push(in_session(absent_row(180_000, 0, Some(0)), "boot-c:100"));
+        let eval_empty = evaluate_crashes(&empty);
+        assert!(!eval_empty.passed);
+        assert_eq!(eval_empty.sessions_without_compositor, 1);
+    }
+
+    #[test]
+    fn idle_memory_warms_up_in_each_session() {
+        // Each day's first hour, where a new compositor starts small, is left out; the idle
+        // samples after it decide.
+        let t0 = 1_760_000_000_u64;
+        let last_day = t0 + REQUIRED_DAYS * SECONDS_PER_DAY;
+        let rows = [
+            in_session(ok_row(t0, 1, 1, 2_000, 600_000, Some(0)), "a"),
+            in_session(ok_row(t0 + 7_200, 1, 1, 4_000, 600_000, Some(0)), "a"),
+            in_session(ok_row(last_day - 7_200, 2, 2, 2_000, 600_000, Some(0)), "b"),
+            in_session(ok_row(last_day, 2, 2, 4_100, 600_000, Some(0)), "b"),
+        ];
+        assert_eq!(
+            evaluate_idle_memory(&rows, 60, 300_000),
+            MemoryEvaluation::Decided {
+                first_twice_median_kib: 8_000,
+                first_samples: 1,
+                first_used_all: false,
+                last_twice_median_kib: 8_200,
+                last_samples: 1,
+                last_used_all: false,
+                passed: true,
+            }
+        );
     }
 
     #[test]
@@ -1348,7 +1506,10 @@ mod tests {
             Some(&metrics),
             350_000,
             Some(0),
-            Some(28_000),
+            &ServerSample {
+                rss_kib: Some(28_000),
+                session: Some("boot:4213705".into()),
+            },
         )
         .unwrap();
         write_sample_row(
@@ -1358,7 +1519,7 @@ mod tests {
             None,
             1_200,
             Some(1),
-            None,
+            &ServerSample::default(),
         )
         .unwrap();
 
@@ -1375,6 +1536,7 @@ mod tests {
                 rss_kib: Some(4_096),
                 idle_ms: Some(350_000),
                 present_timeouts: Some(0),
+                session: Some("boot:4213705".into()),
             })
         );
         assert_eq!(
@@ -1388,6 +1550,7 @@ mod tests {
                 rss_kib: None,
                 idle_ms: Some(1_200),
                 present_timeouts: Some(1),
+                session: None,
             })
         );
 

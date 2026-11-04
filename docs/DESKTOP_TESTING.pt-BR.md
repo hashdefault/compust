@@ -173,13 +173,13 @@ target/release/examples/endurance_sample sample --display "$DISPLAY" \
     --server-pid "$(pgrep -x Xorg)"
 ```
 
-O amostrador só faz consultas ao servidor. Cada linha traz o PID e o horário de início do Compust, a memória residente dele, as contagens do XRes e os bytes de pixmaps próprios, os milissegundos desde a última entrada, a contagem de tempos limite do Present no log até ali e a memória residente do servidor. Uma linha marca o Compust como `absent` quando nenhum compositor tem a seleção, e a amostragem continua. Depois da semana, o resumo decide o critério e sai com 0 quando ele vale:
+O amostrador só faz consultas ao servidor. Cada linha traz o PID e o horário de início do Compust, a memória residente dele, as contagens do XRes e os bytes de pixmaps próprios, os milissegundos desde a última entrada, a contagem de tempos limite do Present no log até ali e a memória residente do servidor, com a sessão a que pertence: o boot e o início do servidor, que `--server-pid` informa. Uma linha marca o Compust como `absent` quando nenhum compositor tem a seleção, e a amostragem continua. Depois da semana, o resumo decide o critério e sai com 0 quando ele vale:
 
 ```sh
 target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
 ```
 
-Ele exige amostras ao longo de sete dias e um único processo do Compust do começo ao fim, sem reinício (um PID ou horário de início novo) e sem linha `absent`. Nenhum intervalo pode somar dois tempos limite do Present, e dois intervalos seguidos não podem somar um cada. Depois de 60 minutos de aquecimento, a mediana da memória das amostras ociosas, sem entrada por cinco minutos, no último dia precisa ficar a até 5% da mediana do primeiro dia. Um dia sem amostras ociosas usa todas as suas amostras, e o relatório avisa; com menos de dois dias de amostras, a memória ainda não é decidida.
+Ele exige amostras ao longo de sete dias. Dentro de cada sessão do servidor X, que um logout ou um desligamento encerra, um único processo do Compust precisa rodar do começo ao fim: sem reinício, que um PID ou horário de início novo mostra, e sem linha `absent` depois que o Compust começou. Linhas de antes de ele começar não contam, mas uma sessão em que ele nunca começa reprova. Nenhum intervalo pode somar dois tempos limite do Present, e dois intervalos seguidos não podem somar um cada. Depois de 60 minutos de aquecimento em cada sessão, a mediana da memória das amostras ociosas, sem entrada por cinco minutos, no último dia precisa ficar a até 5% da mediana do primeiro dia. Um dia sem amostras ociosas usa todas as suas amostras, e o relatório avisa; com menos de dois dias de amostras, a memória ainda não é decidida.
 
 ## Sessão registrada em hardware: 2026-10-03
 
