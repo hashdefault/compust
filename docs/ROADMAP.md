@@ -19,7 +19,7 @@ The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prereleas
 | Rounded corners | Tasks 1 to 5: corners, rounded shadows, and blur at the arcs in both renderers, released in 0.3.0-beta.2 | [Rounded Corners](#rounded-corners-implemented) |
 | Hardware | AMD on XLibre with two desktops and five window managers, AMD on Xorg with i3 and both renderers, and Intel on Xorg with four window managers, hotplug, and suspend | [Compatibility matrix](#compatibility-matrix) |
 | Reliability | The stale frame after a monitor change, which came from its test's timing, and a closed window's image left in the neighbor that grows over its place | [Monitor-change test](#local-beta-testing-the-monitor-change-tests-stale-frame), [closed window's image](#local-beta-testing-a-closed-windows-image-in-the-growing-neighbor) |
-| 1.0 step 4 | The automated run of 10,000 window cycles, which ends with the resources it held after warmup | [Endurance](#10-step-4-the-automated-endurance-run) |
+| 1.0 step 4 | The automated run of 10,000 window cycles, which ends with the resources it held after warmup, and a sampler for the week of daily use | [Endurance](#10-step-4-the-automated-endurance-run) |
 | Distribution | Reproducible release archives with checksums, and Open Build Service packages built and tested from the release tag | [Fifth beta](#fifth-beta-prerelease), [packaging](../packaging/obs/README.md) |
 | Planned | Active and Inactive Opacity, its schema decided; Window Animations | [Active and Inactive Opacity](#active-and-inactive-opacity-planned), [Window Animations](#window-animations-planned) |
 
@@ -29,7 +29,7 @@ In order, each with the reason it comes before the next. Items 1 to 5 lie on the
 
 1. **Bring 0.3.0-beta.3 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
 2. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. A [live qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop has since recorded corners, shadows, and blur under one window manager in both renderers, with synthetic windows and without the probe. Testers' reports from item 1 can supply part of it.
-3. **Run the week of daily use.** The [automated run](#10-step-4-the-automated-endurance-run) of 10,000 window cycles passes on Xvfb, and [step 4](#4-endurance) still needs the daily use: two machines running a release candidate as their compositor for seven days. The Radeon Vega desktop already runs Compust as its compositor.
+3. **Run the week of daily use.** The [automated run](#10-step-4-the-automated-endurance-run) of 10,000 window cycles passes on Xvfb, and a sampler records the daily use that [step 4](#4-endurance) still needs: two machines running a release candidate as their compositor for seven days. The Radeon Vega desktop already runs Compust as its compositor.
 4. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
 5. **Measure the release candidates.** [Step 3](#3-independent-performance-measurements) runs the benchmark scenes on the candidates of item 4 in each environment item 2 qualifies, including the cost of shadows and rounded corners.
 6. **Active and Inactive Opacity, tasks 2 to 6.** Rules by focus already dim inactive windows, so this milestone is recommended after 1.0.0-rc.1, keeping 1.0's settings as they are. If its settings are to be part of 1.0, they must land before the configuration review of item 4.
@@ -112,7 +112,7 @@ Twelve X11 tests in [shadows.rs](../tests/cases/shadows.rs) check the shadow's e
 
 ### 1.0 step 4: the automated endurance run
 
-The X11 test `endurance::endurance_cycles_keep_resources_stable`, ignored by default, drives Compust on Xvfb through 10,000 cycles that open, resize, and close windows of seven kinds, with reloads between a plain configuration and one with effects every 250 cycles. On the RX 9060 XT desktop it took 321 seconds and ended with exactly the XRes counts and owned pixmap bytes Compust held after warmup; its resident memory grew 68 KiB over the first 1,000 cycles and 4 KiB more afterward. A 40-cycle version runs with the X11 tests. The [desktop testing guide](DESKTOP_TESTING.md#run-the-endurance-checks) shows how to run it, and the [record](DESKTOP_TESTING.md#recorded-endurance-run-2026-11-04) gives the counts.
+The X11 test `endurance::endurance_cycles_keep_resources_stable`, ignored by default, drives Compust on Xvfb through 10,000 cycles that open, resize, and close windows of seven kinds, with reloads between a plain configuration and one with effects every 250 cycles. On the RX 9060 XT desktop it took 321 seconds and ended with exactly the XRes counts and owned pixmap bytes Compust held after warmup; its resident memory grew 68 KiB over the first 1,000 cycles and 4 KiB more afterward. A 40-cycle version runs with the X11 tests. The `endurance_sample` example samples a session every ten minutes and decides the criterion of the week of daily use, which has not started. The [desktop testing guide](DESKTOP_TESTING.md#run-the-endurance-checks) shows how to run both, and the [record](DESKTOP_TESTING.md#recorded-endurance-run-2026-11-04) gives the counts.
 
 ### Everyday usability: configuration discovery and reload
 
@@ -481,7 +481,7 @@ Run the [Compust benchmark scenes](DESKTOP_TESTING.md#run-the-benchmark-scenes) 
 
 ### 4. Endurance
 
-The [automated run](#10-step-4-the-automated-endurance-run) passes; the week of daily use has not started.
+The [automated run](#10-step-4-the-automated-endurance-run) passes; the week of daily use has a sampler and has not started.
 
 **Acceptance:** an automated run of 10,000 cycles that open, resize, and close windows, with reloads among them, ends with the XRes counts and owned pixmap bytes it had after warmup. Two machines run a release candidate as their daily compositor for seven days, sampling Compust's memory and the X server's resources every ten minutes, with no crash, no repeated Present timeouts, and idle memory on the last day within 5% of the first day's after warmup.
 

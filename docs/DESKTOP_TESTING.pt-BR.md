@@ -163,6 +163,24 @@ XVFB=/caminho/do/Xvfb COMPUST_ARTIFACTS=artifacts cargo test --release --locked 
 
 `COMPUST_ENDURANCE_CYCLES` define outro número de ciclos. A cada 1.000 ciclos a execução mostra os recursos e a memória residente do Compust, que `COMPUST_ARTIFACTS` também guarda em `endurance.csv`. A [execução registrada](#execução-de-uso-prolongado-registrada-2026-11-04) usou o Xvfb do Xorg.
 
+A semana de uso diário amostra a cada dez minutos a sessão que o Compust compõe. Guarde o log do Compust, onde ele informa os tempos limite do Present, e inicie o amostrador na mesma sessão:
+
+```sh
+cargo build --release --locked --bin compust --example endurance_sample
+compust 2>>"$HOME/.local/state/compust.log" &
+target/release/examples/endurance_sample sample --display "$DISPLAY" \
+    --output "$HOME/compust-endurance.csv" --log "$HOME/.local/state/compust.log" \
+    --server-pid "$(pgrep -x Xorg)"
+```
+
+O amostrador só faz consultas ao servidor. Cada linha traz o PID e o horário de início do Compust, a memória residente dele, as contagens do XRes e os bytes de pixmaps próprios, os milissegundos desde a última entrada, a contagem de tempos limite do Present no log até ali e a memória residente do servidor. Uma linha marca o Compust como `absent` quando nenhum compositor tem a seleção, e a amostragem continua. Depois da semana, o resumo decide o critério e sai com 0 quando ele vale:
+
+```sh
+target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
+```
+
+Ele exige amostras ao longo de sete dias e um único processo do Compust do começo ao fim, sem reinício (um PID ou horário de início novo) e sem linha `absent`. Nenhum intervalo pode somar dois tempos limite do Present, e dois intervalos seguidos não podem somar um cada. Depois de 60 minutos de aquecimento, a mediana da memória das amostras ociosas, sem entrada por cinco minutos, no último dia precisa ficar a até 5% da mediana do primeiro dia. Um dia sem amostras ociosas usa todas as suas amostras, e o relatório avisa; com menos de dois dias de amostras, a memória ainda não é decidida.
+
 ## Sessão registrada em hardware: 2026-10-03
 
 A sessão rodou no CachyOS com Linux 7.2.8-2-cachyos e XLibre 25.1.9 nativo usando o driver modesetting. Ela usou o driver de kernel amdgpu, um AMD Ryzen 5 5600GT com gráficos Radeon Vega integrados, Mesa 26.2.4, libdrm 2.4.134 e Xmonad 0.18.1 com xmonad-contrib 0.18.2. O desktop manteve sua configuração habitual do Xmonad, barra de status e bandeja. HDMI-1 era a saída principal, à direita; DP-1, um adaptador DisplayPort para VGA, ficava à esquerda. Ambas usaram 1920×1080 a 60 Hz, formando uma raiz de 3840×1080. O Picom foi parado antes das execuções e reiniciado depois. As [versões dos pacotes](benchmarks/2026-10-03/hardware/packages.txt) estão arquivadas com os relatórios.
@@ -705,6 +723,8 @@ As fases duram de seis a oito segundos, rodaram uma vez e dividiram a sessão co
 ## Execução de uso prolongado registrada: 2026-11-04
 
 A execução automática passou no desktop com RX 9060 XT, num build de release no Xvfb 21.1.25 do Xorg, com o código sobre a 09a96bb. Os 10.000 ciclos levaram 321 segundos, cerca de 32 ms cada. Depois deles, na configuração simples, o Compust tinha exatamente o que tinha depois do aquecimento. O XRes contou 4 `PIXMAP` com 353.601 bytes no total, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient` e um de cada entre `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW` e `XFixesRegion`. Os pontos de controle na configuração com efeitos tinham mais, até 32 `PIXMAP` com 704.257 bytes, pelos níveis do desfoque, pelas janelas desvanecendo e pelas capturas retidas, e cada volta à configuração simples voltava à base. A memória residente do Compust foi de 4.212 KiB na base a 4.280 KiB até o ciclo 1.000 e ficou em 4.284 KiB do ciclo 5.000 até o fim. Uma execução anterior do mesmo teste terminou com os mesmos recursos, com 4.324 e 4.396 KiB.
+
+O amostrador da semana de uso diário foi conferido num Xvfb aninhado, onde registrou a parada do Compust como `absent`, o reinício como um PID e um horário de início novos e um tempo limite do Present escrito no log. A semana em si ainda não começou.
 
 ## Concluir os critérios de hardware
 

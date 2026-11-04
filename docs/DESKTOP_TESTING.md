@@ -163,6 +163,24 @@ XVFB=/path/to/Xvfb COMPUST_ARTIFACTS=artifacts cargo test --release --locked --t
 
 `COMPUST_ENDURANCE_CYCLES` sets another number of cycles. Every 1,000 cycles the run prints the resources and Compust's resident memory, which `COMPUST_ARTIFACTS` also keeps in `endurance.csv`. The [recorded run](#recorded-endurance-run-2026-11-04) used Xorg's Xvfb.
 
+The week of daily use samples the session Compust composites every ten minutes. Keep Compust's log, where it reports Present timeouts, and start the sampler in the same session:
+
+```sh
+cargo build --release --locked --bin compust --example endurance_sample
+compust 2>>"$HOME/.local/state/compust.log" &
+target/release/examples/endurance_sample sample --display "$DISPLAY" \
+    --output "$HOME/compust-endurance.csv" --log "$HOME/.local/state/compust.log" \
+    --server-pid "$(pgrep -x Xorg)"
+```
+
+The sampler only queries the server. Each row holds Compust's PID and start time, its resident memory, its XRes counts and owned pixmap bytes, the milliseconds since the last input, the count of Present timeouts in the log so far, and the server's resident memory. A row marks Compust `absent` when no compositor owns the selection, and sampling goes on. After the week, the summary decides the criterion and exits with 0 when it holds:
+
+```sh
+target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
+```
+
+It requires samples spanning seven days, and one Compust process throughout, with no restart (a new PID or start time) and no `absent` row. No interval may add two Present timeouts, and no two consecutive intervals may add one each. After a 60-minute warmup, the median memory of idle samples, those without input for five minutes, on the last day must be within 5% of that on the first day. A day without idle samples uses all of its samples, and the report says so; with less than two days of samples, memory is not yet decided.
+
 ## Recorded hardware session: 2026-10-03
 
 The session ran on CachyOS with Linux 7.2.8-2-cachyos and native XLibre 25.1.9 using its modesetting driver. It used the amdgpu kernel driver, an AMD Ryzen 5 5600GT with integrated Radeon Vega graphics, Mesa 26.2.4, libdrm 2.4.134, and Xmonad 0.18.1 with xmonad-contrib 0.18.2. The desktop kept its ordinary Xmonad configuration, status bar, and tray. HDMI-1 was the primary output on the right; DP-1, a DisplayPort-to-VGA adapter, was on the left. Both ran 1920×1080 at 60 Hz for a 3840×1080 root. Picom was stopped before the runs and restarted afterward. The [package versions](benchmarks/2026-10-03/hardware/packages.txt) are archived with the reports.
@@ -705,6 +723,8 @@ The phases last six to eight seconds, ran once, and shared the session with a te
 ## Recorded endurance run: 2026-11-04
 
 The automated run passed on the RX 9060 XT desktop, in a release build on Xorg's Xvfb 21.1.25, with the source on top of 09a96bb. Its 10,000 cycles took 321 seconds, about 32 ms each. After them, under the plain configuration, Compust held exactly what it held after the warmup. XRes counted 4 `PIXMAP` of 353,601 bytes in all, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient`, and one each of `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW`, and `XFixesRegion`. Checkpoints under the effects configuration held more, up to 32 `PIXMAP` of 704,257 bytes, for the blur levels, fading windows, and held captures, and every switch back to the plain configuration returned to the baseline. Compust's resident memory went from 4,212 KiB at the baseline to 4,280 KiB by cycle 1,000, and was 4,284 KiB from cycle 5,000 to the end. An earlier run of the same test ended with the same resources, at 4,324 and 4,396 KiB.
+
+The sampler for the week of daily use was checked on a nested Xvfb, where it recorded Compust being stopped as `absent`, its restart as a new PID and start time, and a Present timeout written to the log. The week itself has not started.
 
 ## Complete the hardware gates
 
