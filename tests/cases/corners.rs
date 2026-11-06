@@ -560,26 +560,47 @@ fn changing_radii_leaks_nothing() -> Result<()> {
     desktop.opacity(window, 0x8000_0000)?;
     desktop.map(window)?;
     desktop.until_pixel((100, 60), |p| p == WHITE)?;
-    let cycle = |radius: u8| -> Result<()> {
-        desktop.reload(&ROUND.replace("13", &radius.to_string()))?;
-        // The pixel one in from the corner is outside the arc from radius 8.
-        desktop.until_pixel((101, 61), |p| p == WHITE)?;
+    let bounds = (100, 60, 100, 100);
+    // A reload takes effect when a frame shows it, and the pixel one in from the corner is
+    // outside every arc from radius 8 on, so it cannot tell one radius from another. Each
+    // change waits instead at the corner pixel where the new arc and the old one differ most,
+    // for the share the new one covers: red at half opacity over white paper.
+    let cycle = |from: u8, to: u8| -> Result<()> {
+        desktop.reload(&ROUND.replace("13", &to.to_string()))?;
+        let (x, y) = telling(bounds, i32::from(from), i32::from(to));
+        let green = 255.0 * (1.0 - 0.5 * covered(bounds, i32::from(to), x, y));
+        desktop.until_pixel((i16::try_from(x)?, i16::try_from(y)?), |[red, g, _]| {
+            red == 255 && (f64::from(g) - green).abs() <= 6.0
+        })?;
         desktop.wait_vblanks(2)
     };
     // Each radius needs a disk of its own size; one that no window uses any more must go.
-    cycle(8)?;
+    cycle(13, 8)?;
     let baseline = desktop.resources()?;
     for radius in [9, 10, 11, 12] {
-        cycle(radius)?;
+        cycle(radius - 1, radius)?;
         assert_eq!(
             desktop.resources()?.counts(),
             baseline.counts(),
             "radius {radius}"
         );
     }
-    cycle(8)?;
+    cycle(12, 8)?;
     assert_eq!(desktop.resources()?, baseline);
     Ok(())
+}
+
+/// The pixel of the top-left corner square of the window at `bounds` whose covered share
+/// changes most when its corners go from radius `from` to radius `to`.
+fn telling(bounds: (i32, i32, i32, i32), from: i32, to: i32) -> (i32, i32) {
+    let (left, top, _, _) = bounds;
+    let side = from.max(to);
+    let change =
+        |(x, y): (i32, i32)| (covered(bounds, to, x, y) - covered(bounds, from, x, y)).abs();
+    (top..top + side)
+        .flat_map(|y| (left..left + side).map(move |x| (x, y)))
+        .max_by(|a, b| change(*a).total_cmp(&change(*b)))
+        .unwrap_or((left, top))
 }
 
 /// The weights of three box filters in a row reaching `radius` pixels each way, as the
