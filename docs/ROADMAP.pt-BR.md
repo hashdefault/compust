@@ -6,7 +6,7 @@ O objetivo é tornar este compositor mínimo em Rust uma opção prática para u
 
 ## Estado e prioridades (2026-11-04)
 
-A versão mais recente é a [0.3.0-beta.3](#sexta-pré-versão-beta), uma pré-versão no GitHub com pacotes do Open Build Service para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed. Esta seção resume o que está feito e ordena o que vem a seguir; as seções abaixo guardam os registros.
+A versão mais recente é a [0.3.0-beta.4](#sétima-pré-versão-beta), uma pré-versão no GitHub com pacotes do Open Build Service para Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed. Esta seção resume o que está feito e ordena o que vem a seguir; as seções abaixo guardam os registros.
 
 ### Feito
 
@@ -27,9 +27,9 @@ A versão mais recente é a [0.3.0-beta.3](#sexta-pré-versão-beta), uma pré-v
 
 Em ordem, cada uma com o motivo de vir antes da seguinte. Os itens 1 a 5 estão no [caminho até a 1.0](#caminho-até-a-versão).
 
-1. **Levar a 0.3.0-beta.3 a testadores externos.** A [etapa 5](#5-testes-externos) exige três testadores além do responsável pelo projeto e depois duas semanas sem relatos novos, a espera mais longa do caminho até a 1.0. Anunciar a beta onde usuários de X11 se reúnem, apontando o guia da beta e os modelos de issue.
+1. **Levar a 0.3.0-beta.4 a testadores externos.** A [etapa 5](#5-testes-externos) exige três testadores além do responsável pelo projeto e depois duas semanas sem relatos novos, a espera mais longa do caminho até a 1.0. Anunciar a beta onde usuários de X11 se reúnem, apontando o guia da beta e os modelos de issue.
 2. **Registrar mais hardware.** A [etapa 2](#2-hardware-e-desktops) ainda não tem o driver da NVIDIA no Xorg, Intel com o código atual, mais gerenciadores de janelas no Xorg, hotplug físico e suspensão e retomada no Xorg, nem aplicativos reais: um navegador e seus menus, um terminal, o mpv, um jogo, uma janela GTK com decoração do lado do cliente e um aplicativo Electron. Essas sessões também cobrem o que a última tarefa dos cantos arredondados pede: cantos com um gerenciador de janelas e com aplicativos. Uma [sessão em uso com o qtile](DESKTOP_TESTING.pt-BR.md#sessão-com-qtile-registrada-no-laptop-intel-2026-10-05) no laptop Intel registrou desde então cantos, sombras e desfoque com um gerenciador de janelas nos dois renderizadores, com janelas sintéticas e sem o probe. Os relatos dos testadores do item 1 podem fornecer parte disso.
-3. **Fazer a semana de uso diário.** A [execução automática](#etapa-4-da-10-a-execução-automática-de-uso-prolongado) de 10.000 ciclos de janelas passa no Xvfb, e um amostrador registra o uso diário que a [etapa 4](#4-uso-prolongado) ainda exige: duas máquinas usando uma versão candidata como compositor por sete dias. O desktop com Radeon Vega já usa o Compust como compositor.
+3. **Fazer a semana de uso diário.** A [execução automática](#etapa-4-da-10-a-execução-automática-de-uso-prolongado) de 10.000 ciclos de janelas passa no Xvfb, e um amostrador registra o uso diário que a [etapa 4](#4-uso-prolongado) ainda exige: duas máquinas usando uma versão candidata como compositor por sete dias. Essa semana só conta depois que o item 4 produzir a 1.0.0-rc.1. Até lá, uma semana de ensaio no desktop com Radeon Vega, que já usa o Compust como compositor, confere o amostrador e o critério com a 0.3.0-beta.4; a segunda máquina ainda precisa ser escolhida.
 4. **Preparar a distribuição e revisar a configuração.** A [etapa 6](#6-distribuição-e-documentação) ainda precisa de um pacote no Arch User Repository, páginas de manual, um guia de migração do picom e um guia de solução de problemas. Antes da 1.0.0-rc.1, revisar cada opção uma vez, inclusive `corner_radius`, já que a 1.0 as congela.
 5. **Medir as versões candidatas.** A [etapa 3](#3-medições-independentes-de-desempenho) roda as cenas de benchmark nas candidatas do item 4 em cada ambiente que o item 2 validar, inclusive o custo das sombras e dos cantos arredondados.
 6. **Opacidade de janelas ativas e inativas, tarefas 2 a 6.** As regras pelo foco já escurecem as janelas inativas, então este marco é recomendado depois da 1.0.0-rc.1, mantendo as opções da 1.0 como estão. Se as suas opções tiverem de fazer parte da 1.0, elas precisam chegar antes da revisão de configuração do item 4.
@@ -334,6 +334,12 @@ Nenhuma sessão registrada rodou exatamente este código. A [sessão com o qtile
 
 Duas execuções do [`package.sh`](../tools/package.sh) no desktop com Radeon Vega produziram arquivos idênticos. O binário empacotado informou sua versão e não exige nenhum símbolo da glibc mais recente que a 2.34. O arquivo da versão baixado coincidiu com o `SHA256SUMS`. Os [pacotes do Open Build Service](../packaging/obs/README.md) compilam a tag como `0.3.0~beta.3` para Debian 13, Fedora 43 e 44 e openSUSE Tumbleweed; cada build rodou a suíte completa de testes, inclusive os 135 testes X11, e passou.
 
+### Sétima pré-versão beta
+
+A versão 0.3.0-beta.4 traz o que veio depois da 0.3.0-beta.3: uma janela que um gerenciador de janelas expande sobre outra que fecha mostra sua imagem anterior até o cliente desenhar a nova, por no máximo um segundo, de modo que a [imagem da janela que fecha](#teste-local-da-beta-a-imagem-de-uma-janela-fechada-na-vizinha-que-cresce) não fica mais nela, como acontecia numa janela da Steam com o Xmonad; a [execução automática de uso prolongado](#etapa-4-da-10-a-execução-automática-de-uso-prolongado) de 10.000 ciclos de janelas e o amostrador da semana de uso diário; e dois testes, o da [mudança de monitor](#teste-local-da-beta-o-quadro-antigo-do-teste-de-mudança-de-monitor) e o da [troca de raio](#teste-local-da-beta-o-baseline-antigo-do-teste-de-raios), que liam a tela antes de o Compust mostrar a mudança e não falham mais ao acaso. O [guia da beta](BETA.pt-BR.md) traz o escopo, e as [notas da versão](releases/v0.3.0-beta.4.md) listam as mudanças.
+
+Nenhuma sessão registrada rodou exatamente este código. A imagem anterior da vizinha tem apenas testes automatizados e não foi registrada com a Steam em hardware. A execução de uso prolongado passou no desktop com RX 9060 XT, no Xvfb 21.1.25 do Xorg, com o código sobre `09a96bb`.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
@@ -505,7 +511,7 @@ Publicar betas à medida que os recursos ficarem prontos; a [0.3.0-beta.1](#quar
 
 1. **0.3.0-beta.1, [publicada](#quarta-pré-versão-beta):** tudo o que veio depois da 0.2.0-beta.3, ou seja, descoberta e recarga de configuração, repintura por regiões, reaproveitamento do desfoque, oclusão, o renderizador de GPU, desfoque ponderado e regras por janela, para que os testes externos possam começar.
 2. **0.3.0-beta.2, [publicada](#quinta-pré-versão-beta):** os três recursos da etapa 1, cantos arredondados e recarga ao salvar, para que os testes externos cubram o que a 1.0 promete.
-3. **Outras betas 0.3** à medida que correções e registros chegarem; a [0.3.0-beta.3](#sexta-pré-versão-beta) é a primeira, com as correções das bordas e do fade de fechamento.
+3. **Outras betas 0.3** à medida que correções e registros chegarem; a [0.3.0-beta.3](#sexta-pré-versão-beta) é a primeira, com as correções das bordas e do fade de fechamento, e a [0.3.0-beta.4](#sétima-pré-versão-beta) acrescenta a imagem anterior da vizinha e as verificações de uso prolongado.
 4. **1.0.0-rc.1:** etapa 1 concluída e configuração revisada e congelada; as etapas 2 a 5 rodam sobre versões candidatas.
 5. **1.0.0:** uma versão candidata em que a aceitação de todas as etapas vale, publicada sem mudanças.
 

@@ -6,7 +6,7 @@ The goal is a minimal Rust compositor that becomes a practical choice for Xorg a
 
 ## Status and priorities (2026-11-04)
 
-The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
+The latest release is [0.3.0-beta.4](#seventh-beta-prerelease), a GitHub prerelease with Open Build Service packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed. This section sums up what is done and orders what comes next; the sections below hold the records.
 
 ### Done
 
@@ -27,9 +27,9 @@ The latest release is [0.3.0-beta.3](#sixth-beta-prerelease), a GitHub prereleas
 
 In order, each with the reason it comes before the next. Items 1 to 5 lie on the [path to 1.0](#release-path).
 
-1. **Bring 0.3.0-beta.3 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
+1. **Bring 0.3.0-beta.4 to outside testers.** [Step 5](#5-outside-testing) needs three testers other than the maintainer and then two quiet weeks, the longest wait on the path to 1.0. Announce the beta where X11 users gather, pointing to the beta guide and the issue templates.
 2. **Record more hardware.** [Step 2](#2-hardware-and-desktops) still lacks NVIDIA's driver on Xorg, Intel with the current code, more window managers on Xorg, physical hotplug and suspend and resume on Xorg, and actual applications: a browser and its menus, a terminal, mpv, a game, a client-side-decorated GTK window, and an Electron application. Those sessions also cover what the rounded corners' last task asks: corners under a window manager and with applications. A [live qtile session](DESKTOP_TESTING.md#recorded-qtile-session-on-the-intel-laptop-2026-10-05) on the Intel laptop has since recorded corners, shadows, and blur under one window manager in both renderers, with synthetic windows and without the probe. Testers' reports from item 1 can supply part of it.
-3. **Run the week of daily use.** The [automated run](#10-step-4-the-automated-endurance-run) of 10,000 window cycles passes on Xvfb, and a sampler records the daily use that [step 4](#4-endurance) still needs: two machines running a release candidate as their compositor for seven days. The Radeon Vega desktop already runs Compust as its compositor.
+3. **Run the week of daily use.** The [automated run](#10-step-4-the-automated-endurance-run) of 10,000 window cycles passes on Xvfb, and a sampler records the daily use that [step 4](#4-endurance) still needs: two machines running a release candidate as their compositor for seven days. That week counts only once item 4 has produced 1.0.0-rc.1. Until then, a rehearsal week on the Radeon Vega desktop, which already runs Compust as its compositor, checks the sampler and the criterion with 0.3.0-beta.4; the second machine is still to be chosen.
 4. **Prepare distribution and review the configuration.** [Step 6](#6-distribution-and-documentation) still needs an Arch User Repository package, manual pages, a picom migration guide, and a troubleshooting guide. Before 1.0.0-rc.1, review every setting once, `corner_radius` included, since 1.0 freezes them.
 5. **Measure the release candidates.** [Step 3](#3-independent-performance-measurements) runs the benchmark scenes on the candidates of item 4 in each environment item 2 qualifies, including the cost of shadows and rounded corners.
 6. **Active and Inactive Opacity, tasks 2 to 6.** Rules by focus already dim inactive windows, so this milestone is recommended after 1.0.0-rc.1, keeping 1.0's settings as they are. If its settings are to be part of 1.0, they must land before the configuration review of item 4.
@@ -334,6 +334,12 @@ No recorded session ran this exact source. The [qtile session](DESKTOP_TESTING.m
 
 Two [`package.sh`](../tools/package.sh) runs on the Radeon Vega desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34. The downloaded release archive matched `SHA256SUMS`. The [Open Build Service packages](../packaging/obs/README.md) build the tag as `0.3.0~beta.3` for Debian 13, Fedora 43 and 44, and openSUSE Tumbleweed; every build ran the full test suite, all 135 X11 tests included, and passed.
 
+### Seventh beta prerelease
+
+Version 0.3.0-beta.4 carries what followed 0.3.0-beta.3: a window that a window manager grows over a closing one shows its previous image until its client draws the new one, for at most a second, so that the [closing window's image](#local-beta-testing-a-closed-windows-image-in-the-growing-neighbor) no longer lingers in it, as it did in a Steam window under Xmonad; the [automated endurance run](#10-step-4-the-automated-endurance-run) of 10,000 window cycles and the sampler for the week of daily use; and two tests, the [monitor change](#local-beta-testing-the-monitor-change-tests-stale-frame) and the [radius change](#local-beta-testing-the-radius-tests-stale-baseline), that read the screen before Compust had shown the change and no longer fail at random. The [beta guide](BETA.md) lists the scope, and the [release notes](releases/v0.3.0-beta.4.md) list the changes.
+
+No recorded session ran this exact source. The neighbor's previous image has automated tests only and has not been recorded with Steam on hardware. The endurance run passed on the RX 9060 XT desktop on Xorg's Xvfb 21.1.25, with the source on top of `09a96bb`.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |
@@ -505,7 +511,7 @@ Publish betas as features land; [0.3.0-beta.1](#fourth-beta-prerelease) started 
 
 1. **0.3.0-beta.1, [published](#fourth-beta-prerelease):** everything since 0.2.0-beta.3, namely configuration discovery and reload, region repaint, blur reuse, occlusion, the GPU renderer, weighted blur, and per-window rules, so that outside testing can start.
 2. **0.3.0-beta.2, [published](#fifth-beta-prerelease):** step 1's three features, rounded corners, and reload on save, so that outside testing covers what 1.0 promises.
-3. **Further 0.3 betas** as fixes and records land; [0.3.0-beta.3](#sixth-beta-prerelease) is the first, with the border and closing-fade fixes.
+3. **Further 0.3 betas** as fixes and records land; [0.3.0-beta.3](#sixth-beta-prerelease) is the first, with the border and closing-fade fixes, and [0.3.0-beta.4](#seventh-beta-prerelease) adds the neighbor's previous image and the endurance checks.
 4. **1.0.0-rc.1:** step 1 is done and the configuration is reviewed and frozen; steps 2 to 5 run on release candidates.
 5. **1.0.0:** a release candidate for which every step's acceptance holds, published unchanged.
 
