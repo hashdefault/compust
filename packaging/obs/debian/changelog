@@ -1,3 +1,15 @@
+compust (0.3.0~beta.4-1) unstable; urgency=medium
+
+  * Package the 0.3.0-beta.4 prerelease, tag v0.3.0-beta.4 at
+    a4fad80cae2a0ae56392909a73443820c74c59a4.
+    A window that a tiling window manager grows over a closing one keeps
+    its previous image until its client draws, so the closing window's
+    image no longer lingers in it. Adds the endurance run and the sampler
+    for a week of daily use, and fixes three tests that read the screen
+    too early.
+
+ -- Lucas G. Bueno <lucasgbueno@proton.me>  Fri, 06 Nov 2026 17:44:45 +0000
+
 compust (0.3.0~beta.3-1) unstable; urgency=medium
 
   * Package the 0.3.0-beta.3 prerelease, tag v0.3.0-beta.3 at

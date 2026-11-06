@@ -340,6 +340,8 @@ Version 0.3.0-beta.4 carries what followed 0.3.0-beta.3: a window that a window 
 
 No recorded session ran this exact source. The neighbor's previous image has automated tests only and has not been recorded with Steam on hardware. The endurance run passed on the RX 9060 XT desktop on Xorg's Xvfb 21.1.25, with the source on top of `09a96bb`.
 
+Two [`package.sh`](../tools/package.sh) runs on the Radeon Vega desktop produced identical archives. The packaged binary printed its version and needs no glibc symbol newer than 2.34. The downloaded release archive matched `SHA256SUMS`. The [Open Build Service packages](../packaging/obs/README.md) build the tag as `0.3.0~beta.4` for Debian 13, Fedora 43 and 44, and openSUSE Tumbleweed; every build ran the full test suite, all 141 X11 tests included, and passed.
+
 ### Compatibility matrix
 
 | Environment | Verified coverage | Evidence / limits |

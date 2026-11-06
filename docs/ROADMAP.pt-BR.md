@@ -340,6 +340,8 @@ A versão 0.3.0-beta.4 traz o que veio depois da 0.3.0-beta.3: uma janela que um
 
 Nenhuma sessão registrada rodou exatamente este código. A imagem anterior da vizinha tem apenas testes automatizados e não foi registrada com a Steam em hardware. A execução de uso prolongado passou no desktop com RX 9060 XT, no Xvfb 21.1.25 do Xorg, com o código sobre `09a96bb`.
 
+Duas execuções do [`package.sh`](../tools/package.sh) no desktop com Radeon Vega produziram arquivos idênticos. O binário empacotado informou sua versão e não exige nenhum símbolo da glibc mais recente que a 2.34. O arquivo da versão baixado coincidiu com o `SHA256SUMS`. Os [pacotes do Open Build Service](../packaging/obs/README.md) compilam a tag como `0.3.0~beta.4` para Debian 13, Fedora 43 e 44 e openSUSE Tumbleweed; cada build rodou a suíte completa de testes, inclusive os 141 testes X11, e passou.
+
 ### Matriz de compatibilidade
 
 | Ambiente | Cobertura verificada | Evidência / limites |
