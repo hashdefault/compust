@@ -7,14 +7,16 @@ use std::{
 use x11rb::{
     COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT, NONE,
     connection::Connection,
+    errors::ReplyError,
     protocol::{
-        Event,
+        ErrorKind, Event,
         composite::ConnectionExt as _,
         damage::{ConnectionExt as _, ReportLevel},
         present::{ConnectionExt as _, EventMask as PresentMask},
         xproto::{
             AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConfigureWindowAux,
-            ConnectionExt as _, CreateWindowAux, EventMask, PropMode, WindowClass,
+            ConnectionExt as _, CreateWindowAux, EventMask, GET_IMAGE_REQUEST, PropMode,
+            WindowClass,
         },
     },
     rust_connection::RustConnection,
@@ -307,14 +309,31 @@ impl Surface {
             ensure!(Instant::now() < deadline, "timed out: {description}");
             self.conn.damage_subtract(self.damage, NONE, NONE)?;
             self.conn.flush()?;
-            if ready()? {
-                return Ok(());
+            match ready() {
+                Ok(true) => return Ok(()),
+                Ok(false) => {}
+                // Compust unmaps the overlay while compositing is suspended, which can happen
+                // for a moment whenever one opaque window is left covering the screen, and
+                // the overlay cannot be read then. Its map ends the wait like any other event.
+                Err(error) if self.overlay_unreadable(&error) => {}
+                Err(error) => return Err(error),
             }
             while self.poll_event()?.is_none() {
                 ensure!(Instant::now() < deadline, "timed out: {description}");
                 self.wait(deadline)?;
             }
         }
+    }
+
+    /// Whether `error` is a read of the overlay refused because it is unmapped.
+    fn overlay_unreadable(&self, error: &anyhow::Error) -> bool {
+        matches!(
+            error.downcast_ref::<ReplyError>(),
+            Some(ReplyError::X11Error(error))
+                if error.error_kind == ErrorKind::Match
+                    && error.major_opcode == GET_IMAGE_REQUEST
+                    && error.bad_value == self.overlay
+        )
     }
 
     pub(super) fn poll_event(&self) -> Result<Option<Event>> {
