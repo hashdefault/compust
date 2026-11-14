@@ -1,0 +1,207 @@
+.\" SPDX-License-Identifier: MIT
+.TH COMPUST 1 2026-11-14 Compust "User Commands"
+.nh
+.SH NAME
+compust \- experimental X11 compositor for Xorg and XLibre
+.SH SYNOPSIS
+.B compust
+.RB [ \-\-display
+.IR display ]
+.RB [ \-c | \-\-config
+.IR file ]
+.br
+.B compust
+.RB [ \-\-display
+.IR display ]
+.B \-\-diagnose
+.br
+.B compust
+.RB [ \-c | \-\-config
+.IR file ]
+.B \-\-check\-config
+.br
+.B compust
+.BR \-h | \-\-help | \-V | \-\-version
+.SH DESCRIPTION
+.B compust
+composites the windows of one X screen.
+It redirects them off screen through the Composite extension and draws each
+frame from their contents, with fades when windows open and close,
+transparency, blur behind translucent windows, shadows, rounded corners, and
+settings chosen per window by rules.
+It repaints only the regions that changed, and an idle desktop is not
+repainted.
+.PP
+By default the X server draws the frames through XRender.
+With
+.B backend = \(dqgl\(dq
+they are drawn with OpenGL ES on the server's GPU, sharing buffers through
+DRI3, and Compust falls back to XRender with a warning where the server or
+the driver cannot.
+When the server supports Present, finished frames are presented in step with
+the display; otherwise they are copied directly, which is not synchronized to
+vertical blanking.
+.PP
+Compust becomes the compositor by owning the
+.B _NET_WM_CM_S\fIn\fP
+selection of the screen.
+If another compositor owns it, Compust refuses to start and says so: stop
+that compositor first.
+Compust runs in the foreground until it is stopped, logs to standard error,
+and installs no autostart entry.
+Start it from the X session, after the window manager, for example with
+.B spawnOnce \(dqcompust\(dq
+in Xmonad or
+.B exec \-\-no\-startup\-id compust
+in i3.
+.SH OPTIONS
+.TP
+.BI \-\-display " display"
+Composite the screen of
+.IR display ,
+such as
+.BR :1 ,
+instead of the one that
+.B DISPLAY
+names.
+.TP
+.BR \-c ", " \-\-config " \fIfile\fP"
+Read the configuration from
+.I file
+instead of searching for it.
+Saving
+.I file
+reloads it.
+.TP
+.B \-\-diagnose
+Report the server's extensions and whether blur and the GPU renderer can
+run, without becoming the compositor.
+It can run while another compositor is active.
+.TP
+.B \-\-check\-config
+Validate the configuration, print the file it was read from, or that
+built-in defaults apply, and exit without connecting to the X server.
+.TP
+.BR \-h ", " \-\-help
+Print a summary of the options.
+.TP
+.BR \-V ", " \-\-version
+Print the version.
+.SH CONFIGURATION
+Without
+.BR \-\-config ,
+Compust reads the first
+.I compust/compust.toml
+in
+.B $XDG_CONFIG_HOME
+(by default
+.IR ~/.config ),
+then in each directory of
+.B $XDG_CONFIG_DIRS
+(by default
+.IR /etc/xdg ).
+Without a file, built-in defaults apply.
+.BR compust.toml (5)
+describes the settings.
+An unknown setting or a value out of its range is an error, and Compust
+exits before connecting to the X server.
+.PP
+Compust reloads the configuration without restarting when the file is saved,
+once it has stayed unchanged for a tenth of a second, and on
+.BR SIGUSR1 .
+A reload reads the file that a restart would read.
+If that file cannot be read or is invalid, Compust logs a warning and keeps
+its current settings.
+A configuration directory created after Compust starts is read on
+.B SIGUSR1
+or at the next start.
+.SH SIGNALS
+.TP
+.B SIGUSR1
+Reload the configuration.
+.TP
+.BR SIGINT ", " SIGTERM
+Stop compositing and exit.
+The windows then draw to the screen directly again.
+.SH ENVIRONMENT
+.TP
+.B DISPLAY
+The X display to composite, unless
+.B \-\-display
+names one.
+The usual Xauthority authentication applies.
+.TP
+.BR XDG_CONFIG_HOME ", " XDG_CONFIG_DIRS ", " HOME
+Where the configuration is searched for.
+Relative directories are ignored.
+.TP
+.B RUST_LOG
+Which messages are logged, by default
+.BR compust=info ;
+.B compust=debug
+logs more.
+.SH FILES
+.TP
+.I ~/.config/compust/compust.toml
+The user's configuration, under the default
+.BR XDG_CONFIG_HOME .
+.TP
+.I /etc/xdg/compust/compust.toml
+A configuration for every user, under the default
+.BR XDG_CONFIG_DIRS .
+.TP
+.I /usr/share/doc/compust/compust.example.toml
+A complete example configuration, where packages install it.
+.SH EXIT STATUS
+.TP
+.B 0
+Compust was stopped by
+.B SIGINT
+or
+.BR SIGTERM ,
+or
+.B \-\-diagnose
+or
+.B \-\-check\-config
+succeeded.
+.TP
+.B 1
+An error, such as an invalid configuration, a missing extension, another
+compositor owning the screen, or a lost connection to the server.
+.TP
+.B 2
+An invalid command line.
+.SH EXAMPLES
+Check the server and the configuration, then start Compust with its log in
+a file:
+.PP
+.RS
+.EX
+compust \-\-diagnose
+compust \-\-check\-config
+compust 2>>"$HOME/.local/state/compust.log" &
+.EE
+.RE
+.PP
+Reload the configuration by signal, as a directory created after Compust
+started requires, and start Compust with more log messages:
+.PP
+.RS
+.EX
+pkill \-USR1 \-x compust
+RUST_LOG=compust=debug compust
+.EE
+.RE
+.SH SEE ALSO
+.BR compust.toml (5),
+.BR xprop (1)
+.PP
+The README in
+.IR /usr/share/doc/compust ,
+and the documentation at
+.UR https://github.com/hashdefault/compust
+.UE .
+.SH BUGS
+Report problems with the issue templates at
+.UR https://github.com/hashdefault/compust/issues
+.UE .

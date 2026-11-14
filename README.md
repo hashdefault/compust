@@ -66,21 +66,20 @@ If a Present submission is rejected with `BadMatch` and the original rendering b
 
 ## Install
 
-The [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) builds x86_64 packages for Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed from the 0.3.0-beta.4 prerelease, and runs the test suite in every build. The [packaging notes](packaging/obs/README.md) name the snapshot. A package installs the `compust` program and its documentation only: no autostart entry, and no change to your desktop configuration.
+The [Open Build Service](https://build.opensuse.org/package/show/home:hashdefault/compust) builds x86_64 packages for Arch Linux, Debian, Ubuntu, Linux Mint, Fedora, and openSUSE Tumbleweed from the 0.3.0-beta.4 prerelease, and runs the test suite in every build. The [packaging notes](packaging/obs/README.md) name the snapshot. A package installs the `compust` program and its documentation only: no autostart entry, and no change to your desktop configuration.
 
 ### Arch Linux and derivatives
 
-There is no Arch package yet, so build from source. The same commands apply to derivatives that use `pacman`, such as CachyOS, EndeavourOS, and Manjaro.
+The package is built against Arch's current repositories. The commands add the repository's signing key, which is the `home:hashdefault` project key with the fingerprint below, then the repository, and install the package; they work in bash, zsh, and fish. They were checked on Arch Linux; derivatives that follow Arch's repositories, such as CachyOS and EndeavourOS, should work the same way.
 
 ```sh
-sudo pacman -S --needed git rust
-git clone https://github.com/hashdefault/compust.git
-cd compust
-cargo build --release --locked
-sudo install -Dm755 target/release/compust /usr/local/bin/compust
+curl -fsSL https://download.opensuse.org/repositories/home:/hashdefault/Arch/x86_64/home_hashdefault_Arch.key | sudo pacman-key --add -
+sudo pacman-key --lsign-key 8A7C9FCA513D2BD00F67E17FAFAB61A6842A0024
+printf '\n[home_hashdefault_Arch]\nServer = https://download.opensuse.org/repositories/home:/hashdefault/Arch/$arch\n' | sudo tee -a /etc/pacman.conf
+sudo pacman -Syu compust
 ```
 
-Arch's `rust` package is newer than the required 1.95. If you use rustup instead of that package, Cargo takes the 1.95.0 toolchain that the repository pins. To update later, run `git pull` and repeat the last two commands.
+`sudo pacman -Syu` then updates Compust with the rest of the system. To build the package yourself instead, run `makepkg -si` in [`packaging/arch`](packaging/arch/README.md) of a clone, which builds the same tag from GitHub; that recipe also suits the Arch User Repository, where Compust is not published yet.
 
 ### Debian, Ubuntu, and Linux Mint
 
@@ -123,7 +122,7 @@ compust --diagnose
 compust
 ```
 
-To start from the example configuration, copy `compust.example.toml` to `~/.config/compust/compust.toml`. The file is in the repository, and the packages install it under `/usr/share/doc`; `dpkg -L compust` or `rpm -ql compust` shows where. [Configuration](#configuration) describes the settings, and the [beta guide](docs/BETA.md) explains how to return to your previous compositor and report problems.
+To start from the example configuration, copy `compust.example.toml` to `~/.config/compust/compust.toml`. The file is in the repository, and the packages install it under `/usr/share/doc`; `pacman -Ql compust`, `dpkg -L compust`, or `rpm -ql compust` shows where. [Configuration](#configuration) describes the settings, and the [beta guide](docs/BETA.md) explains how to return to your previous compositor and report problems.
 
 ## Build and run
 
@@ -153,7 +152,7 @@ Choose an unused display number. This example disables X authentication only for
 
 ## Configuration
 
-The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11.
+The example is a complete configuration. Without `--config`, Compust reads the first `compust/compust.toml` found in `$XDG_CONFIG_HOME` (by default `~/.config`), then in each directory of `$XDG_CONFIG_DIRS` (by default `/etc/xdg`); with no file, built-in defaults apply. Unknown fields and out-of-range values produce an error before connecting to X11. The manual pages [compust(1)](docs/man/compust.1) and [compust.toml(5)](docs/man/compust.toml.5) describe the command and every setting; from a clone, `man ./docs/man/compust.toml.5` opens one.
 
 Compust reloads the configuration without restarting when its file is saved, once the file has stayed unchanged for a tenth of a second, and on SIGUSR1, for example with `pkill -USR1 -x compust`; 0.3.0-beta.1 reloads on SIGUSR1 only. It watches the directories of the files it would read and the file a symbolic link points to, so editors that save by replacing the file reload it too. A configuration directory created after Compust starts is read on SIGUSR1 or a restart. A reload reads the file a restart would read. If that file cannot be read or is invalid, Compust logs a warning and keeps its current settings. `opacity`, `max_fps`, `unredirect_fullscreen`, the shadow settings, and the opacity, blur, and shadow that rules give apply from the next frame, to windows already open too. A new `fade_ms`, global or in a rule, applies to every opening and closing that starts afterward, including for windows already open; fades in progress finish with their previous duration. A change to `blur_radius`, `vsync`, or `backend` replaces the renderer once the frame being presented is done.
 

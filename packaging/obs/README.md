@@ -1,12 +1,12 @@
 # Open Build Service package
 
-The RPM recipe and the Debian source package build the 0.3.0-beta.4
+The RPM recipe, the Debian source package and the Arch Linux `PKGBUILD` build the 0.3.0-beta.4
 prerelease, tag `v0.3.0-beta.4` at
 `a4fad80cae2a0ae56392909a73443820c74c59a4`, as `0.3.0~beta.4`. The tilde
 sorts it before a final 0.3.0 and after `0.3.0~beta.3`. The installed
 `BUILDINFO` names the revision.
 
-Both use the same two archives, named as Debian orig archives: the source
+All three use the same two archives, named as Debian orig archives: the source
 exported by `git archive`, and `orig-deps`, which holds the vendored crates
 and the Cargo configuration that selects them. `dpkg-source` reads gzip, xz,
 bzip2 and lzma but not zstd, so the dependency archive is xz.
@@ -46,6 +46,26 @@ recipe. It keeps `dh_clean` out of `deps/vendor`: Cargo verifies every
 vendored file, and `dh_clean` would delete the `Cargo.toml.orig` files. The
 dependency notices go to `/usr/share/doc/compust/dependency-licenses`.
 
+## Arch Linux package
+
+`PKGBUILD` builds the same tag as `0.3.0beta4`, the form that pacman sorts
+before `0.3.0rc1` and the final `0.3.0`. makepkg unpacks `orig-deps` into
+`$srcdir`, above the source tree, where Cargo finds its `.cargo/config.toml`
+and builds offline from `vendor/`. `check()` runs the same tests and checks
+as the other recipes, and skips the nine that change monitors when the Xvfb
+comes from XLibre, whose RandR rejects those changes; on OBS it comes from
+Xorg, so every test runs. The package installs the program, the license,
+both READMEs and the example configuration. It was built and checked in a
+clean `archlinux:base-devel` container without access to crates.io, and on
+OBS against `Arch:Extra` with Rust 1.99.1 and Xorg's Xvfb 21.1.26, where
+every test ran. Unlike the AUR recipe, it depends on `rust` rather than
+`cargo`: both `rust` and `rustup` provide `cargo`, and OBS leaves the
+package unresolvable rather than choose. The published repository is signed
+with the project key; the README's installation section adds it to
+`pacman.conf`.
+[`packaging/arch`](../arch/README.md) holds the same recipe for the Arch
+User Repository, which builds from GitHub's archive of the tag.
+
 ## Project settings on OBS
 
 The packages depend on these settings in the project's meta configuration:
@@ -55,6 +75,7 @@ The packages depend on these settings in the project's meta configuration:
   (Fedora 44), and the package would stay unresolvable.
 - The Debian 13 repository lists `backports` before `standard`, for the
   same reason.
+- The `Arch` repository builds on `Arch:Extra`, which includes `Arch:Core`.
 - The `debuginfo` flag is enabled. OBS then moves the debug symbols into
   `compust-debuginfo` and `compust-debugsource` and strips the installed
   binary. With the flag off, the binary keeps its symbol table and rpmlint
@@ -72,6 +93,10 @@ The packages depend on these settings in the project's meta configuration:
 <repository name="Debian_13">
   <path project="Debian:13" repository="backports"/>
   <path project="Debian:13" repository="standard"/>
+  <arch>x86_64</arch>
+</repository>
+<repository name="Arch">
+  <path project="Arch:Extra" repository="standard"/>
   <arch>x86_64</arch>
 </repository>
 ```
@@ -120,16 +145,16 @@ cp -R packaging/obs/debian "$output/compust-$version/debian"
 )
 rm -rf "$output/compust-$version" "$output/work"
 
-cp packaging/obs/compust.spec packaging/obs/compust.changes "$output/"
+cp packaging/obs/compust.spec packaging/obs/compust.changes packaging/obs/PKGBUILD "$output/"
 (
     cd "$output"
-    sha256sum compust.spec compust.changes compust_* >SHA256SUMS
+    sha256sum compust.spec compust.changes PKGBUILD compust_* >SHA256SUMS
 )
 ```
 
 Upload every file in the output directory into the `compust` package of
-`home:hashdefault`: the recipe, the `.changes` file, the two archives, the
-`.dsc`, the `debian.tar.xz` and `SHA256SUMS`. Then remove the four
+`home:hashdefault`: the recipe, the `.changes` file, the `PKGBUILD`, the two
+archives, the `.dsc`, the `debian.tar.xz` and `SHA256SUMS`. Then remove the four
 `compust_*` files of the older version from the package, its `.dsc` first:
 OBS builds from the `.dsc` it finds, and the old archives would stay unused.
 The archives are generated artifacts and must not be committed to Git. An
@@ -138,7 +163,10 @@ are excluded by `git archive`.
 
 For a later snapshot, update the full and short revisions, the date and
 version in the recipe, in `debian/changelog` and `debian/rules`, the
-`.changes` entry and these commands together. Give the version a later
+`.changes` entry, the `PKGBUILD`'s versions and archive checksums, and these
+commands together. The first tag that contains `docs/man` also needs each
+recipe to install `compust.1` and `compust.toml.5` in the manual's sections
+1 and 5. Give the version a later
 date than the packaged one: with the same date, the two hashes alone would
 decide which version is newer. Regenerate both archives, keeping the
 upstream lock file unchanged, and verify each target build before

@@ -1,0 +1,266 @@
+.\" SPDX-License-Identifier: MIT
+.TH COMPUST.TOML 5 2026-11-14 Compust "File Formats"
+.nh
+.SH NAME
+compust.toml \- configuration of the compust compositor
+.SH SYNOPSIS
+.I $XDG_CONFIG_HOME/compust/compust.toml
+.br
+.I $XDG_CONFIG_DIRS/compust/compust.toml
+.SH DESCRIPTION
+.BR compust (1)
+reads its settings from a TOML file: the one that
+.B \-\-config
+names, or else the first
+.I compust/compust.toml
+in
+.B $XDG_CONFIG_HOME
+(by default
+.IR ~/.config ),
+then in each directory of
+.B $XDG_CONFIG_DIRS
+(by default
+.IR /etc/xdg ).
+Without a file, the defaults below apply.
+.PP
+The file holds the global settings, then any number of
+.B [[rules]]
+tables, which set some of them for chosen windows.
+Every setting is optional.
+An unknown setting, a value of the wrong type, or a value out of its range
+is an error;
+.B compust \-\-check\-config
+reports it without connecting to the X server.
+.PP
+Saving the file, or sending
+.BR SIGUSR1 ,
+reloads it.
+.BR opacity ,
+.BR max_fps ,
+.BR unredirect_fullscreen ,
+the shadow settings, and the opacity, blur, and shadow that rules give apply
+from the next frame, to windows already open too.
+A new
+.BR fade_ms ,
+global or in a rule, applies to every opening and closing that starts
+afterward; fades in progress finish with their previous duration.
+A change to
+.BR blur_radius ,
+.BR vsync ,
+or
+.B backend
+replaces the renderer once the frame being presented is done.
+An invalid file is logged and leaves the running settings unchanged.
+.SH GLOBAL SETTINGS
+.TP
+.BR opacity " (integer, 0 to 100, default 100)"
+The opacity of every window, in percent.
+It multiplies the opacity that an application sets in
+.BR _NET_WM_WINDOW_OPACITY .
+.TP
+.BR fade_ms " (integer, 0 to 65535, default 180)"
+How long a window takes to fade in when it opens and out when it closes, in
+milliseconds.
+Zero turns fades off.
+.TP
+.BR blur_radius " (integer, 0 to 16, default 4)"
+The approximate radius, in pixels, of the blur behind translucent windows,
+rounded to 2, 4, 8, or 16.
+The blur shows through each pixel as strongly as the window covers it, so a
+transparent margin stays sharp, and it fades with its window.
+Zero turns blur off.
+Without a bilinear filter in the server, Compust logs a warning and runs
+without blur.
+.TP
+.BR shadow_radius " (integer, 0 to 64, default 0)"
+How far a shadow spreads beyond its window, in pixels.
+Zero draws no shadows.
+A shadow is the window's rectangle, moved by the offset and blurred over
+this radius; it lies around its window, never beneath it, and fades with it.
+.TP
+.BR shadow_offset_x ", " shadow_offset_y " (integers, \-64 to 64, default 0)"
+Where a shadow lies from its window, in pixels: to the right and down, or to
+the left and up when negative.
+.TP
+.BR shadow_opacity " (integer, 0 to 100, default 50)"
+How dark a shadow is where it is darkest, in percent, multiplied by its
+window's opacity.
+.TP
+.BR corner_radius " (integer, 0 to 64, default 0)"
+The radius of rounded window corners, in pixels.
+Zero keeps corners square.
+A window's shadow and the blur behind it follow its corners, and a radius
+never exceeds half of the window's shorter side.
+.TP
+.BR max_fps " (integer, 1 to 1000, default 120)"
+The most frames drawn in a second.
+It does not make an idle desktop repaint.
+.TP
+.BR vsync " (boolean, default true)"
+Present finished frames through the Present extension, in step with the
+display, where the server supports it.
+.B false
+copies them directly, without synchronization to vertical blanking.
+.TP
+.BR backend " (string, default \(dqxrender\(dq)"
+.B \(dqxrender\(dq
+draws through the X server.
+.B \(dqgl\(dq
+draws with OpenGL ES on the server's GPU, through DRI3 1.2 and EGL, and falls
+back to XRender with a warning where it cannot.
+.TP
+.BR unredirect_fullscreen " (boolean, default false)"
+.B true
+stops compositing while the topmost window is opaque, has no shape or
+rounded corners, and covers the whole screen, as a fullscreen game or video
+does; windows then draw to the screen directly.
+Compositing resumes as soon as that stops being true.
+One overlay covers every monitor, so a window that fills one of several
+monitors stays composited.
+.SH SHADOWS AND CORNERS BY WINDOW TYPE
+Windows of the types
+.BR normal ,
+.BR dialog ,
+.BR utility ,
+.BR splash ,
+and
+.B toolbar
+cast shadows and have their corners rounded.
+Other types, a window that names no type and that the window manager does
+not manage, and a window that declares margins for its own decorations in
+.B _GTK_FRAME_EXTENTS
+get neither.
+A window with a shape of its own gets neither, and a window that the window
+manager shows fullscreen keeps square corners.
+A rule's
+.B shadow
+and
+.B corner_radius
+decide for the windows it chooses.
+.SH RULES
+Each
+.B [[rules]]
+table chooses windows by one or more of these fields; a window must match
+all of those that the rule gives:
+.TP
+.BR wm_class " (string)"
+The resource class, the second string of
+.BR WM_CLASS .
+.TP
+.BR window_type " (string)"
+The EWMH type:
+.BR desktop ,
+.BR dock ,
+.BR toolbar ,
+.BR menu ,
+.BR utility ,
+.BR splash ,
+.BR dialog ,
+.BR dropdown_menu ,
+.BR popup_menu ,
+.BR tooltip ,
+.BR notification ,
+.BR combo ,
+.BR dnd ,
+or
+.BR normal .
+A window that names no type that Compust knows is
+.B dialog
+when it is transient for another window and managed by the window manager,
+and
+.B normal
+otherwise.
+.TP
+.BR name " (string)"
+The title,
+.B _NET_WM_NAME
+or else
+.BR WM_NAME .
+.TP
+.BR focused " (boolean)"
+.B true
+chooses the window that the window manager names in the root's
+.BR _NET_ACTIVE_WINDOW ;
+.B false
+chooses every other window, menus and docks included.
+Under a window manager that does not set that property, every window counts
+as focused.
+.PP
+It sets one or more of these:
+.TP
+.BR opacity " (integer, 0 to 100)"
+Used instead of the global
+.BR opacity .
+.TP
+.BR blur " (boolean)"
+.B false
+keeps what lies behind the window sharp;
+.B true
+blurs it as by default, while
+.B blur_radius
+is above zero.
+.TP
+.BR fade_ms " (integer, 0 to 65535)"
+Used instead of the global
+.BR fade_ms .
+.TP
+.BR shadow " (boolean)"
+.B false
+gives the window no shadow;
+.B true
+gives it one whatever its type or margins, while
+.B shadow_radius
+is above zero.
+.TP
+.BR corner_radius " (integer, 0 to 64)"
+Used instead of the global
+.B corner_radius
+whatever the window's type or margins;
+.B 0
+keeps it square.
+.PP
+Text matches exactly, including case.
+Each setting comes from the first matching rule that sets it, so specific
+rules go before broad ones.
+Compust reads these properties from the application's window inside the
+window manager's frame, again whenever they change, and a closing window
+keeps the rules it had while it fades out.
+.BR xprop (1)
+shows a window's
+.BR WM_CLASS ,
+.BR _NET_WM_WINDOW_TYPE ,
+and
+.BR _NET_WM_NAME .
+.SH EXAMPLES
+.RS
+.EX
+fade_ms = 160
+blur_radius = 8
+shadow_radius = 10
+shadow_offset_x = 4
+shadow_offset_y = 4
+corner_radius = 8
+backend = "gl"
+
+# Terminals at 90% opacity, with square corners.
+[[rules]]
+wm_class = "Alacritty"
+opacity = 90
+corner_radius = 0
+
+# Tooltips without blur behind them, and without fades.
+[[rules]]
+window_type = "tooltip"
+blur = false
+fade_ms = 0
+
+# Normal windows other than the active one at 85% opacity.
+[[rules]]
+window_type = "normal"
+focused = false
+opacity = 85
+.EE
+.RE
+.SH SEE ALSO
+.BR compust (1),
+.BR xprop (1)

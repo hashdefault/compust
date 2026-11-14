@@ -26,7 +26,7 @@ O desktop com RX 9060 XT e XLibre rodou a 0.3.0-beta.1 com Xmonad, Openbox, i3 e
 
 ## Instalar
 
-No Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed, é possível instalar pacotes, como o [README](../README.pt-BR.md#instalação) descreve. Caso contrário, baixe `compust-0.3.0-beta.4-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.4), depois verifique e extraia os arquivos:
+No Arch Linux, Debian, Ubuntu, Linux Mint, Fedora e openSUSE Tumbleweed, é possível instalar pacotes, como o [README](../README.pt-BR.md#instalação) descreve. Caso contrário, baixe `compust-0.3.0-beta.4-x86_64-linux.tar.gz` e `SHA256SUMS` na [página da versão](https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.4), depois verifique e extraia os arquivos:
 
 ```sh
 sha256sum -c SHA256SUMS

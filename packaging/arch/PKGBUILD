@@ -1,0 +1,62 @@
+# Maintainer: Lucas G. Bueno <lucasgbueno@proton.me>
+
+pkgname=compust
+_tag=v0.3.0-beta.4
+# pacman sorts 0.3.0beta4 before 0.3.0rc1 and 0.3.0; with a separator before "beta",
+# as in 0.3.0_beta.4, it would sort after the final 0.3.0.
+pkgver=0.3.0beta4
+pkgrel=1
+pkgdesc='Experimental X11 compositor in Rust for Xorg and XLibre'
+arch=(x86_64)
+url='https://github.com/hashdefault/compust'
+license=(MIT)
+depends=(glibc libgcc)
+makedepends=(cargo)
+checkdepends=(mesa xorg-server-xvfb)
+optdepends=('mesa: EGL for the GPU renderer, backend = "gl"')
+source=("$pkgname-${_tag#v}.tar.gz::$url/archive/refs/tags/$_tag.tar.gz")
+sha256sums=('a5f4667a67a4ab844e0ed50140aae5cd11c623adcc1b03126abf2391bde3b8be')
+
+prepare() {
+  cd "$pkgname-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/^host: //p')"
+}
+
+build() {
+  cd "$pkgname-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --bin compust
+}
+
+check() {
+  cd "$pkgname-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  local skip=()
+  # XLibre's Xvfb, which provides xorg-server-xvfb on XLibre systems, rejects RandR CRTC
+  # changes with BadValue, so the tests that change monitors cannot run against it.
+  if pacman -Qqo "$(command -v "${XVFB:-Xvfb}")" 2>/dev/null | grep -q '^xlibre-'; then
+    skip=(
+      --skip monitors::
+      --skip presentation::falls_back_to_xrender_after_present_rejection
+      --skip presentation::replaces_unfinished_presentation_after_output_toggle
+      --skip presentation::replaces_unfinished_presentation_after_root_resize
+      --skip regions::monitor_changes_repaint_the_whole_screen
+    )
+  fi
+  # Prepare the directory once so concurrent Xvfb servers do not race to create it.
+  [[ -d /tmp/.X11-unix ]] || install -d -m1777 /tmp/.X11-unix
+  COMPUST_GPU_TESTS=1 LIBGL_ALWAYS_SOFTWARE=1 \
+    cargo test --frozen --release --workspace --all-targets -- "${skip[@]}"
+  target/release/compust --check-config --config compust.example.toml
+}
+
+package() {
+  cd "$pkgname-${_tag#v}"
+  install -Dm0755 target/release/compust -t "$pkgdir/usr/bin/"
+  install -Dm0644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm0644 README.md README.pt-BR.md compust.example.toml \
+    -t "$pkgdir/usr/share/doc/$pkgname/"
+}

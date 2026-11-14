@@ -1,0 +1,67 @@
+# Maintainer: Lucas G. Bueno <lucasgbueno@proton.me>
+# Source: https://github.com/hashdefault/compust/releases/tag/v0.3.0-beta.4 (commit a4fad80cae2a0ae56392909a73443820c74c59a4)
+#
+# The Arch Linux recipe for the Open Build Service. It builds offline from the same two
+# archives as compust.spec and the Debian source package; packaging/arch/PKGBUILD builds the
+# same tag from GitHub instead.
+
+pkgname=compust
+_version='0.3.0~beta.4'
+_short=a4fad80
+# pacman sorts 0.3.0beta4 before 0.3.0rc1 and 0.3.0; with a separator before "beta",
+# as in 0.3.0_beta.4, it would sort after the final 0.3.0.
+pkgver=0.3.0beta4
+pkgrel=1
+pkgdesc='Experimental X11 compositor in Rust for Xorg and XLibre'
+arch=(x86_64)
+url='https://github.com/hashdefault/compust'
+license=(MIT)
+depends=(glibc libgcc)
+# rust and rustup both provide cargo, and OBS will not choose between them.
+makedepends=(rust)
+checkdepends=(mesa xorg-server-xvfb)
+optdepends=('mesa: EGL for the GPU renderer, backend = "gl"')
+# The orig-deps archive holds vendor/ and the .cargo/config.toml that selects it. Both land
+# in $srcdir, above the source tree, where Cargo finds the configuration.
+source=("${pkgname}_$_version.orig.tar.gz"
+        "${pkgname}_$_version.orig-deps.tar.xz")
+sha256sums=('465c763847e16c7810d8d65ff2aaf4b796f78d91213bdbea346c276e0cb13e29'
+            '18e4a7ac671781080526cfb7267b545dcabadf754b100fa58ee5958cc0c6fc42')
+
+build() {
+  cd "$pkgname-$_short"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --bin compust
+}
+
+check() {
+  cd "$pkgname-$_short"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  local skip=()
+  # XLibre's Xvfb, which provides xorg-server-xvfb on XLibre systems, rejects RandR CRTC
+  # changes with BadValue, so the tests that change monitors cannot run against it.
+  if pacman -Qqo "$(command -v "${XVFB:-Xvfb}")" 2>/dev/null | grep -q '^xlibre-'; then
+    skip=(
+      --skip monitors::
+      --skip presentation::falls_back_to_xrender_after_present_rejection
+      --skip presentation::replaces_unfinished_presentation_after_output_toggle
+      --skip presentation::replaces_unfinished_presentation_after_root_resize
+      --skip regions::monitor_changes_repaint_the_whole_screen
+    )
+  fi
+  # Prepare the directory once so concurrent Xvfb servers do not race to create it.
+  [[ -d /tmp/.X11-unix ]] || install -d -m1777 /tmp/.X11-unix
+  COMPUST_GPU_TESTS=1 LIBGL_ALWAYS_SOFTWARE=1 \
+    cargo test --frozen --release --workspace --all-targets -- "${skip[@]}"
+  target/release/compust --check-config --config compust.example.toml
+}
+
+package() {
+  cd "$pkgname-$_short"
+  install -Dm0755 target/release/compust -t "$pkgdir/usr/bin/"
+  install -Dm0644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm0644 README.md README.pt-BR.md compust.example.toml \
+    -t "$pkgdir/usr/share/doc/$pkgname/"
+}
