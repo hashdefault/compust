@@ -173,13 +173,15 @@ target/release/examples/endurance_sample sample --display "$DISPLAY" \
     --server-pid "$(pgrep -x Xorg)"
 ```
 
-The sampler only queries the server. Each row holds Compust's PID and start time, its resident memory, its XRes counts and owned pixmap bytes, the milliseconds since the last input, the count of Present timeouts in the log so far, and the server's resident memory, with the session it belongs to: the boot and the server's start, which `--server-pid` gives. A row marks Compust `absent` when no compositor owns the selection, and sampling goes on. After the week, the summary decides the criterion and exits with 0 when it holds:
+The sampler only queries the server. Each row holds Compust's PID and start time, its resident memory, its XRes counts and owned pixmap bytes, the milliseconds since the last input, the count of Present timeouts in the log so far, and the server's resident memory, with the session it belongs to: the boot and the server's start, which `--server-pid` gives. A row marks Compust `absent` when no compositor owns the selection, and sampling goes on. The first sample waits up to two minutes, which `--startup-grace` changes, for a compositor to own the selection, so that a sampler started at login, before the window manager starts Compust, does not record it as absent. After the week, the summary decides the criterion and exits with 0 when it holds:
 
 ```sh
 target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
 ```
 
 It requires samples spanning seven days. Within each session of the X server, which a logout or a shutdown ends, one Compust process must run throughout: no restart, which a new PID or start time shows, and no `absent` row once Compust has started. Rows from before it starts do not count, but a session in which it never starts fails. No interval may add two Present timeouts, and no two consecutive intervals may add one each. After a 60-minute warmup in each session, the median memory of idle samples, those without input for five minutes, on the last day must be within 5% of that on the first day. A day without idle samples uses all of its samples, and the report says so; with less than two days of samples, memory is not yet decided.
+
+The summary cannot tell a stop by hand from a crash, so keep Compust running for the whole week and apply configuration changes by saving the file or with SIGUSR1, which keep the process. Keep its log in a file that a login does not rewrite, as the commands above do, so that an `absent` row can still be explained afterward: SDDM, for one, rewrites `~/.local/share/sddm/xorg-session.log` at each login.
 
 ## Recorded hardware session: 2026-10-03
 
@@ -724,7 +726,26 @@ The phases last six to eight seconds, ran once, and shared the session with a te
 
 The automated run passed on the RX 9060 XT desktop, in a release build on Xorg's Xvfb 21.1.25, with the source on top of 09a96bb. Its 10,000 cycles took 321 seconds, about 32 ms each. After them, under the plain configuration, Compust held exactly what it held after the warmup. XRes counted 4 `PIXMAP` of 353,601 bytes in all, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient`, and one each of `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW`, and `XFixesRegion`. Checkpoints under the effects configuration held more, up to 32 `PIXMAP` of 704,257 bytes, for the blur levels, fading windows, and held captures, and every switch back to the plain configuration returned to the baseline. Compust's resident memory went from 4,212 KiB at the baseline to 4,280 KiB by cycle 1,000, and was 4,284 KiB from cycle 5,000 to the end. An earlier run of the same test ended with the same resources, at 4,324 and 4,396 KiB.
 
-The sampler for the week of daily use was checked on a nested Xvfb, where it recorded Compust being stopped as `absent`, its restart as a new PID and start time, and a Present timeout written to the log. The week itself has not started.
+The sampler for the week of daily use was checked on a nested Xvfb, where it recorded Compust being stopped as `absent`, its restart as a new PID and start time, and a Present timeout written to the log. The week itself had not started; a [rehearsal week](#recorded-rehearsal-week-2026-11-06-to-2026-11-14) followed.
+
+## Recorded rehearsal week: 2026-11-06 to 2026-11-14
+
+The sampler ran on the Radeon Vega desktop from 2026-11-06 14:42 to 2026-11-14 09:23 -03:00, while Compust 0.3.0-beta.4 composited the owner's daily sessions. Xmonad 0.18.1 started the installed binary, identical to the release archive's (SHA-256 `adebd572ee8788bfab1b414ef77d8bc9b404b482670566730ccaa7be1a6852bd`), with the GL painter, Present, fades, blur, shadows, and rounded corners. The machine has an AMD Ryzen 5 5600GT with Radeon Vega graphics (amdgpu with modesetting, Mesa 26.2.6) and HDMI-1 and DP-1 at 1920×1080, 60 Hz. It ran XLibre 25.1.9 through the session of 2026-11-10, when it was updated, and 25.1.11 from 2026-11-11, with Linux 7.3.1 and, from the second session of 2026-11-09, 7.3.3. A block in `~/.xprofile` started the sampler at each login, reading the session log `~/.local/share/sddm/xorg-session.log`. The [rows and the summary](benchmarks/2026-11-14/endurance-rehearsal-vega/README.md) are archived.
+
+The 314 rows span 7.77 days in ten sessions of the X server. The machine ran on the first Friday afternoon, about nine and a half hours on each weekday from Monday to Friday, and for the login on the last morning, and was off over the weekend: 293 rows, about 49 hours, found Compust running. The summary passed three of its four parts:
+
+| Part | Recorded | Result |
+| --- | --- | --- |
+| Span | 7.77 days | PASS |
+| Present timeouts | None in any session | PASS |
+| Idle memory | 76,104 KiB on the first day, from 2 idle samples; 75,476 KiB on the last, from 14; −0.82% | PASS |
+| No crash | No restart; 12 `absent` rows after Compust had started; one session without a compositor | FAIL |
+
+Neither failure is a crash. On 2026-11-12 the owner stopped Compust by hand at 15:59 and left it stopped until the session ended at 17:57, which gives the 12 `absent` rows from 16:05 to 17:55. The journal holds no core dump or kernel message about Compust. The session without a compositor lasted seven minutes, on 2026-11-10 from 08:29 to a reboot at 08:36, and its only row was taken at login, before Xmonad started Compust. SDDM had rewritten the session log by then, so whether Compust started in that session cannot be read. All nine sessions that the sampler started at login open with an `absent` row of that kind; the criterion leaves those rows out unless Compust never appears in the session.
+
+Compust's memory did not grow within a session. Over the five full workdays, of 7.2 to 9.7 hours, its resident memory at the last row was at most 108 KiB above what it had been an hour after the first, and below it on four of them: 77,900 to 77,504 KiB on 2026-11-09, 77,964 to 67,316 KiB on 2026-11-10, 77,616 to 76,020 KiB on 2026-11-11, 77,608 to 77,716 KiB on 2026-11-12 before the stop, and 77,280 to 65,012 KiB on 2026-11-13. Over the week it ranged from 65,012 to 83,008 KiB. Owned pixmap bytes followed the open windows, from 26.5 to 59.0 MB, and XRes counted 73 to 170 of Compust's resources. The X server's resident memory rose from about 98 MB at each login to between 150 and 185 MB during the day, and started over with each session; it counts every client's resources, and the criterion does not use it.
+
+The rehearsal changed the sampler and this guide. The sampler's first sample now waits for a compositor, as [above](#run-the-endurance-checks). On a private Xvfb, a sampler started four seconds before Compust wrote an `ok` row within a second of Compust's start; without a compositor it wrote `absent` when a three-second grace ended, and `--startup-grace 0` sampled at once. The guide now asks for a log that a login does not rewrite and for Compust to keep running all week. Two limits remain for the counted week: the first day's idle memory came from 2 samples, since the sampler started on a Friday afternoon, and the span counts calendar days, so a machine that is off over the weekend reaches seven days with about 49 hours of composition.
 
 ## Complete the hardware gates
 

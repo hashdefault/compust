@@ -173,13 +173,15 @@ target/release/examples/endurance_sample sample --display "$DISPLAY" \
     --server-pid "$(pgrep -x Xorg)"
 ```
 
-O amostrador só faz consultas ao servidor. Cada linha traz o PID e o horário de início do Compust, a memória residente dele, as contagens do XRes e os bytes de pixmaps próprios, os milissegundos desde a última entrada, a contagem de tempos limite do Present no log até ali e a memória residente do servidor, com a sessão a que pertence: o boot e o início do servidor, que `--server-pid` informa. Uma linha marca o Compust como `absent` quando nenhum compositor tem a seleção, e a amostragem continua. Depois da semana, o resumo decide o critério e sai com 0 quando ele vale:
+O amostrador só faz consultas ao servidor. Cada linha traz o PID e o horário de início do Compust, a memória residente dele, as contagens do XRes e os bytes de pixmaps próprios, os milissegundos desde a última entrada, a contagem de tempos limite do Present no log até ali e a memória residente do servidor, com a sessão a que pertence: o boot e o início do servidor, que `--server-pid` informa. Uma linha marca o Compust como `absent` quando nenhum compositor tem a seleção, e a amostragem continua. A primeira amostra espera até dois minutos, o que `--startup-grace` muda, que um compositor tenha a seleção, para que um amostrador iniciado no login, antes de o gerenciador de janelas iniciar o Compust, não o registre como ausente. Depois da semana, o resumo decide o critério e sai com 0 quando ele vale:
 
 ```sh
 target/release/examples/endurance_sample summary --input "$HOME/compust-endurance.csv"
 ```
 
 Ele exige amostras ao longo de sete dias. Dentro de cada sessão do servidor X, que um logout ou um desligamento encerra, um único processo do Compust precisa rodar do começo ao fim: sem reinício, que um PID ou horário de início novo mostra, e sem linha `absent` depois que o Compust começou. Linhas de antes de ele começar não contam, mas uma sessão em que ele nunca começa reprova. Nenhum intervalo pode somar dois tempos limite do Present, e dois intervalos seguidos não podem somar um cada. Depois de 60 minutos de aquecimento em cada sessão, a mediana da memória das amostras ociosas, sem entrada por cinco minutos, no último dia precisa ficar a até 5% da mediana do primeiro dia. Um dia sem amostras ociosas usa todas as suas amostras, e o relatório avisa; com menos de dois dias de amostras, a memória ainda não é decidida.
+
+O resumo não distingue uma parada manual de uma falha, então mantenha o Compust rodando a semana inteira e aplique mudanças de configuração salvando o arquivo ou com SIGUSR1, que mantêm o processo. Guarde o log dele num arquivo que um login não reescreva, como os comandos acima fazem, para que uma linha `absent` ainda possa ser explicada depois: o SDDM, por exemplo, reescreve `~/.local/share/sddm/xorg-session.log` a cada login.
 
 ## Sessão registrada em hardware: 2026-10-03
 
@@ -724,7 +726,26 @@ As fases duram de seis a oito segundos, rodaram uma vez e dividiram a sessão co
 
 A execução automática passou no desktop com RX 9060 XT, num build de release no Xvfb 21.1.25 do Xorg, com o código sobre a 09a96bb. Os 10.000 ciclos levaram 321 segundos, cerca de 32 ms cada. Depois deles, na configuração simples, o Compust tinha exatamente o que tinha depois do aquecimento. O XRes contou 4 `PIXMAP` com 353.601 bytes no total, 5 `PICTURE`, 2 `DamageExt`, 4 `CompositeClientWindow`, 4 `OTHER CLIENT`, 2 `ShapeClient` e um de cada entre `CompositeClientOverlay`, `CompositeClientSubwindows`, `RandRClient`, `WINDOW` e `XFixesRegion`. Os pontos de controle na configuração com efeitos tinham mais, até 32 `PIXMAP` com 704.257 bytes, pelos níveis do desfoque, pelas janelas desvanecendo e pelas capturas retidas, e cada volta à configuração simples voltava à base. A memória residente do Compust foi de 4.212 KiB na base a 4.280 KiB até o ciclo 1.000 e ficou em 4.284 KiB do ciclo 5.000 até o fim. Uma execução anterior do mesmo teste terminou com os mesmos recursos, com 4.324 e 4.396 KiB.
 
-O amostrador da semana de uso diário foi conferido num Xvfb aninhado, onde registrou a parada do Compust como `absent`, o reinício como um PID e um horário de início novos e um tempo limite do Present escrito no log. A semana em si ainda não começou.
+O amostrador da semana de uso diário foi conferido num Xvfb aninhado, onde registrou a parada do Compust como `absent`, o reinício como um PID e um horário de início novos e um tempo limite do Present escrito no log. A semana em si ainda não tinha começado; uma [semana de ensaio](#semana-de-ensaio-registrada-2026-11-06-a-2026-11-14) veio depois.
+
+## Semana de ensaio registrada: 2026-11-06 a 2026-11-14
+
+O amostrador rodou no desktop com Radeon Vega de 2026-11-06 14:42 a 2026-11-14 09:23 -03:00, enquanto o Compust 0.3.0-beta.4 compunha as sessões diárias do dono. O Xmonad 0.18.1 iniciava o binário instalado, idêntico ao do arquivo da versão (SHA-256 `adebd572ee8788bfab1b414ef77d8bc9b404b482670566730ccaa7be1a6852bd`), com o pintor GL, Present, fades, desfoque, sombras e cantos arredondados. A máquina tem um AMD Ryzen 5 5600GT com gráficos Radeon Vega (amdgpu com modesetting, Mesa 26.2.6) e HDMI-1 e DP-1 em 1920×1080, 60 Hz. Ela rodou o XLibre 25.1.9 até a sessão de 2026-11-10, quando foi atualizado, e o 25.1.11 a partir de 2026-11-11, com Linux 7.3.1 e, a partir da segunda sessão de 2026-11-09, 7.3.3. Um bloco em `~/.xprofile` iniciava o amostrador a cada login, lendo o log da sessão `~/.local/share/sddm/xorg-session.log`. As [linhas e o resumo](benchmarks/2026-11-14/endurance-rehearsal-vega/README.md) estão arquivados.
+
+As 314 linhas cobrem 7,77 dias em dez sessões do servidor X. A máquina ficou ligada na tarde da primeira sexta-feira, cerca de nove horas e meia em cada dia útil de segunda a sexta e no login da última manhã, e desligada no fim de semana: 293 linhas, cerca de 49 horas, encontraram o Compust rodando. O resumo aprovou três das suas quatro partes:
+
+| Parte | Registrado | Resultado |
+| --- | --- | --- |
+| Duração | 7,77 dias | PASS |
+| Tempos limite do Present | Nenhum em nenhuma sessão | PASS |
+| Memória ociosa | 76.104 KiB no primeiro dia, de 2 amostras ociosas; 75.476 KiB no último, de 14; −0,82% | PASS |
+| Sem falhas | Nenhum reinício; 12 linhas `absent` depois de o Compust ter começado; uma sessão sem compositor | FAIL |
+
+Nenhuma das falhas é um crash. Em 2026-11-12 o dono parou o Compust à mão às 15:59 e o deixou parado até a sessão terminar às 17:57, o que dá as 12 linhas `absent` de 16:05 a 17:55. O journal não tem core dump nem mensagem do kernel sobre o Compust. A sessão sem compositor durou sete minutos, em 2026-11-10 das 08:29 até um reboot às 08:36, e sua única linha foi tirada no login, antes de o Xmonad iniciar o Compust. O SDDM já tinha reescrito o log da sessão, então não dá mais para ler se o Compust começou nela. As nove sessões que o amostrador iniciou no login abrem com uma linha `absent` desse tipo; o critério deixa essas linhas de fora, a não ser que o Compust nunca apareça na sessão.
+
+A memória do Compust não cresceu dentro de uma sessão. Nos cinco dias úteis completos, de 7,2 a 9,7 horas, a memória residente na última linha ficou no máximo 108 KiB acima da que tinha uma hora depois da primeira, e abaixo dela em quatro deles: de 77.900 para 77.504 KiB em 2026-11-09, de 77.964 para 67.316 KiB em 2026-11-10, de 77.616 para 76.020 KiB em 2026-11-11, de 77.608 para 77.716 KiB em 2026-11-12 antes da parada e de 77.280 para 65.012 KiB em 2026-11-13. Na semana ela variou de 65.012 a 83.008 KiB. Os bytes de pixmaps próprios acompanharam as janelas abertas, de 26,5 a 59,0 MB, e o XRes contou de 73 a 170 recursos do Compust. A memória residente do servidor X subiu de cerca de 98 MB a cada login para entre 150 e 185 MB durante o dia, e recomeçou a cada sessão; ela conta os recursos de todos os clientes, e o critério não a usa.
+
+O ensaio mudou o amostrador e este guia. A primeira amostra agora espera um compositor, como [acima](#executar-os-testes-de-uso-prolongado). Num Xvfb privado, um amostrador iniciado quatro segundos antes do Compust gravou uma linha `ok` menos de um segundo depois do início do Compust; sem compositor, gravou `absent` ao fim de uma espera de três segundos, e `--startup-grace 0` amostrou na hora. O guia agora pede um log que um login não reescreva e que o Compust fique rodando a semana inteira. Restam dois limites para a semana que conta: a memória ociosa do primeiro dia veio de 2 amostras, já que o amostrador começou numa tarde de sexta-feira, e a duração conta dias corridos, então uma máquina desligada no fim de semana chega a sete dias com cerca de 49 horas de composição.
 
 ## Concluir os critérios de hardware
 

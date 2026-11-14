@@ -34,6 +34,8 @@ const SECONDS_PER_DAY: u64 = 86_400;
 const REQUIRED_DAYS: u64 = 7;
 const MIN_MEMORY_DAYS: u64 = 2;
 const PRESENT_TIMEOUT_WARNING: &str = "Present did not finish a submission";
+/// How often the first sample checks for a compositor during the startup grace.
+const STARTUP_POLL: Duration = Duration::from_secs(1);
 
 const CSV_HEADER: &str = "unix_time,utc,status,pid,start_time,rss_kib,pixmap_bytes,resources_total,PIXMAP,PICTURE,WINDOW,DAMAGE,REGION,GC,FENCE,resources,idle_ms,present_timeouts,server_rss_kib,server_session";
 
@@ -71,6 +73,11 @@ struct SampleArgs {
     /// a shutdown ended.
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     server_pid: Option<u32>,
+    /// Seconds the first sample waits for a compositor to own the selection, so that a sampler
+    /// started at login, before the window manager starts Compust, does not record it as absent.
+    /// The first row is `absent` only when none appears within this time; 0 samples at once.
+    #[arg(long, default_value_t = 120)]
+    startup_grace: u64,
     /// Take one sample and exit.
     #[arg(long)]
     once: bool,
@@ -159,12 +166,8 @@ impl SessionSampler {
         Ok(u64::from(info.ms_since_user_input))
     }
 
-    /// Sample the active compositor if one owns `_NET_WM_CM_S<screen>`.
-    ///
-    /// Returns `Ok(None)` when no compositor owns the selection or when the owner disappears
-    /// while its `XRes` or `/proc` state is being read; returns `Err` only when the X connection
-    /// itself fails.
-    fn sample_compositor(&mut self) -> Result<Option<CompositorMetrics>> {
+    /// The window that owns `_NET_WM_CM_S<screen>`, if a compositor owns it.
+    fn selection_owner(&mut self) -> Result<Option<u32>> {
         if self.selection_atom == NONE {
             // `only_if_exists = true` avoids creating the atom before a compositor has run.
             self.selection_atom = self
@@ -181,9 +184,18 @@ impl SessionSampler {
             .get_selection_owner(self.selection_atom)?
             .reply()?
             .owner;
-        if owner == NONE {
+        Ok((owner != NONE).then_some(owner))
+    }
+
+    /// Sample the active compositor if one owns `_NET_WM_CM_S<screen>`.
+    ///
+    /// Returns `Ok(None)` when no compositor owns the selection or when the owner disappears
+    /// while its `XRes` or `/proc` state is being read; returns `Err` only when the X connection
+    /// itself fails.
+    fn sample_compositor(&mut self) -> Result<Option<CompositorMetrics>> {
+        let Some(owner) = self.selection_owner()? else {
             return Ok(None);
-        }
+        };
         let ids_cookie = self.conn.res_query_client_ids(&[ClientIdSpec {
             client: owner,
             mask: ClientIdMask::LOCAL_CLIENT_PID,
@@ -456,6 +468,13 @@ fn run_sample(args: &SampleArgs) -> Result<()> {
         writer.flush()?;
     }
 
+    wait_for_compositor(
+        Duration::from_secs(args.startup_grace),
+        STARTUP_POLL,
+        || Ok(sampler.selection_owner()?.is_some()),
+        thread::sleep,
+    )?;
+
     let mut log_counter = LogCounter::default();
     let interval = Duration::from_secs(args.interval);
     loop {
@@ -490,6 +509,29 @@ fn run_sample(args: &SampleArgs) -> Result<()> {
             return Ok(());
         }
         thread::sleep(interval);
+    }
+}
+
+/// Waits until `present` reports a compositor or `grace` has passed, checking every `poll`, and
+/// returns whether one appeared. The last pause is shortened so that the final check falls at
+/// the end of the grace.
+fn wait_for_compositor(
+    grace: Duration,
+    poll: Duration,
+    mut present: impl FnMut() -> Result<bool>,
+    mut sleep: impl FnMut(Duration),
+) -> Result<bool> {
+    let mut waited = Duration::ZERO;
+    loop {
+        if present()? {
+            return Ok(true);
+        }
+        if waited >= grace {
+            return Ok(false);
+        }
+        let pause = poll.min(grace.saturating_sub(waited));
+        sleep(pause);
+        waited = waited.saturating_add(pause);
     }
 }
 
@@ -1384,6 +1426,69 @@ mod tests {
         assert!(!eval.passed);
         assert_eq!(eval.total, 3);
         assert_eq!(eval.truncated_intervals, 1);
+    }
+
+    #[test]
+    fn first_sample_waits_for_a_compositor_within_the_startup_grace() {
+        let second = Duration::from_secs(1);
+
+        // A compositor that takes the selection on the fourth check is found after three pauses.
+        let mut checks = 0;
+        let mut pauses = Vec::new();
+        let found = wait_for_compositor(
+            Duration::from_secs(120),
+            second,
+            || {
+                checks += 1;
+                Ok(checks == 4)
+            },
+            |pause| pauses.push(pause),
+        )
+        .unwrap();
+        assert!(found);
+        assert_eq!(checks, 4);
+        assert_eq!(pauses, [second; 3]);
+
+        // Without one, the last pause ends at the grace and one more check follows it.
+        let mut checks = 0;
+        let mut pauses = Vec::new();
+        let found = wait_for_compositor(
+            Duration::from_millis(2_500),
+            second,
+            || {
+                checks += 1;
+                Ok(false)
+            },
+            |pause| pauses.push(pause),
+        )
+        .unwrap();
+        assert!(!found);
+        assert_eq!(checks, 4);
+        assert_eq!(pauses, [second, second, Duration::from_millis(500)]);
+
+        // A zero grace checks once and never sleeps.
+        let mut checks = 0;
+        let found = wait_for_compositor(
+            Duration::ZERO,
+            second,
+            || {
+                checks += 1;
+                Ok(false)
+            },
+            |_| panic!("a zero grace must not sleep"),
+        )
+        .unwrap();
+        assert!(!found);
+        assert_eq!(checks, 1);
+
+        // An X error while waiting stops the sampler.
+        let error = wait_for_compositor(
+            Duration::from_secs(120),
+            second,
+            || bail!("connection lost"),
+            |_| {},
+        );
+        assert!(error.is_err());
     }
 
     #[test]

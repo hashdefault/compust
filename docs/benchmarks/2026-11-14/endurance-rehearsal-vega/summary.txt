@@ -1,0 +1,5 @@
+span: first=2026-11-06T17:42:17Z (1793986937) last=2026-11-14T12:23:42Z (1794659022) days=7.77 (target >= 7.00): PASS
+no_crash: sessions=10 restarts=0 absent_rows=12 startup_absent_rows=9 sessions_without_compositor=1: FAIL
+present_timeouts: total=0 max_interval_added=0 consecutive_single=false truncated_intervals=0: PASS
+idle_memory: first_24h_median_kib=76104 (n=2, idle samples) last_24h_median_kib=75476 (n=14, idle samples) delta=-0.82% (limit within 5.00% either way): PASS
+result: FAIL
